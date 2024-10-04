@@ -44,12 +44,10 @@ export default function Statistics() {
     <div className={styles.container}>
       <h1 className={styles.header}>Statistiken</h1>
       
-      {/* Button zum Excel-Export */}
       <button className={styles.exportButton} onClick={handleExport}>
         Exportiere Excel-Tabellen
       </button>
 
-      {/* Klassen-Statistiken */}
       <div className={styles.section}>
         <h2 
           className={styles.toggleHeader} 
@@ -79,7 +77,6 @@ export default function Statistics() {
         )}
       </div>
       
-      {/* Top Schüler */}
       <div className={styles.section}>
         <h2 
           className={styles.toggleHeader} 
@@ -111,7 +108,6 @@ export default function Statistics() {
         )}
       </div>
       
-      {/* Gesamtstatistiken */}
       <div className={styles.section}>
         <h2 
           className={styles.toggleHeader} 

@@ -1,11 +1,16 @@
 import { useState } from 'react';
 import styles from '../styles/Setup.module.css';
+import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
 export default function Setup() {
     const [file, setFile] = useState(null);
     const [message, setMessage] = useState('');
     const [insertedCount, setInsertedCount] = useState(0);
     const [loading, setLoading] = useState({ upload: false, labels: false });
+    const [password, setPassword] = useState('');
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const correctPassword = 'Sponsorenlauf!'; 
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleFileChange = (e) => {
         setFile(e.target.files[0]);
@@ -70,7 +75,6 @@ export default function Setup() {
             const labelBlob = await labelResponse.blob();
             const labelUrl = URL.createObjectURL(labelBlob);
 
-            // Automatischer Download der generierten PDF
             const a = document.createElement('a');
             a.href = labelUrl;
             a.download = 'etiketten.pdf';
@@ -87,34 +91,73 @@ export default function Setup() {
         }
     };
 
+    const handlePasswordSubmit = (e) => {
+        e.preventDefault();
+        if (password === correctPassword) {
+            setIsAuthenticated(true);
+            setMessage('Passwort korrekt! Sie können jetzt die Funktionen verwenden.');
+        } else {
+            setMessage('Falsches Passwort! Bitte versuchen Sie es erneut.');
+        }
+    };
+
     return (
         <div className={styles.container}>
             <h1 className={styles.title}>Setup: Excel-Datei hochladen und Etiketten generieren</h1>
 
-            <form onSubmit={handleUploadExcel} className={styles.uploadForm}>
-                <input
-                    type="file"
-                    onChange={handleFileChange}
-                    accept=".xlsx"
-                    required
-                    className={styles.fileInput}
-                />
-                <button type="submit" className={styles.button} disabled={loading.upload}>
-                    Excel-Datei hochladen
-                </button>
-                <br />
-                {loading.upload && <div className={styles.progress} />}
+            {!isAuthenticated ? (
+                <form onSubmit={handlePasswordSubmit} className={styles.passwordForm}>
+                    <div className={styles.passwordInputContainer}>
+                        <input
+                            type={showPassword ? 'text' : 'password'} // Passwortsichtbarkeit steuern
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="Passwort eingeben"
+                            className={styles.passwordInput}
+                            required
+                        />
+                        <button
+                            type="button"
+                            className={styles.eyeButton}
+                            onClick={() => setShowPassword(!showPassword)} // Toggle Sichtbarkeit
+                        >
+                            {showPassword ? <FaEyeSlash /> : <FaEye />} {/* Augen-Symbol */}
+                        </button>
+                    </div>
+                    <button type="submit" className={styles.button}>
+                        Einloggen
+                    </button>
                 </form>
+            ) : (
+                <>
+                    <form onSubmit={handleUploadExcel} className={styles.uploadForm}>
+                        <input
+                            type="file"
+                            onChange={handleFileChange}
+                            accept=".xlsx"
+                            required
+                            className={styles.fileInput}
+                        />
+                        <button type="submit" className={styles.button} disabled={loading.upload}>
+                            Excel-Datei hochladen
+                        </button>
+                        <br />
+                        {loading.upload && <div className={styles.progress} />}
+                    </form>
+
+                    {message && <p className={styles.message}>{message}</p>}
+
+                    {insertedCount > 0 && <p className={styles.message}>Eingefügte Datensätze: {insertedCount}</p>}
+
+                    <button onClick={handleGenerateLabels} className={styles.button} disabled={loading.labels}>
+                        Etiketten downloaden
+                    </button>
+                    <br />
+                    {loading.labels && <div className={styles.progress} />}
+                </>
+            )}
 
             {message && <p className={styles.message}>{message}</p>}
-
-            {insertedCount > 0 && <p className={styles.message}>Eingefügte Datensätze: {insertedCount}</p>}
-
-            <button onClick={handleGenerateLabels} className={styles.button} disabled={loading.labels}>
-                Etiketten downloaden
-            </button>
-            <br />
-            {loading.labels && <div className={styles.progress} />}
-            </div>
+        </div>
     );
 }

@@ -113,3 +113,28 @@
     color: #0056b3;
     text-decoration: underline;
 }
+
+.passwordInputContainer {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+
+.passwordInput {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    width: 100%;
+    max-width: 300px;
+    margin-right: 10px;
+}
+
+.eyeButton {
+    background: none; 
+    border: none; 
+    cursor: pointer;
+    color: #4a90e2;
+    font-size: 1.2rem;
+}

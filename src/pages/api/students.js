@@ -1,7 +1,6 @@
 const sqlite3 = require('sqlite3').verbose();
 const db = new sqlite3.Database('./data/students.db');
 
-// Hilfsfunktion zum Laden der Daten aus der Datenbank und Parsen des timestamps-Strings
 const loadStudents = () => {
   return new Promise((resolve, reject) => {
     db.all('SELECT * FROM students', [], (err, rows) => {
@@ -9,11 +8,10 @@ const loadStudents = () => {
         reject(err);
       }
 
-      // Parse den 'timestamps'-String in ein Array, falls vorhanden
       const parsedRows = rows.map(student => {
         return {
           ...student,
-          timestamps: student.timestamps ? JSON.parse(student.timestamps) : [] // Parsen oder leeres Array zurückgeben
+          timestamps: student.timestamps ? JSON.parse(student.timestamps) : []
         };
       });
 

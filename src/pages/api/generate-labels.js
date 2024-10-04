@@ -1,4 +1,3 @@
-// pages/api/generate-labels.js
 import PDFDocument from 'pdfkit';
 import bwipjs from 'bwip-js';
 import sqlite3 from 'sqlite3';

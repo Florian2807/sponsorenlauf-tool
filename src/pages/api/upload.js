@@ -5,7 +5,7 @@ import AdmZip from 'adm-zip';
 
 export const config = {
     api: {
-        bodyParser: false, // Disable body parsing to handle file uploads
+        bodyParser: false,
     },
 };
 
@@ -15,14 +15,14 @@ export default async function handler(req, res) {
 
         await form.parse(req, (err, fields, files) => {
             if (err) {
-                console.error('Upload Error:', err); // Log the error for debugging
+                console.error('Upload Error:', err);
                 return res.status(500).json({ message: 'Fehler beim Hochladen der Datei' });
             }
 
             const uploadedFile = files.zipfile[0].filepath
 
             if (!uploadedFile) {
-                console.error('No file uploaded:', files); // Log files object if no file is found
+                console.error('No file uploaded:', files);
                 return res.status(400).json({ message: 'Keine gültige Datei hochgeladen' });
             }
             const zip = new AdmZip(uploadedFile);
@@ -31,11 +31,10 @@ export default async function handler(req, res) {
 
             zipEntries.forEach((entry) => {
                 if (entry.entryName.endsWith('.xlsx')) {
-                    const className = path.basename(entry.entryName, '.xlsx'); // Extract class name
+                    const className = path.basename(entry.entryName, '.xlsx');
                     const filePath = path.join('./data/exportFiles', entry.entryName);
-                    fs.writeFileSync(filePath, entry.getData()); // Save the file
+                    fs.writeFileSync(filePath, entry.getData());
 
-                    // Add class name and file path to teacherFiles
                     teacherFiles[className] = filePath;
                 }
             });

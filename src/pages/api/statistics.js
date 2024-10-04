@@ -1,14 +1,12 @@
 const sqlite3 = require('sqlite3').verbose();
 const db = new sqlite3.Database('./data/students.db');
 
-// Hilfsfunktion, um alle Schüler aus der Datenbank zu laden
 const loadStudentsFromDB = () => {
   return new Promise((resolve, reject) => {
     db.all('SELECT * FROM students', (err, rows) => {
       if (err) {
         reject(err);
       } else {
-        // Timestamps von JSON-String in ein Array umwandeln
         const students = rows.map(row => ({
           ...row,
           timestamps: row.timestamps ? JSON.parse(row.timestamps) : []
@@ -19,7 +17,6 @@ const loadStudentsFromDB = () => {
   });
 };
 
-// Funktion zur Berechnung der Statistiken
 const calculateStatistics = (students) => {
   const classStats = {};
   let totalRounds = 0;
@@ -65,11 +62,8 @@ const calculateStatistics = (students) => {
 export default async function handler(req, res) {
   if (req.method === 'GET') {
     try {
-      // Lade die Schüler aus der Datenbank
       const students = await loadStudentsFromDB();
-      // Berechne die Statistiken
       const statistics = calculateStatistics(students);
-      // Sende die Statistiken als Antwort
       return res.status(200).json(statistics);
     } catch (error) {
       return res.status(500).json({ error: 'Fehler beim Abrufen der Daten' });

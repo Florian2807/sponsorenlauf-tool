@@ -8,24 +8,21 @@ export default function Scan() {
   const [savedID, setSavedID] = useState('');
   const [currentTimestamp, setCurrentTimestamp] = useState(null);
   const [message, setMessage] = useState('');
-  const [messageType, setMessageType] = useState(''); // Track the message type
+  const [messageType, setMessageType] = useState(''); 
   const [studentInfo, setStudentInfo] = useState(null);
-  const [showEnterPopup, setShowEnterPopup] = useState(false); // Status für das Enter-Popup
-  const inputRef = useRef(null); // Referenz für das Eingabefeld
+  const [showEnterPopup, setShowEnterPopup] = useState(false);
+  const inputRef = useRef(null);
 
-  // Fokussiere das Eingabefeld beim Laden der Komponente
   useEffect(() => {
     inputRef.current.focus();
 
-    // Event-Listener für Tastatureingaben
     const handleKeyDown = (event) => {
       if (event.key === 'Enter' && document.activeElement !== inputRef.current) {
-        event.preventDefault(); // Verhindert das Standardverhalten
-        setShowEnterPopup(true); // Zeige das Enter-Popup an
+        event.preventDefault(); 
+        setShowEnterPopup(true); 
       }
     };
 
-    // Cleanup des Event-Listeners
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
@@ -34,39 +31,39 @@ export default function Scan() {
   }, []);
 
   const handleInputChange = (e) => {
-    const newValue = e.target.value; // Neuen Wert aus dem Eingabefeld
-    setID(newValue); // Aktualisiere den ID-Status
-    setSavedID(newValue); // Speichere den neuen Wert
+    const newValue = e.target.value; 
+    setID(newValue); 
+    setSavedID(newValue);
   };
 
   const handleSubmit = async (event) => {
-    event.preventDefault(); // Verhindert das Standard-Formular-Submit-Verhalten
+    event.preventDefault();
 
     try {
-      const response = await axios.post('/api/runden', { id: id.replace(/2024[ß\/\-]/gm, ''), date: new Date() });
+      const response = await axios.post('/api/runden', { id: id.replace(new RegExp(`/${new Date().getFullYear()}[ß\/\-]/gm`), ''), date: new Date() });
 
       if (response.data.success) {
         setMessage('Runde erfolgreich gezählt!');
-        setMessageType('success'); // Set message type to success
-        // Fetch student information based on ID
-        const studentResponse = await axios.get(`/api/students/${id.replace(/2024[ß\/\-]/gm, '')}`);
+        setMessageType('success');
+
+        const studentResponse = await axios.get(`/api/students/${id.replace(new RegExp(`/${new Date().getFullYear()}[ß\/\-]/gm`), '')}`);
         setStudentInfo(studentResponse.data);
         setCurrentTimestamp(new Date());
-        setID(''); // Leere das Eingabefeld nach erfolgreichem Scannen
+        setID('');
       } else {
         setID('');
         setMessage('Fehler beim Scannen der Runde');
-        setMessageType('error'); // Set message type to error
+        setMessageType('error');
         setStudentInfo(null);
       }
     } catch (error) {
       setID('');
       if (error.response?.status === 404) {
         setMessage('Datensatz nicht gefunden');
-        setMessageType('error'); // Set message type to error
+        setMessageType('error');
       } else {
         setMessage('Fehler beim Scannen der Runde');
-        setMessageType('error'); // Set message type to error
+        setMessageType('error');
       }
       setStudentInfo(null);
     }
@@ -74,7 +71,7 @@ export default function Scan() {
 
   const handleDeleteTimestamp = (selectedStudent, indexToRemove) => {
     const updatedTimestamps = selectedStudent.timestamps.filter((_, index) => index !== indexToRemove);
-    axios.put(`/api/students/${savedID.replace(/2024[ß\/\-]/gm, '')}`, { timestamps: updatedTimestamps })
+    axios.put(`/api/students/${savedID.replace(new RegExp(`/${new Date().getFullYear()}[ß\/\-]/gm`), '')}`, { timestamps: updatedTimestamps })
       .then(() => {
         setStudentInfo((prevStudentInfo) => ({
           ...prevStudentInfo,
@@ -93,13 +90,13 @@ export default function Scan() {
 
   return (
     <div className={styles.container}>
-      <h1 className={styles.title}>Sponsorenlauf 2024</h1>
+      <h1 className={styles.title}>Sponsorenlauf {new Date().getFullYear()}</h1>
       <form onSubmit={handleSubmit} className={styles.form}>
         <input
           type="text"
-          ref={inputRef}  // Referenz für das Eingabefeld
+          ref={inputRef}
           value={id}
-          onChange={handleInputChange} // Handle input change
+          onChange={handleInputChange}
           placeholder="Barcode scannen"
           required
           className={styles.input}

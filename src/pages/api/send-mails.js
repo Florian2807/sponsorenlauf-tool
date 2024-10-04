@@ -34,9 +34,9 @@ export default async function handler(req, res) {
                     to: teacherEmail[0],
                     cc: teacherEmail.slice(1).join(', '),
                     bcc: process.env.OUTLOOK_MAIL,
-                    subject: `Sponsorenlauf 2024`,
+                    subject: `Sponsorenlauf ${new Date().getFullYear()} - Schülerliste ${className}`,
                     text: 
-                    `Sehr geehrte Lehrkraft,\n\nanbei finden Sie die Liste der Schülerinnen und Schüler Ihrer Klasse für den Sponsorenlauf 2024.\n\nSchüler, die mehrmals in dieser Liste stehen, sollten die Runden bitte addiert werden, da diese eine Ersatzkarte erhalten haben.\n\nMit freundlichen Grüßen,\n\n Ihr SV-Team`,
+                    `Sehr geehrte Lehrkraft,\n\nanbei finden Sie die Liste der Schülerinnen und Schüler Ihrer Klasse für den Sponsorenlauf ${new Date().getFullYear()}.\n\nSchüler, die mehrmals in dieser Liste stehen, sollten die Runden bitte addiert werden, da diese eine Ersatzkarte erhalten haben.\n\nMit freundlichen Grüßen,\n\n Ihr SV-Team`,
                     attachments: [
                         {
                             filename: `${className}.xlsx`,
@@ -56,7 +56,7 @@ export default async function handler(req, res) {
 
             res.status(200).json({ message: 'E-Mails wurden erfolgreich versendet' });
         } catch (error) {
-            console.error(error); // Logging des Fehlers
+            console.error(error);
             res.status(500).json({ message: 'Fehler beim Senden der E-Mails', error });
         }
     } else {

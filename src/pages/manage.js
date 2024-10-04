@@ -40,14 +40,13 @@ export default function Manage() {
       [...prevStudents].sort((a, b) => {
         const aValue = a[field];
         const bValue = b[field];
-        // Überprüfe, ob das Feld 'id' ist und wandle es zu Zahlen für numerische Sortierung
+
         if (field === 'id') {
           return direction === 'asc'
             ? parseInt(aValue) - parseInt(bValue)
             : parseInt(bValue) - parseInt(aValue);
         }
   
-        // Standardmäßige String-Sortierung für andere Felder
         if (aValue < bValue) return direction === 'asc' ? -1 : 1;
         if (aValue > bValue) return direction === 'asc' ? 1 : -1;
         return 0;

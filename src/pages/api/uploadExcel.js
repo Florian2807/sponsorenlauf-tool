@@ -1,23 +1,16 @@
-// pages/api/uploadExcel.js
-
 import sqlite3 from 'sqlite3';
 import xlsx from 'xlsx';
 import multer from 'multer';
 
-// Konfiguriere multer für das Speichern von Dateien im Speicher
 const upload = multer({ storage: multer.memoryStorage() });
 
-// Middleware für die Verarbeitung von Datei-Uploads
 const uploadMiddleware = upload.single('file');
 
-// API-Handler
 export default async function handler(req, res) {
-  // Überprüfen, ob die Methode POST ist
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
-  // Verwende die Middleware manuell
   uploadMiddleware(req, res, async (err) => {
     if (err) {
       return res.status(500).json({ message: 'Error uploading file' });
@@ -31,7 +24,7 @@ export default async function handler(req, res) {
       const worksheet = workbook.Sheets[firstSheetName];
 
       const data = xlsx.utils.sheet_to_json(worksheet, { header: ['vorname', 'nachname', 'klasse'], defval: '', range: 1 });
-      // Verbindung zur SQLite-Datenbank herstellen
+
       const db = new sqlite3.Database('./data/students.db', (err) => {
         if (err) {
           console.error('Fehler beim Öffnen der Datenbank:', err.message);
@@ -78,7 +71,6 @@ export default async function handler(req, res) {
       });
 
 
-      // Verbindung schließen und Erfolgsmeldung senden
       db.close((err) => {
         if (err) {
           console.error('Fehler beim Schließen der Datenbank:', err.message);
@@ -95,9 +87,8 @@ export default async function handler(req, res) {
   });
 }
 
-// Config für das Request-Body Parsing auf Buffer stellen
 export const config = {
   api: {
-    bodyParser: false, // Deaktiviere den Next.js Body-Parser, da wir multer verwenden
+    bodyParser: false,
   },
 };

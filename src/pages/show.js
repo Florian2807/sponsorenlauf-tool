@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import styles from '../styles/Show.module.css'; // Importiere die CSS-Datei
+import styles from '../styles/Show.module.css';
 import { formatDate, timeAgo } from 'utils/globalFunctions';
 
 export default function Scan() {
@@ -8,21 +8,20 @@ export default function Scan() {
   const [savedID, setSavedID] = useState('');
   const [currentTimestamp, setCurrentTimestamp] = useState(null);
   const [message, setMessage] = useState('');
-  const [messageType, setMessageType] = useState(''); // Track the message type
+  const [messageType, setMessageType] = useState('');
   const [studentInfo, setStudentInfo] = useState(null);
-  // Erstelle eine Referenz für das Eingabefeld
+
   const inputRef = useRef(null);
 
-  // Fokussiere das Eingabefeld beim Laden der Komponente
   useEffect(() => {
     inputRef.current.focus();
   }, []);
 
   const handleSubmit = async (event) => {
-    event.preventDefault(); // Verhindert das Standard-Formular-Submit-Verhalten
+    event.preventDefault();
 
     try {
-      const response = await axios.get(`/api/students/${id.replace(/2024[ß\/\-]/gm, '')}`);
+      const response = await axios.get(`/api/students/${id.replace(new RegExp(`/${new Date().getFullYear()}[ß\/\-]/gm`), '')}`);
       if (response.status === 200) {
         setStudentInfo(response.data);
         setCurrentTimestamp(new Date());
@@ -42,7 +41,7 @@ export default function Scan() {
 
   const handleDeleteTimestamp = (selectedStudent, indexToRemove) => {
     const updatedTimestamps = selectedStudent.timestamps.filter((_, index) => index !== indexToRemove);
-    axios.put(`/api/students/${savedID.replace(/2024[ß\/\-]/gm, '')}`, { timestamps: updatedTimestamps })
+    axios.put(`/api/students/${savedID.replace(new RegExp(`/${new Date().getFullYear()}[ß\/\-]/gm`), '')}`, { timestamps: updatedTimestamps })
       .then(() => {
         setStudentInfo((prevStudentInfo) => ({
           ...prevStudentInfo,
@@ -61,7 +60,7 @@ export default function Scan() {
       <form onSubmit={handleSubmit} className={styles.form}>
         <input
           type="text"
-          ref={inputRef}  // Referenz für das Eingabefeld
+          ref={inputRef}
           value={id}
           onChange={(e) => {setSavedID(e.target.value); setID(e.target.value)}}
           placeholder="Barcode scannen"

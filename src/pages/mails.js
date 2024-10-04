@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import styles from '../styles/Mails.module.css'; // Importiere die CSS-Datei
+import styles from '../styles/Mails.module.css';
 
 export default function Home() {
     const [file, setFile] = useState(null);
@@ -7,13 +7,12 @@ export default function Home() {
     const [teacherFiles, setTeacherFiles] = useState({});
     const [message, setMessage] = useState('');
 
-    // Hook zum Laden der E-Mail-Adressen
     useEffect(() => {
         const fetchTeacherEmails = async () => {
             const response = await fetch('/api/teachers');
             if (response.ok) {
                 const data = await response.json();
-                setTeacherEmails(data); // E-Mail-Adressen in den State setzen
+                setTeacherEmails(data);
                 console.log(teacherEmails);
             } else {
                 console.error('Fehler beim Laden der Lehrer E-Mails');
@@ -21,7 +20,7 @@ export default function Home() {
         };
 
         fetchTeacherEmails();
-    }, []); // Nur beim ersten Rendern ausführen
+    }, []); 
 
     const handleFileChange = (e) => {
         setFile(e.target.files[0]);
@@ -102,7 +101,7 @@ export default function Home() {
                             <input
                                 type="email"
                                 placeholder="E-Mail-Adresse"
-                                value={teacherEmails[className] || ''} // Standardwert setzen
+                                value={teacherEmails[className] || ''}
                                 onChange={handleEmailChange(className)}
                                 className={styles.inputEmail}
                             />

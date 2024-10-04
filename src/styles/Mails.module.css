@@ -1,0 +1,72 @@
+.container {
+    max-width: 800px; /* Maximale Breite des Containers */
+    margin: 0 auto; /* Zentriert den Container */
+    padding: 20px; /* Innenabstand */
+    background-color: #f9f9f9; /* Hintergrundfarbe */
+    border-radius: 8px; /* Abgerundete Ecken */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Schatten für Tiefe */
+    text-align: center; /* Zentriert den Text im Container */
+}
+
+.title {
+    font-size: 2rem; /* Größe der Hauptüberschrift */
+    color: #333; /* Farbe der Überschrift */
+    margin-bottom: 20px; /* Abstand unter der Überschrift */
+}
+
+.form {
+    display: flex; /* Flexbox für Anordnung der Formularelemente */
+    flex-direction: column; /* Vertikale Anordnung */
+    align-items: center; /* Zentriert die Elemente horizontal */
+    gap: 10px; /* Abstand zwischen den Elementen */
+}
+
+.inputFile {
+    padding: 10px; /* Innenabstand */
+    border: 1px solid #ccc; /* Rahmen */
+    border-radius: 4px; /* Abgerundete Ecken */
+    font-size: 1rem; /* Schriftgröße */
+    width: 100%; /* Volle Breite des Containers */
+    max-width: 300px; /* Maximalbreite für das Eingabefeld */
+}
+
+.button {
+    padding: 10px 15px; /* Innenabstand */
+    border: none; /* Kein Rahmen */
+    border-radius: 4px; /* Abgerundete Ecken */
+    background-color: #007bff; /* Hintergrundfarbe */
+    color: white; /* Textfarbe */
+    font-size: 1rem; /* Schriftgröße */
+    cursor: pointer; /* Zeigercursor */
+    transition: background-color 0.3s; /* Übergang für Hover-Effekt */
+}
+
+.button:hover {
+    background-color: #0056b3; /* Dunklere Hintergrundfarbe bei Hover */
+}
+
+.subtitle {
+    margin-top: 20px; /* Abstand oben */
+    font-size: 1.5rem; /* Größe der Unterüberschrift */
+    color: #555; /* Farbe der Unterüberschrift */
+}
+
+.label {
+    font-weight: bold; /* Fettdruck für Labels */
+    display: block; /* Block-Element für bessere Anordnung */
+    margin: 10px 0 5px 0; /* Abstand */
+}
+
+.message {
+    margin-top: 10px; /* Abstand oben */
+    color: #d9534f; /* Fehlernachrichtfarbe */
+}
+
+.inputEmail {
+    padding: 10px; /* Innenabstand */
+    border: 1px solid #ccc; /* Rahmen */
+    border-radius: 4px; /* Abgerundete Ecken */
+    font-size: 1rem; /* Schriftgröße */
+    width: 100%; /* Volle Breite des Containers */
+    max-width: 300px; /* Maximalbreite für das Eingabefeld */
+}

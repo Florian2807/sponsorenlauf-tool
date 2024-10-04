@@ -1,0 +1,115 @@
+.container {
+    max-width: 1000px;
+    margin: 2rem auto;
+    padding: 1rem;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+.title {
+    font-size: 2rem;
+    color: #4a90e2;
+    margin-bottom: 1rem;
+}
+
+.description {
+    font-size: 1rem;
+    color: #666;
+    margin-bottom: 1rem;
+    text-align: center;
+    line-height: 1.5;
+}
+
+.uploadForm {
+    margin-bottom: 1.5rem;
+}
+
+.fileInput {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    width: 100%;
+    max-width: 300px;
+    margin: 0 auto;
+    display: block;
+    margin-bottom: 1rem;
+}
+
+.button {
+    background-color: #4a90e2;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin: 0.5rem;
+}
+
+.button:hover {
+    background-color: #357abd;
+}
+
+.button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+.progress {
+    width: 100%;
+    max-width: 300px;
+    height: 8px;
+    background-color: #e0e0e0;
+    border-radius: 4px;
+    margin-top: 10px;
+    overflow: hidden;
+    display: inline-block;
+}
+
+.progress::before {
+    content: '';
+    display: block;
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, #4a90e2, #357abd);
+    animation: loading 1.5s linear infinite;
+}
+
+@keyframes loading {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+.message {
+    font-size: 1rem;
+    color: #333;
+    margin-top: 1rem;
+    padding: 10px;
+    background-color: #e7f3ff;
+    border: 1px solid #b3d7ff;
+    border-radius: 4px;
+    width: 100%;
+    max-width: 600px;
+    margin: 0.5rem auto;
+}
+
+.downloadLink {
+    display: inline-block;
+    margin-top: 1rem;
+    font-size: 1rem;
+    color: #007BFF;
+    text-decoration: none;
+    transition: color 0.3s;
+}
+
+.downloadLink:hover {
+    color: #0056b3;
+    text-decoration: underline;
+}

@@ -54,7 +54,6 @@ export default async function handler(req, res) {
 
         data.forEach((row, index) => {
           const newId = parseInt(maxId + index + 1);
-          console.log(typeof newId, typeof row.vorname, typeof row.nachname, typeof row.klasse);
           db.run(
             insertQuery,
             [newId, row.vorname, row.nachname, row.klasse, '[]'],

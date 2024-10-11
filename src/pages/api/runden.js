@@ -62,7 +62,7 @@ export default async function handler(req, res) {
 
       const storedTimestamps = await updateStudentTimestamps(id, timestamps);
 
-      if (storedTimestamps.length !== timestamps.length || storedTimestamps[0] !== timestamps[1]) {
+      if (storedTimestamps.length !== timestamps.length || storedTimestamps[0] !== timestamps[0]) {
         return res.status(500).json({ error: 'Fehler beim Aktualisieren der Timestamps' });
       }
 
@@ -72,6 +72,7 @@ export default async function handler(req, res) {
         timestamps,
       });
     } catch (error) {
+      console.error(error)
       return res.status(500).json({ error: 'Fehler beim Aktualisieren der Timestamps' });
     }
   } else {

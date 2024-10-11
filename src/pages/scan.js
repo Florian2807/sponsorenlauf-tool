@@ -62,7 +62,8 @@ export default function Scan() {
         setMessage('Datensatz nicht gefunden');
         setMessageType('error');
       } else {
-        setMessage('Fehler beim Scannen der Runde');
+        console.error(error);
+        setMessage('Fehler beim speichern der Runde');
         setMessageType('error');
       }
       setStudentInfo(null);

@@ -10,20 +10,20 @@ export const config = {
   },
 };
 
-export default async function handler(req, res) {
+export default function handler(req, res) {
   if (req.method === 'POST') {
-    try {
-      db.all('SELECT * FROM students', async (err, rows) => {
-        if (err) {
-          console.error('Fehler beim Abrufen der Daten:', err);
-          return res.status(500).json({ message: 'Fehler beim Abrufen der Daten.' });
-        }
+    db.all('SELECT * FROM students', async (err, rows) => {
+      if (err) {
+        console.error('Fehler beim Abrufen der Daten:', err);
+        return res.status(500).json({ message: 'Fehler beim Abrufen der Daten.' });
+      }
 
-        if (rows.length === 0) {
-          console.error('Keine Daten in der Datenbank gefunden.');
-          return res.status(400).send('Keine Daten in der Datenbank gefunden.');
-        }
+      if (rows.length === 0) {
+        console.error('Keine Daten in der Datenbank gefunden.');
+        return res.status(400).send('Keine Daten in der Datenbank gefunden.');
+      }
 
+      try {
         const doc = new PDFDocument({ size: 'A4', margin: 30 });
         let pdfChunks = [];
         doc.on('data', chunk => pdfChunks.push(chunk));
@@ -46,19 +46,10 @@ export default async function handler(req, res) {
         for (const row of rows) {
           const { id: ID, vorname: Vorname, nachname: Nachname, klasse: Klasse } = row;
 
-          const barcodeBuffer = await bwipjs.toBuffer({
-            bcid: 'code128',       
-            text: `${new Date().getFullYear()}-${ID}`,
-            scale: 2,
-            height: 15,
-            includetext: true,
-            textxalign: 'center',
-          });
+          // Wandle Barcode-Generierung in eine Funktion um, um mit await korrekt zu arbeiten
+          const barcodeBuffer = await generateBarcode(ID);
 
-          // Zeichne das Label-Rahmen
-          // doc.rect(xPos, yPos, labelWidth, labelHeight).stroke();
-
-          // Zentriere den Namen im Label
+          // Zeichne den Namen und die Klasse auf das PDF
           doc.fontSize(14);
           const nameText = `${Nachname}, ${Vorname}`;
           const nameTextWidth = doc.widthOfString(nameText);
@@ -71,6 +62,7 @@ export default async function handler(req, res) {
           const barcodeY = yPos + 60;
           doc.image(barcodeBuffer, barcodeX, barcodeY, { width: 100 });
 
+          // Update der Position für das nächste Label
           if (labelCount % 2 === 0) {
             xPos += labelWidth + xOffset; 
           } else {
@@ -89,12 +81,24 @@ export default async function handler(req, res) {
         }
 
         doc.end();
-      });
-    } catch (error) {
-      console.error('Fehler beim Verarbeiten der Datenbank:', error);
-      return res.status(500).json({ message: 'Fehler beim Verarbeiten der Datenbank.' });
-    }
+      } catch (error) {
+        console.error('Fehler bei der PDF-Erstellung:', error);
+        return res.status(500).json({ message: 'Fehler bei der PDF-Erstellung.' });
+      }
+    });
   } else {
-    res.status(405).send({ message: 'Nur POST-Anfragen erlaubt' });
+    res.status(405).json({ message: 'Nur POST-Anfragen erlaubt' });
   }
+}
+
+// Hilfsfunktion zur Barcode-Erstellung
+async function generateBarcode(ID) {
+  return await bwipjs.toBuffer({
+    bcid: 'code128',       
+    text: `${new Date().getFullYear()}-${ID}`,
+    scale: 2,
+    height: 15,
+    includetext: true,
+    textxalign: 'center',
+  });
 }

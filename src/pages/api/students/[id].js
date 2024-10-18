@@ -67,7 +67,7 @@ export default async function handler(req, res) {
     } catch (error) {
       res.status(500).json({ error: 'Fehler beim Abrufen der Daten' });
     }
-  } 
+  }
   else if (req.method === 'POST') {
     const { vorname, nachname, klasse, timestamps } = req.body;
 
@@ -81,7 +81,7 @@ export default async function handler(req, res) {
     } catch (error) {
       res.status(500).json({ error: 'Fehler beim Speichern des Schülers' });
     }
-  } 
+  }
   else if (req.method === 'PUT') {
     const { vorname, nachname, klasse, timestamps } = req.body;
 
@@ -96,7 +96,7 @@ export default async function handler(req, res) {
     } catch (error) {
       res.status(500).json({ error: 'Fehler beim Aktualisieren des Schülers' });
     }
-  } 
+  }
   else if (req.method === 'DELETE') {
     try {
       const student = await getStudentById(id);
@@ -109,7 +109,7 @@ export default async function handler(req, res) {
     } catch (error) {
       res.status(500).json({ error: 'Fehler beim Löschen des Schülers' });
     }
-  } 
+  }
   else {
     res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE']);
     res.status(405).end(`Method ${req.method} Not Allowed`);

@@ -43,14 +43,14 @@ export default function Statistics() {
   return (
     <div className={styles.container}>
       <h1 className={styles.header}>Statistiken</h1>
-      
+
       <button className={styles.exportButton} onClick={handleExport}>
         Exportiere Excel-Tabellen
       </button>
 
       <div className={styles.section}>
-        <h2 
-          className={styles.toggleHeader} 
+        <h2
+          className={styles.toggleHeader}
           onClick={() => setShowClassStats(!showClassStats)}
         >
           Klassen-Statistiken {showClassStats ? '▲' : '▼'}
@@ -76,10 +76,10 @@ export default function Statistics() {
           </table>
         )}
       </div>
-      
+
       <div className={styles.section}>
-        <h2 
-          className={styles.toggleHeader} 
+        <h2
+          className={styles.toggleHeader}
           onClick={() => setShowTopStudents(!showTopStudents)}
         >
           Top Schüler {showTopStudents ? '▲' : '▼'}
@@ -107,10 +107,10 @@ export default function Statistics() {
           </table>
         )}
       </div>
-      
+
       <div className={styles.section}>
-        <h2 
-          className={styles.toggleHeader} 
+        <h2
+          className={styles.toggleHeader}
           onClick={() => setShowOverallStats(!showOverallStats)}
         >
           Gesamtstatistiken {showOverallStats ? '▲' : '▼'}

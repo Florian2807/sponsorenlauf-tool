@@ -20,13 +20,13 @@ export default async function handler(req, res) {
 
             for (const className in teacherEmails) {
                 if (!teacherEmails.hasOwnProperty(className)) continue;
-                
+
                 const teacherEmail = teacherEmails[className];
                 const classFile = teacherFiles[className];
 
                 if (!classFile || !teacherEmail.length) {
                     console.warn(`Keine Datei oder Mailadresse für ${className} gefunden.`);
-                    continue; 
+                    continue;
                 }
 
                 const mailOptions = {
@@ -35,13 +35,13 @@ export default async function handler(req, res) {
                     cc: teacherEmail.slice(1).join(', '),
                     bcc: process.env.OUTLOOK_MAIL,
                     subject: `Sponsorenlauf ${new Date().getFullYear()} - Schülerliste ${className}`,
-                    text: 
-                    `Sehr geehrte Lehrkraft,\n\nanbei finden Sie die Liste der Schülerinnen und Schüler Ihrer Klasse für den Sponsorenlauf ${new Date().getFullYear()}.\n\nSchüler, die mehrmals in dieser Liste stehen, sollten die Runden bitte addiert werden, da diese eine Ersatzkarte erhalten haben.\n\nMit freundlichen Grüßen,\n\n Ihr SV-Team`,
+                    text:
+                        `Sehr geehrte Lehrkraft,\n\nanbei finden Sie die Liste der Schülerinnen und Schüler Ihrer Klasse für den Sponsorenlauf ${new Date().getFullYear()}.\n\nSchüler, die mehrmals in dieser Liste stehen, sollten die Runden bitte addiert werden, da diese eine Ersatzkarte erhalten haben.\n\nMit freundlichen Grüßen,\n\n Ihr SV-Team`,
                     attachments: [
                         {
                             filename: `${className}.xlsx`,
                             content: fs.readFileSync(classFile),
-                            contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 
+                            contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                         },
                     ],
                 };

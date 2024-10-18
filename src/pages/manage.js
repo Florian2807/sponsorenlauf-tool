@@ -30,12 +30,12 @@ export default function Manage() {
     const response = await axios.get('/api/students');
     setStudents(response.data);
   };
-  
+
   const handleSort = (field) => {
     const direction = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
     setSortField(field);
     setSortDirection(direction);
-    
+
     setStudents((prevStudents) =>
       [...prevStudents].sort((a, b) => {
         const aValue = a[field];
@@ -46,14 +46,14 @@ export default function Manage() {
             ? parseInt(aValue) - parseInt(bValue)
             : parseInt(bValue) - parseInt(aValue);
         }
-  
+
         if (aValue < bValue) return direction === 'asc' ? -1 : 1;
         if (aValue > bValue) return direction === 'asc' ? 1 : -1;
         return 0;
       })
     );
   };
-  
+
 
   const handleEditClick = (student) => {
     setSelectedStudent(student);

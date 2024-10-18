@@ -20,7 +20,7 @@ export default function Home() {
         };
 
         fetchTeacherEmails();
-    }, []); 
+    }, []);
 
     const handleFileChange = (e) => {
         setFile(e.target.files[0]);
@@ -82,11 +82,11 @@ export default function Home() {
             <h1 className={styles.title}>ZIP-Datei hochladen und E-Mails senden</h1>
 
             <form onSubmit={handleUpload} className={styles.form}>
-                <input 
-                    type="file" 
-                    onChange={handleFileChange} 
-                    accept=".zip" 
-                    required 
+                <input
+                    type="file"
+                    onChange={handleFileChange}
+                    accept=".zip"
+                    required
                     className={styles.inputFile}
                 />
                 <button type="submit" className={styles.button}>Hochladen</button>

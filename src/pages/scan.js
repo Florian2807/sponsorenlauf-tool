@@ -8,7 +8,7 @@ export default function Scan() {
   const [savedID, setSavedID] = useState('');
   const [currentTimestamp, setCurrentTimestamp] = useState(null);
   const [message, setMessage] = useState('');
-  const [messageType, setMessageType] = useState(''); 
+  const [messageType, setMessageType] = useState('');
   const [studentInfo, setStudentInfo] = useState(null);
   const [showEnterPopup, setShowEnterPopup] = useState(false);
   const inputRef = useRef(null);
@@ -18,8 +18,8 @@ export default function Scan() {
 
     const handleKeyDown = (event) => {
       if (event.key === 'Enter' && document.activeElement !== inputRef.current) {
-        event.preventDefault(); 
-        setShowEnterPopup(true); 
+        event.preventDefault();
+        setShowEnterPopup(true);
       }
     };
 
@@ -31,8 +31,8 @@ export default function Scan() {
   }, []);
 
   const handleInputChange = (e) => {
-    const newValue = e.target.value; 
-    setID(newValue); 
+    const newValue = e.target.value;
+    setID(newValue);
     setSavedID(newValue);
   };
 

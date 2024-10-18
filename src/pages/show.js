@@ -62,7 +62,7 @@ export default function Scan() {
           type="text"
           ref={inputRef}
           value={id}
-          onChange={(e) => {setSavedID(e.target.value); setID(e.target.value)}}
+          onChange={(e) => { setSavedID(e.target.value); setID(e.target.value) }}
           placeholder="Barcode scannen"
           required
           className={styles.input}

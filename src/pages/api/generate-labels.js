@@ -64,7 +64,7 @@ export default function handler(req, res) {
 
           // Update der Position für das nächste Label
           if (labelCount % 2 === 0) {
-            xPos += labelWidth + xOffset; 
+            xPos += labelWidth + xOffset;
           } else {
             xPos = 30;
             yPos += labelHeight + yOffset;
@@ -94,7 +94,7 @@ export default function handler(req, res) {
 // Hilfsfunktion zur Barcode-Erstellung
 async function generateBarcode(ID) {
   return await bwipjs.toBuffer({
-    bcid: 'code128',       
+    bcid: 'code128',
     text: `${new Date().getFullYear()}-${ID}`,
     scale: 2,
     height: 15,

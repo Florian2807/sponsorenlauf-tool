@@ -76,7 +76,7 @@ export default async function handler(req, res) {
           return res.status(500).json({ message: 'Error closing database' });
         } else {
           console.log('Datenbankverbindung geschlossen.');
-          res.status(200).json({ message: 'Data successfully inserted', count: insertedCount});
+          res.status(200).json({ message: 'Data successfully inserted', count: insertedCount });
         }
       });
     } catch (error) {

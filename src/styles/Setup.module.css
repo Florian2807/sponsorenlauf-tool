@@ -14,14 +14,6 @@
     margin-bottom: 1rem;
 }
 
-.description {
-    font-size: 1rem;
-    color: #666;
-    margin-bottom: 1rem;
-    text-align: center;
-    line-height: 1.5;
-}
-
 .uploadForm {
     margin-bottom: 1.5rem;
 }
@@ -100,41 +92,85 @@
     margin: 0.5rem auto;
 }
 
-.downloadLink {
-    display: inline-block;
-    margin-top: 1rem;
-    font-size: 1rem;
-    color: #007BFF;
-    text-decoration: none;
-    transition: color 0.3s;
-}
-
-.downloadLink:hover {
-    color: #0056b3;
-    text-decoration: underline;
-}
-
-.passwordInputContainer {
-    position: relative;
+/* Popup Styles */
+.popup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
     display: flex;
     justify-content: center;
-    margin-bottom: 1rem;
+    align-items: center;
+    z-index: 10;
 }
 
-.passwordInput {
-    flex: 1;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    width: 100%;
-    max-width: 300px;
-    margin-right: 10px;
+.popupContent {
+    position: relative; /* Für die Positionierung des X */
+    background: #fff;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    width: 90%;
+    max-width: 600px;
+    border: 2px solid #4a90e2; /* Matching the style from manage.js */
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
 }
 
-.eyeButton {
-    background: none; 
-    border: none; 
+.closeButton {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
     cursor: pointer;
-    color: #4a90e2;
-    font-size: 1.2rem;
+    color: #333;
+}
+
+.closeButton:hover {
+    color: #f44336;
+}
+
+.buttonGroup {
+    display: flex;
+    justify-content: space-between;
+}
+
+.buttonCancel {
+    background-color: #f44336;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.buttonCancelDelete {
+    background-color: #4a90e2;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.buttonCancel:hover {
+    background-color: #d32f2f;
+}
+
+.buttonDelete {
+    background-color: #f44336;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.buttonDelete:hover {
+    background-color: #d32f2f; /* Dunklere Farbe beim Hover */
 }

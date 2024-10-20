@@ -1,5 +1,9 @@
 # Sponsorenlauf-Tool
 
+Currently this tool is german only. If you want to use this tool in english or have special wishes, please write a commit. I would love do that!
+
+Also if you want a demo version of this tool, you can hit me up and i'll give you access.
+
 ### Prinzip
 Dieses Tool dient für eine moderne/digitale Alternative zu Stempelkarten bei einem Sponsorenlauf. 
 

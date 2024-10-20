@@ -10,9 +10,7 @@ export default function Setup() {
     const [showPopup, setShowPopup] = useState(false);
     const [showConfirmDeletePopup, setShowConfirmDeletePopup] = useState(false);
     const [replacementData, setReplacementData] = useState({
-        className: '',
-        firstName: '',
-        lastName: '',
+        className: 'Ersatz',
         amount: 1
     });
 
@@ -211,28 +209,6 @@ export default function Setup() {
                                 value={replacementData.className}
                                 onChange={(e) =>
                                     setReplacementData({ ...replacementData, className: e.target.value })
-                                }
-                                className={styles.input}
-                            />
-                        </label>
-                        <label>
-                            Vorname:
-                            <input
-                                type="text"
-                                value={replacementData.firstName}
-                                onChange={(e) =>
-                                    setReplacementData({ ...replacementData, firstName: e.target.value })
-                                }
-                                className={styles.input}
-                            />
-                        </label>
-                        <label>
-                            Nachname:
-                            <input
-                                type="text"
-                                value={replacementData.lastName}
-                                onChange={(e) =>
-                                    setReplacementData({ ...replacementData, lastName: e.target.value })
                                 }
                                 className={styles.input}
                             />

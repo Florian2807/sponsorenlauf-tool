@@ -1,38 +1,32 @@
-/* Container für die gesamte Seite */
 .container {
   width: 70%;
   margin: 0 auto;
   padding: 20px;
 }
 
-/* Überschrift für die Statistik-Seite */
 .header {
   font-size: 2rem;
   margin-bottom: 20px;
   text-align: center;
 }
 
-/* Abschnittsüberschrift */
 .subHeader {
   font-size: 1.5rem;
   margin-bottom: 10px;
-  border-bottom: 2px solid #4a90e2; /* Blau unter der Überschrift */
+  border-bottom: 2px solid #4a90e2;
   padding-bottom: 5px;
 }
 
-/* Container für jeden Abschnitt */
 .section {
   margin-bottom: 30px;
 }
 
-/* Tabelle */
 .table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 10px;
 }
 
-/* Tabellen-Header */
 .tableHeader {
   background-color: #4a90e2;
   color: white;
@@ -40,19 +34,16 @@
   text-align: left;
 }
 
-/* Tabellen-Zellen */
 .tableCell {
   padding: 10px;
-  border-bottom: 1px solid #ddd; /* Dünne Linie zwischen den Zeilen */
+  border-bottom: 1px solid #ddd;
 }
 
-/* Stil für die Statistiken-Anzeige */
 .stats {
   font-size: 1.2rem;
   margin-top: 10px;
 }
 
-/* Stil für klickbare Überschriften (Toggle Header) */
 .toggleHeader {
   cursor: pointer;
   user-select: none;
@@ -61,24 +52,21 @@
   align-items: center;
   padding: 10px 0;
   font-size: 1.5rem;
-  border-bottom: 2px solid #4a90e2; /* Blau unter der Überschrift */
+  border-bottom: 2px solid #4a90e2;
 }
 
-/* Animation für ein- und ausklappbare Bereiche (optional) */
 .section table, 
 .section div {
   transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
   overflow: hidden;
 }
 
-/* Für ausgeblendete Sektionen (falls du zusätzliche Kontrolle brauchst) */
 .hidden {
   max-height: 0;
   opacity: 0;
   pointer-events: none;
 }
 
-/* Export-Button */
 .exportButton {
   background-color: #4a90e2;
   color: white;

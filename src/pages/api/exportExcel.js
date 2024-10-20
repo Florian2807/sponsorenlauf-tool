@@ -3,21 +3,18 @@ import { Workbook } from 'exceljs';
 import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
 
-// Funktion, um Daten aus der SQLite-Datenbank zu laden
 async function getClassData() {
   const db = await open({
     filename: './data/students.db',
     driver: sqlite3.Database,
   });
 
-  // Abfrage, um die Schülerdaten inklusive Timestamps zu erhalten
   const classData = await db.all(`
     SELECT klasse, vorname, nachname, timestamps
     FROM students
     ORDER BY klasse, nachname
   `);
 
-  // Strukturieren der Daten nach Klassen und Konvertierung der Timestamps
   const groupedByClass = classData.reduce((acc, row) => {
     const timestampsArray = row.timestamps ? JSON.parse(row.timestamps) : [];
 
@@ -27,7 +24,7 @@ async function getClassData() {
     acc[row.klasse].push({
       vorname: row.vorname,
       nachname: row.nachname,
-      rounds: timestampsArray.length, // Die Anzahl der Timestamps entspricht den Runden
+      rounds: timestampsArray.length,
     });
 
     return acc;
@@ -44,7 +41,6 @@ export default async function handler(req, res) {
 
       const classData = await getClassData();
 
-      // Erstelle Excel-Dateien für jede Klasse
       for (const [klasse, students] of Object.entries(classData)) {
         const workbook = new Workbook();
         const worksheet = workbook.addWorksheet('Schüler');
@@ -63,12 +59,12 @@ export default async function handler(req, res) {
           });
         });
 
-        // Excel-Datei zu ZIP-Archiv hinzufügen
+        // add the worksheet to the workbook
         const buffer = await workbook.xlsx.writeBuffer();
         zip.file(`${klasse}.xlsx`, buffer);
       }
 
-      // ZIP-Datei erzeugen
+      // create ZIP file
       const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' });
 
       res.setHeader('Content-Type', 'application/zip');

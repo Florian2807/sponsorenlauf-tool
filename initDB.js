@@ -2,7 +2,7 @@ const sqlite3 = require('sqlite3');
 
 const db = new sqlite3.Database('./data/students.db');
 
-// Erstelle die Tabelle, falls sie noch nicht existiert
+// Create a new table if it does not exist
 db.serialize(() => {
   db.run(`
     CREATE TABLE IF NOT EXISTS students (

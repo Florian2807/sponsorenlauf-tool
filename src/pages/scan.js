@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import styles from '../styles/Scan.module.css'; // Importiere die CSS-Datei
+import styles from '../styles/Scan.module.css'; 
 import { formatDate, timeAgo } from 'utils/globalFunctions';
 
 export default function Scan() {

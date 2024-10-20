@@ -139,35 +139,6 @@
   margin-bottom: 1rem;
 }
 
-.closeButton {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: transparent;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: #333;
-}
-
-
-.form {
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.form label {
-  margin-bottom: 0.5rem;
-}
-
-.form input {
-  padding: 8px;
-  margin-bottom: 1rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-}
-
 .popupButtons {
   display: flex;
   justify-content: space-between;
@@ -208,6 +179,34 @@
 
 .saveButton:hover {
   background-color: #357abd;
+}
+
+.closeButton {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #333;
+}
+
+.form {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.form label {
+  margin-bottom: 0.5rem;
+}
+
+.form input {
+  padding: 8px;
+  margin-bottom: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
 }
 
 .timestampList {

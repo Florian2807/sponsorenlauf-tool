@@ -1,8 +1,6 @@
-/* src/styles/Topbar.module.css */
-
 .topbar {
   display: flex;
-  align-items: center; /* Zentriere Items vertikal */
+  align-items: center;
   background-color: #4a90e2;
   padding: 20px;
   position: sticky;
@@ -12,16 +10,16 @@
 }
 
 .logo {
-  height: 60px; /* Höhe des Logos anpassen */
-  margin-right: 50px; /* Abstand zwischen Logo und Tabs */
+  height: 60px;
+  margin-right: 50px;
   position: absolute;
 }
 
 .navContainer {
   display: flex;
-  justify-content: center; /* Tabs in der Mitte ausrichten */
-  flex: 1; /* Vergrößert die Container-Breite, um Tabs zu zentrieren */
-  gap: 40px; /* Abstand zwischen den Tabs */
+  justify-content: center;
+  flex: 1;
+  gap: 40px;
 }
 
 .tab {
@@ -35,10 +33,10 @@
 }
 
 .tab:hover {
-  background-color: #357abd; /* Hover-Effekt */
-  transform: scale(1.05); /* Leichter Zoom bei Hover */
+  background-color: #357abd;
+  transform: scale(1.05);
 }
 
 .tab:active {
-  transform: scale(0.95); /* Kleinerer Effekt beim Klicken */
+  transform: scale(0.95);
 }

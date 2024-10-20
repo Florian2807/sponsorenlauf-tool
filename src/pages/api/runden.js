@@ -52,7 +52,7 @@ export default async function handler(req, res) {
         return res.status(404).json({ error: 'Schüler nicht gefunden' });
       }
 
-      // Neue Runde hinzufügen (aktueller Zeitstempel)
+      // add new round (timestamp) 
       const newTimestamp = new Date(date).toISOString();
       const timestamps = student.timestamps
         ? JSON.parse(student.timestamps)

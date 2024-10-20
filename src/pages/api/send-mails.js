@@ -46,12 +46,12 @@ export default async function handler(req, res) {
                     ],
                 };
 
-                // Sende die E-Mail
+                // send mail
                 await transporter.sendMail(mailOptions);
                 console.log(`E-Mail an ${className} gesendet`);
 
-                // Wartezeit zwischen den E-Mails
-                await new Promise((resolve) => setTimeout(resolve, 2000)); // 2 Sekunden warten
+                // wait 2 seconds
+                await new Promise((resolve) => setTimeout(resolve, 2000));
             }
 
             res.status(200).json({ message: 'E-Mails wurden erfolgreich versendet' });

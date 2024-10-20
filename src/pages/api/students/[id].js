@@ -2,7 +2,7 @@ import sqlite3 from 'sqlite3';
 
 const db = new sqlite3.Database('./data/students.db');
 
-// Hilfsfunktion zum Speichern von Daten
+// save student to database
 const saveStudent = (id, vorname, nachname, klasse, timestamps) => {
   return new Promise((resolve, reject) => {
     db.run(
@@ -17,7 +17,7 @@ const saveStudent = (id, vorname, nachname, klasse, timestamps) => {
   });
 };
 
-// Hilfsfunktion zum Laden eines Schülers
+// load student 
 const getStudentById = (id) => {
   return new Promise((resolve, reject) => {
     db.get(`SELECT * FROM students WHERE id = ?`, [id], (err, row) => {
@@ -27,7 +27,7 @@ const getStudentById = (id) => {
   });
 };
 
-// Hilfsfunktion zum Aktualisieren eines Schülers
+// update student
 const updateStudent = (id, vorname, nachname, klasse, timestamps) => {
   return new Promise((resolve, reject) => {
     db.run(
@@ -43,7 +43,7 @@ const updateStudent = (id, vorname, nachname, klasse, timestamps) => {
   });
 };
 
-// Hilfsfunktion zum Löschen eines Schülers
+// delete student
 const deleteStudent = (id) => {
   return new Promise((resolve, reject) => {
     db.run(`DELETE FROM students WHERE id = ?`, [id], function (err) {
@@ -59,7 +59,7 @@ export default async function handler(req, res) {
     try {
       const student = await getStudentById(id);
       if (student) {
-        student.timestamps = JSON.parse(student.timestamps); // Parsen des JSON-Timestamps
+        student.timestamps = JSON.parse(student.timestamps);
         res.status(200).json(student);
       } else {
         res.status(404).json({ error: 'Schüler nicht gefunden' });

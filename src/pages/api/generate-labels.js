@@ -46,10 +46,10 @@ export default function handler(req, res) {
         for (const row of rows) {
           const { id: ID, vorname: Vorname, nachname: Nachname, klasse: Klasse } = row;
 
-          // Wandle Barcode-Generierung in eine Funktion um, um mit await korrekt zu arbeiten
+          // create Barcode
           const barcodeBuffer = await generateBarcode(ID);
 
-          // Zeichne den Namen und die Klasse auf das PDF
+          // add label to PDF
           doc.fontSize(14);
           const nameText = `${Nachname}, ${Vorname}`;
           const nameTextWidth = doc.widthOfString(nameText);
@@ -62,7 +62,6 @@ export default function handler(req, res) {
           const barcodeY = yPos + 60;
           doc.image(barcodeBuffer, barcodeX, barcodeY, { width: 100 });
 
-          // Update der Position für das nächste Label
           if (labelCount % 2 === 0) {
             xPos += labelWidth + xOffset;
           } else {
@@ -72,7 +71,6 @@ export default function handler(req, res) {
 
           labelCount++;
 
-          // Seitenumbruch nach 10 Labels (5 Zeilen x 2 Spalten)
           if (labelCount % 10 === 0) {
             doc.addPage();
             xPos = 30;
@@ -91,7 +89,6 @@ export default function handler(req, res) {
   }
 }
 
-// Hilfsfunktion zur Barcode-Erstellung
 async function generateBarcode(ID) {
   return await bwipjs.toBuffer({
     bcid: 'code128',

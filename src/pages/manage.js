@@ -244,7 +244,7 @@ export default function Manage() {
                   className={styles.deleteButton}
                   onClick={handleDeleteStudent}
                 >
-                  Löschen
+                  Abbrechen
                 </button>
                 <button type="submit" className={styles.saveButton}>Speichern</button>
               </div>

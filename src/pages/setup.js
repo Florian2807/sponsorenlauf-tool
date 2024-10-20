@@ -8,7 +8,7 @@ export default function Setup() {
     const [insertedCount, setInsertedCount] = useState(0);
     const [loading, setLoading] = useState({ upload: false, labels: false, replacements: false });
     const [showPopup, setShowPopup] = useState(false);
-    const [showConfirmDeletePopup, setShowConfirmDeletePopup] = useState(false); // State für das Bestätigungs-Popup
+    const [showConfirmDeletePopup, setShowConfirmDeletePopup] = useState(false);
     const [replacementData, setReplacementData] = useState({
         className: '',
         firstName: '',
@@ -128,7 +128,6 @@ export default function Setup() {
         }
     };
 
-    // Neue Funktion zum Löschen aller Schüler
     const handleDeleteAllStudents = async () => {
         try {
             const response = await axios.delete('/api/deleteStudents');
@@ -169,7 +168,7 @@ export default function Setup() {
                 {insertedCount > 0 && <p className={styles.message}>Eingefügte Datensätze: {insertedCount}</p>}
 
                 <button
-                    onClick={() => setShowPopup(true)} // Öffne Popup
+                    onClick={() => setShowPopup(true)} // open popup
                     className={styles.button}
                     disabled={loading.replacements}
                 >
@@ -250,16 +249,17 @@ export default function Setup() {
                                 className={styles.input}
                             />
                         </label>
+
                         <div className={styles.buttonGroup}>
                             <button
                                 onClick={() => setShowPopup(false)}
-                                className={styles.buttonCancel}
+                                className={styles.buttonDelete}
                             >
                                 Abbrechen
                             </button>
                             <button
                                 onClick={handlePopupSubmit}
-                                className={styles.button}
+                                className={styles.popupButton}
                             >
                                 Hinzufügen
                             </button>
@@ -268,7 +268,7 @@ export default function Setup() {
                 </div>
             )}
 
-            {/* Bestätigungs-Popup zum Löschen */}
+            {/* confirm-Popup */}
             {showConfirmDeletePopup && (
                 <div className={styles.popup}>
                     <div className={styles.popupContent}>

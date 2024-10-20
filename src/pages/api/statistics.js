@@ -22,7 +22,7 @@ const calculateStatistics = (students) => {
   let totalRounds = 0;
   let totalActiveStudents = 0;
 
-  // Berechne die Statistiken pro Klasse
+  // statistics for each class
   students.forEach(student => {
     if (!classStats[student.klasse]) {
       classStats[student.klasse] = { totalRounds: 0, studentCount: 0 };
@@ -43,7 +43,7 @@ const calculateStatistics = (students) => {
     }))
     .sort((a, b) => b.totalRounds - a.totalRounds);
 
-  // Die Top 5 Schüler nach den meisten Runden
+  // Top 5 students
   const topStudents = [...students]
     .filter(student => student.timestamps.length > 0)
     .sort((a, b) => b.timestamps.length - a.timestamps.length)

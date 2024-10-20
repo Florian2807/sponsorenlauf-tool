@@ -48,7 +48,7 @@ export default async function handler(req, res) {
       const maxId = await getMaxIdPromise();
       let insertedCount = 0;
 
-      // Daten in die Datenbank einfügen
+      // paste Data in database
       db.serialize(() => {
         const insertQuery = `INSERT INTO students (id, vorname, nachname, klasse, timestamps) VALUES (?, ?, ?, ?, ?)`;
 

@@ -70,11 +70,11 @@ Schau dir die [Anleitung](/raspberrySetup.md) an, um den Raspberry Pi als Stempe
     git clone https://github.com/Florian2807/sponsorenlauf-tool.git
     cd sponsorenlauf-tool
     ```
-   > [!NOTE]
-   > Falls `git` noch nicht installiert ist, installiere es mit:
-   > ```bash
-   > sudo apt install git
-   > ```
+> [!NOTE]
+> Falls `git` noch nicht installiert ist, installiere es mit:
+> ```bash
+> sudo apt install git
+> ```
 
 2. **Kopiere die Beispieldaten**:
     ```bash

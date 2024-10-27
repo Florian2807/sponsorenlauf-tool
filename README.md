@@ -47,7 +47,7 @@ Jeder Schüler erhält eine eindeutige ID, die in der Datenbank hinterlegt ist. 
 ## 🚀 Installation
 
 ### 🖥️ Raspberry Pi Setup
-Schau dir die [Anleitung](/raspberrySetup.md) an, um den Raspberry Pi als Stempelstation einzurichten.
+Schau dir die [Anleitung](/raspberrySetup.md) an, wie du den Raspberry Pi installieren musst. 
 
 ### ⚙️ Node.js + NPM Installation
 1. Verbinde dich per SSH mit deinem Raspberry:

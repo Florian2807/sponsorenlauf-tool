@@ -17,6 +17,33 @@ Jeder Schüler erhält eine eindeutige ID, die in der Datenbank hinterlegt ist. 
 
 ---
 
+## 📸 Screenshots
+
+<details>
+  <summary><b>Screenshots anzeigen</b></summary>
+
+  ### Scan-Ansicht:
+  ![Dashboard Runden zählen](./screenshots/runden_zaehlen.png)
+
+  ### Daten eines Schülers abrufen
+  ![Dashboard Schüler anzeigen](./screenshots/schueler_anzeigen.png)
+
+  ### Schüler-Management:
+  ![Schüler-Management Screenshot](./screenshots/schueler_verwalten.png)
+
+  ### Einzelne Schüler bearbeiten:
+  ![Einzelne Schüler verwalten](./screenshots/schueler_verwalten_edit.png)
+
+  ### Statistiken:
+  ![Statistiken](./screenshots/statistiken.png)
+
+  ### Setup:
+  ![Setup](./screenshots/setup.png)
+
+</details>
+
+---
+
 ## 🚀 Installation
 
 ### 🖥️ Raspberry Pi Setup
@@ -214,3 +241,5 @@ Um den Raspberry Pi als Router zu nutzen, folge diesen Schritten:
     ```
 
 ---
+
+### Fertig! Dein Sponsorenlauf-Tool sollte nun einsatzbereit sein. 🎉

@@ -38,22 +38,7 @@
     box-sizing: border-box;
     margin-bottom: 1rem;
   }
-  
-  .button {
-    background-color: #4a90e2;
-    color: #fff;
-    border: none;
-    padding: 10px 20px;
-    font-size: 1rem;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-  }
-  
-  .button:hover {
-    background-color: #357abd;
-  }
-  
+
   .message {
     font-size: 1.2rem;
     color: #4caf50;

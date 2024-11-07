@@ -67,7 +67,7 @@ export default function Scan() {
           required
           className={styles.input}
         />
-        <button type="submit" className={styles.button}>Anzeigen</button>
+        <button type="submit">Anzeigen</button>
       </form>
       {message && (
         <p className={`${styles.message} ${styles[messageType]}`}>{message}</p>

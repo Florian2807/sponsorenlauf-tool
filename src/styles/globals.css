@@ -28,7 +28,8 @@ p {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-input[type="text"] {
+input[type="text"], 
+input[type="number"] {
   width: 100%;
   padding: 10px;
   font-size: 1rem;
@@ -53,17 +54,13 @@ button:hover {
   background-color: #357abd;
 }
 
-.message {
-  font-size: 1.2rem;
-  color: #4caf50;
-  text-align: center;
+.button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
 }
 
-.container {
-  max-width: 800px;
-  margin: 2rem auto;
-  padding: 1rem;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+label {
+  text-align: left;
+  display: block;
+  margin-bottom: 0.1rem;
 }

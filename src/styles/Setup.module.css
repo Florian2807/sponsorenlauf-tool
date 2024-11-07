@@ -1,188 +1,189 @@
 .container {
-    max-width: 1000px;
-    margin: 2rem auto;
-    padding: 1rem;
-    background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    text-align: center;
+  max-width: 1000px;
+  margin: 2rem auto;
+  padding: 1rem;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  text-align: center;    
 }
 
 .title {
-    font-size: 2rem;
-    color: #4a90e2;
-    margin-bottom: 1rem;
+  font-size: 2rem;
+  color: #4a90e2;
+  margin-bottom: 1rem;
 }
 
 .uploadForm {
-    margin-bottom: 1.5rem;
+  margin-bottom: 1.5rem;
 }
 
 .fileInput {
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    width: 100%;
-    max-width: 300px;
-    margin: 0 auto;
-    display: block;
-    margin-bottom: 1rem;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  width: 100%;
+  max-width: 300px;
+  margin: 0 auto;
+  display: block;
+  margin-bottom: 1rem;
 }
 
 .button {
-    background-color: #4a90e2;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    font-size: 1rem;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-    margin: 0.5rem;
+  background-color: #4a90e2;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  font-size: 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  margin: 0.5rem;
 }
 
 .button:hover {
-    background-color: #357abd;
+  background-color: #357abd;
 }
 
 .button:disabled {
-    background-color: #ccc;
-    cursor: not-allowed;
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.closeButtonX {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #333;
 }
 
 .progress {
-    width: 100%;
-    max-width: 300px;
-    height: 8px;
-    background-color: #e0e0e0;
-    border-radius: 4px;
-    margin-top: 10px;
-    overflow: hidden;
-    display: inline-block;
+  width: 100%;
+  max-width: 300px;
+  height: 8px;
+  background-color: #e0e0e0;
+  border-radius: 4px;
+  margin-top: 10px;
+  overflow: hidden;
+  display: inline-block;
 }
 
 .progress::before {
-    content: '';
-    display: block;
-    height: 100%;
-    width: 100%;
-    background: linear-gradient(90deg, #4a90e2, #357abd);
-    animation: loading 1.5s linear infinite;
+  content: '';
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #4a90e2, #357abd);
+  animation: loading 1.5s linear infinite;
 }
 
 @keyframes loading {
-    0% {
-        transform: translateX(-100%);
-    }
-    100% {
-        transform: translateX(100%);
-    }
+  0% {
+      transform: translateX(-100%);
+  }
+  100% {
+      transform: translateX(100%);
+  }
 }
 
 .message {
-    font-size: 1rem;
-    color: #333;
-    margin-top: 1rem;
-    padding: 10px;
-    background-color: #e7f3ff;
-    border: 1px solid #b3d7ff;
-    border-radius: 4px;
-    width: 100%;
-    max-width: 600px;
-    margin: 0.5rem auto;
+  font-size: 1rem;
+  color: #333;
+  margin-top: 1rem;
+  padding: 10px;
+  background-color: #e7f3ff;
+  border: 1px solid #b3d7ff;
+  border-radius: 4px;
+  width: 100%;
+  max-width: 600px;
+  margin: 0.5rem auto;
 }
 
 /* Popup Styles */
 .popup {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 10;
+position: fixed;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+background: rgba(0, 0, 0, 0.5);
+display: flex;
+justify-content: center;
+align-items: center;
+z-index: 10;
+overflow: hidden;
 }
 
 .popupContent {
-    position: relative;
-    background: #fff;
-    padding: 2rem;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    width: 90%;
-    max-width: 600px;
-    border: 2px solid #4a90e2;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
+background: #fff;
+padding: 2rem;
+border-radius: 8px;
+box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+width: 90%;
+max-width: 600px;
+max-height: 70%; 
+margin: 320px auto;
+overflow-y: auto;
+position: relative;
 }
 
-.closeButton {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: none;
-    border: none;
-    font-size: 1.5rem;
-    cursor: pointer;
-    color: #333;
+.popup p {
+text-align: left;
 }
 
-.closeButton:hover {
-    color: #f44336;
+.popup h2 {
+text-align: left;
+margin-bottom: 1rem;
 }
 
 .popupButtons {
-    display: flex;
-    justify-content: space-between;
-    position: sticky;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background-color: #fff;
-    padding: 1rem;
-    border-top: 1px solid #ddd;
-  }
-
-.buttonGroup {
-    display: flex;
-    justify-content: space-between;
+display: flex;
+justify-content: space-between;
+position: sticky;
+bottom: 0;
+left: 0;
+right: 0;
+background-color: #fff;
+padding: 1rem;
+border-radius: 8px;
+border: 1px solid #ddd;
 }
 
-.buttonCancel {
-    background-color: #4a90e2;
-    color: white;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
+.redButton {
+  background-color: #f44336;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
 }
 
-.buttonCancelDelete {
-    background-color: #4a90e2;
-    color: white;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
+.redButton:hover {
+  background-color: #d32f2f;
 }
 
-.buttonCancel:hover {
-    background-color: #d32f2f;
+.closeButtonX {
+position: absolute;
+top: 10px;
+right: 10px;
+background: none;
+border: none;
+font-size: 1.5rem;
+cursor: pointer;
+color: #333;
 }
 
-.buttonDelete {
-    background-color: #f44336;
-    color: white;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
+.form {
+flex-grow: 1;
+display: flex;
+flex-direction: column;
 }
 
-.buttonDelete:hover {
-    background-color: #d32f2f;
+.form label {
+  align-items: left;
+  margin-bottom: 0.5rem;
 }

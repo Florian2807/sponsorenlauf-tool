@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import styles from '../styles/Scan.module.css'; 
+import styles from '../styles/Scan.module.css';
 import { formatDate, timeAgo } from 'utils/globalFunctions';
 
 export default function Scan() {
@@ -85,10 +85,6 @@ export default function Scan() {
       });
   };
 
-  const closeEnterPopup = () => {
-    setShowEnterPopup(false);
-  };
-
   return (
     <div className={styles.container}>
       <h1 className={styles.title}>Sponsorenlauf {new Date().getFullYear()}</h1>
@@ -100,20 +96,22 @@ export default function Scan() {
           onChange={handleInputChange}
           placeholder="Barcode scannen"
           required
-          className={styles.input}
+          className={styles.idInput}
         />
-        <button type="submit" className={styles.button}>Runde zählen</button>
+        <button type="submit">Runde zählen</button>
       </form>
 
       {/* Enter-Popup */}
       {showEnterPopup && (
         <div className={styles.popup}>
           <div className={styles.popupContent}>
-            <button className={styles.closeButton} onClick={closeEnterPopup}>X</button>
+            <button className={styles.closeButtonX} onClick={() => setShowEnterPopup()}>
+              &times;
+            </button>
             <h2>Fehler</h2>
             <p>Klicke auf das Eingabefeld, damit die Daten in die Datenbank aufgenommen werden können!</p>
             <div className={styles.popupButtons}>
-              <button type="button" className={styles.saveButton} onClick={closeEnterPopup}>Schließen</button>
+              <button onClick={() => setShowEnterPopup(false)}>Schließen</button>
             </div>
           </div>
         </div>
@@ -137,7 +135,6 @@ export default function Scan() {
                   <li key={index} className={styles.timestampItem}>
                     <span>{formatDate(new Date(timestamp)) + " Uhr => " + timeAgo(currentTimestamp, new Date(timestamp))}</span>
                     <button
-                      type="button"
                       className={styles.deleteTimestampButton}
                       onClick={() => handleDeleteTimestamp(studentInfo, index)}
                     >

@@ -146,41 +146,39 @@ export default function Setup() {
     return (
         <div className={styles.container}>
             <h1 className={styles.title}>Setup</h1>
-            <>
-                <form onSubmit={handleUploadExcel} className={styles.uploadForm}>
-                    <input
-                        type="file"
-                        onChange={handleFileChange}
-                        accept=".xlsx"
-                        required
-                        className={styles.fileInput}
-                    />
-                    <button type="submit" className={styles.button} disabled={loading.upload}>
-                        Excel-Datei hochladen
-                    </button>
-                    <br />
-                    {loading.upload && <div className={styles.progress} />}
-                </form>
-
-                {message.upload && <p className={styles.message}>{message.upload}</p>}
-                {insertedCount > 0 && <p className={styles.message}>Eingefügte Datensätze: {insertedCount}</p>}
-
-                <button
-                    onClick={() => setShowPopup(true)} // open popup
-                    className={styles.button}
-                    disabled={loading.replacements}
-                >
-                    Ersatz-Benutzer hinzufügen
+            <form onSubmit={handleUploadExcel} className={styles.uploadForm}>
+                <input
+                    type="file"
+                    onChange={handleFileChange}
+                    accept=".xlsx"
+                    required
+                    className={styles.fileInput}
+                />
+                <button type="submit" className={styles.button} disabled={loading.upload}>
+                    Excel-Datei hochladen
                 </button>
+                <br />
+                {loading.upload && <div className={styles.progress} />}
+            </form>
+
+            {message.upload && <p className={styles.message}>{message.upload}</p>}
+            {insertedCount > 0 && <p className={styles.message}>Eingefügte Datensätze: {insertedCount}</p>}
+
+            <button
+                onClick={() => setShowPopup(true)} // open popup
+                className={styles.button}
+                disabled={loading.replacements}
+            >
+                Ersatz-Benutzer hinzufügen
+            </button>
 
 
-                <button
-                    onClick={() => setShowConfirmDeletePopup(true)}
-                    className={styles.buttonDelete}
-                >
-                    Alle Schüler löschen
-                </button>
-            </>
+            <button
+                onClick={() => setShowConfirmDeletePopup(true)}
+                className={styles.redButton}
+            >
+                Alle Schüler löschen
+            </button>
             <br />
             {loading.replacements && <div className={styles.progress} />}
             {message.replacement && <p className={styles.message}>{message.replacement}</p>}
@@ -197,13 +195,12 @@ export default function Setup() {
             {showPopup && (
                 <div className={styles.popup}>
                     <div className={styles.popupContent}>
-                        <button className={styles.closeButton} onClick={() => setShowPopup(false)}>
+                        <button className={styles.closeButtonX} onClick={() => setShowPopup(false)}>
                             &times;
                         </button>
-
                         <h2>Ersatz-Benutzer hinzufügen</h2>
-                        <label>
-                            Klasse:
+                        <form onSubmit={handlePopupSubmit}>
+                            <label>Klasse:</label>
                             <input
                                 type="text"
                                 value={replacementData.className}
@@ -212,9 +209,7 @@ export default function Setup() {
                                 }
                                 className={styles.input}
                             />
-                        </label>
-                        <label>
-                            Anzahl:
+                            <label>Anzahl:</label>
                             <input
                                 type="number"
                                 min="1"
@@ -224,22 +219,20 @@ export default function Setup() {
                                 }
                                 className={styles.input}
                             />
-                        </label>
-
-                        <div className={styles.buttonGroup}>
-                            <button
-                                onClick={() => setShowPopup(false)}
-                                className={styles.buttonDelete}
-                            >
-                                Abbrechen
-                            </button>
-                            <button
-                                onClick={handlePopupSubmit}
-                                className={styles.popupButton}
-                            >
-                                Hinzufügen
-                            </button>
-                        </div>
+                            <div className={styles.popupButtons}>
+                                <button
+                                    onClick={() => setShowPopup(false)}
+                                    className={styles.redButton}
+                                >
+                                    Abbrechen
+                                </button>
+                                <button
+                                    onClick={handlePopupSubmit}
+                                >
+                                    Hinzufügen
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}
@@ -248,21 +241,20 @@ export default function Setup() {
             {showConfirmDeletePopup && (
                 <div className={styles.popup}>
                     <div className={styles.popupContent}>
-                        <button className={styles.closeButton} onClick={() => setShowConfirmDeletePopup(false)}>
+                        <button className={styles.closeButtonX} onClick={() => setShowConfirmDeletePopup(false)}>
                             &times;
                         </button>
                         <h2>Bestätigen Sie das Löschen</h2>
                         <p>Möchten Sie wirklich alle Schüler löschen?</p>
-                        <div className={styles.buttonGroup}>
+                        <div className={styles.popupButtons}>
                             <button
                                 onClick={() => setShowConfirmDeletePopup(false)}
-                                className={styles.buttonCancelDelete}
                             >
                                 Abbrechen
                             </button>
                             <button
                                 onClick={handleDeleteAllStudents}
-                                className={styles.buttonDelete}
+                                className={styles.redButton}
                             >
                                 Alle löschen
                             </button>

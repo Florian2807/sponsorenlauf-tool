@@ -44,7 +44,7 @@ export default function Statistics() {
     <div className={styles.container}>
       <h1 className={styles.header}>Statistiken</h1>
 
-      <button className={styles.exportButton} onClick={handleExport}>
+      <button onClick={handleExport}>
         Exportiere Excel-Tabellen
       </button>
 

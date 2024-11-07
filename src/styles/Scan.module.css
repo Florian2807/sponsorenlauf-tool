@@ -14,6 +14,17 @@
   margin-top: 1rem;
 }
 
+.closeButtonX {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #333;
+  }
+
 .form {
   display: flex;
   flex-direction: column;
@@ -30,20 +41,7 @@
   margin-bottom: 1rem;
 }
 
-.button {
-  background-color: #4a90e2;
-  color: #fff;
-  border: none;
-  padding: 10px 20px;
-  font-size: 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
 
-.button:hover {
-  background-color: #357abd;
-}
 
 .message {
   font-size: 1.2rem;
@@ -137,18 +135,6 @@
   background-color: #d43f5e;
 }
 
-.errorPopup {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background-color: white;
-  border: 1px solid red;
-  padding: 20px;
-  z-index: 1000;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-}
-
 /* Popup Styles */
 .popup {
   position: fixed;
@@ -161,80 +147,53 @@
   justify-content: center;
   align-items: center;
   z-index: 10;
+  overflow: hidden;
 }
 
 .popupContent {
-  position: relative;
   background: #fff;
   padding: 2rem;
   border-radius: 8px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   width: 90%;
   max-width: 600px;
-  border: 2px solid #4a90e2;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  max-height: 70%; 
+  margin: 320px auto;
+  overflow-y: auto;
+  position: relative;
 }
 
-.closeButton {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: #333;
+.popup p {
+  text-align: left;
 }
-
-.closeButton:hover {
-  color: #f44336;
-}
-
-.buttonGroup {
-  display: flex;
-  justify-content: space-between;
-}
-
-.buttonCancel {
-  background-color: #f44336;
-  color: white;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.buttonCancelDelete {
-  background-color: #4a90e2;
-  color: white;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.buttonCancel:hover {
-  background-color: #d32f2f;
-}
-
-.buttonDelete {
-  background-color: #f44336;
-  color: white;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.buttonDelete:hover {
-  background-color: #d32f2f;
-}
-
-
 
 .popup h2 {
-  text-align: center;
+  text-align: left;
   margin-bottom: 1rem;
+}
+
+.popupButtons {
+  display: flex;
+  justify-content: space-between;
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: #fff;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+}
+
+.redButton {
+  background-color: #f44336;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.redButton:hover {
+  background-color: #d32f2f;
 }

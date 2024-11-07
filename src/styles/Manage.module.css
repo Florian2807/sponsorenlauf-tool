@@ -14,21 +14,6 @@
   text-align: center;
 }
 
-.addButton {
-  background-color: #4a90e2;
-  color: #fff;
-  border: none;
-  padding: 10px 20px;
-  font-size: 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-  margin-bottom: 1rem;
-}
-
-.addButton:hover {
-  background-color: #357abd;
-}
 
 .searchContainer {
   margin-bottom: 1rem;
@@ -134,6 +119,9 @@
   position: relative;
 }
 
+.popup p {
+  text-align: left;
+}
 
 .popup h2 {
   margin-bottom: 1rem;
@@ -148,10 +136,11 @@
   right: 0;
   background-color: #fff;
   padding: 1rem;
-  border-top: 1px solid #ddd;
+  border-radius: 8px;
+  border: 1px solid #ddd;
 }
 
-.deleteButton {
+.redButton {
   background-color: #e94e77;
   color: #fff;
   border: none;
@@ -162,30 +151,15 @@
   transition: background-color 0.3s ease;
 }
 
-.deleteButton:hover {
+.redButton:hover {
   background-color: #d43f5e;
 }
 
-.saveButton {
-  background-color: #4a90e2;
-  color: #fff;
-  border: none;
-  padding: 10px 20px;
-  font-size: 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-
-.saveButton:hover {
-  background-color: #357abd;
-}
-
-.closeButton {
+.closeButtonX {
   position: absolute;
   top: 10px;
   right: 10px;
-  background: transparent;
+  background: none;
   border: none;
   font-size: 1.5rem;
   cursor: pointer;

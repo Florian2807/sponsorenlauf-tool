@@ -29,7 +29,9 @@ p {
 }
 
 input[type="text"], 
-input[type="number"] {
+input[type="number"], 
+input[type="email"], 
+input[type="password"] {
   width: 100%;
   padding: 10px;
   font-size: 1rem;
@@ -37,6 +39,24 @@ input[type="number"] {
   border-radius: 4px;
   box-sizing: border-box;
   margin-bottom: 1rem;
+} 
+
+input[type="file"] {
+  width: 100%;
+  display: block;
+  margin: 1rem auto;
+  padding: 10px;
+  font-size: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-sizing: border-box;
+  background-color: #fff;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+input[type="file"]:hover {
+  background-color: #f0f0f0;
 }
 
 button {

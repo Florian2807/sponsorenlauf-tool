@@ -1,58 +1,58 @@
 .container {
-    max-width: 800px;
-    margin: 2rem auto;
-    padding: 1rem;
-    background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    text-align: center;
-  }
-  
-  .title {
-    font-size: 2rem;
-    color: #4a90e2;
-    margin-bottom: 1rem;
-  }
-  
-  .warning {
-    font-size: 1rem;
-    color: #e67e22;
-    text-align: center;
-    margin-bottom: 1rem;
-    padding: 10px;
-    border: 1px solid #e67e22;
-    border-radius: 4px;
-    background-color: #fff6e0;
-  }
-  
-  .form {
-    margin-bottom: 1rem;
-  }
-  
-  .input {
-    width: 100%;
-    padding: 10px;
-    font-size: 1rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    box-sizing: border-box;
-    margin-bottom: 1rem;
-  }
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 1rem;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
 
-  .message {
-    font-size: 1.2rem;
-    color: #4caf50;
-    margin-top: 1rem;
-  }
+.title {
+  font-size: 2rem;
+  color: #4a90e2;
+  margin-bottom: 1rem;
+}
 
-  .message.success {
-    color: #4caf50;
-  }
-  
-  .message.error {
-    color: #f44336;
-  }
-  
+.warning {
+  font-size: 1rem;
+  color: #e67e22;
+  text-align: center;
+  margin-bottom: 1rem;
+  padding: 10px;
+  border: 1px solid #e67e22;
+  border-radius: 4px;
+  background-color: #fff6e0;
+}
+
+.form {
+  margin-bottom: 1rem;
+}
+
+.input {
+  width: 100%;
+  padding: 10px;
+  font-size: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-sizing: border-box;
+  margin-bottom: 1rem;
+}
+
+.message {
+  font-size: 1.2rem;
+  color: #4caf50;
+  margin-top: 1rem;
+}
+
+.message.success {
+  color: #4caf50;
+}
+
+.message.error {
+  color: #f44336;
+}
+
 .studentInfo {
   text-align: center;
   margin-top: 1rem;

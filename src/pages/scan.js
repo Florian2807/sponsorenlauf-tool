@@ -10,8 +10,8 @@ export default function Scan() {
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
   const [studentInfo, setStudentInfo] = useState(null);
-  const [showEnterPopup, setShowEnterPopup] = useState(false);
   const inputRef = useRef(null);
+  const popupRef = useRef(null);
 
   useEffect(() => {
     inputRef.current.focus();
@@ -19,7 +19,7 @@ export default function Scan() {
     const handleKeyDown = (event) => {
       if (event.key === 'Enter' && document.activeElement !== inputRef.current) {
         event.preventDefault();
-        setShowEnterPopup(true);
+        popupRef.current.showModal()
       }
     };
 
@@ -102,20 +102,18 @@ export default function Scan() {
       </form>
 
       {/* Enter-Popup */}
-      {showEnterPopup && (
-        <div className={styles.popup}>
-          <div className={styles.popupContent}>
-            <button className={styles.closeButtonX} onClick={() => setShowEnterPopup()}>
-              &times;
-            </button>
-            <h2>Fehler</h2>
-            <p>Klicke auf das Eingabefeld, damit die Daten in die Datenbank aufgenommen werden können!</p>
-            <div className={styles.popupButtons}>
-              <button onClick={() => setShowEnterPopup(false)}>Schließen</button>
-            </div>
+      <dialog ref={popupRef} className={styles.popup}>
+        <div className={styles.popupContent}>
+          <button className={styles.closeButtonX} onClick={() => popupRef.current.close()}>
+            &times;
+          </button>
+          <h2>Fehler</h2>
+          <p>Klicke auf das Eingabefeld, damit die Daten in die Datenbank aufgenommen werden können!</p>
+          <div className={styles.popupButtons}>
+            <button onClick={() => popupRef.current.close()}>Schließen</button>
           </div>
         </div>
-      )}
+      </dialog>
 
       {message && (
         <p className={`${styles.message} ${styles[messageType]}`}>{message}</p>

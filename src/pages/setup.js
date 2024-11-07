@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import styles from '../styles/Setup.module.css';
 import axios from 'axios';
 
@@ -7,12 +7,13 @@ export default function Setup() {
     const [message, setMessage] = useState({ download: '', upload: '', replacement: '', delete: '' });
     const [insertedCount, setInsertedCount] = useState(0);
     const [loading, setLoading] = useState({ upload: false, labels: false, replacements: false });
-    const [showPopup, setShowPopup] = useState(false);
-    const [showConfirmDeletePopup, setShowConfirmDeletePopup] = useState(false);
     const [replacementData, setReplacementData] = useState({
         className: 'Ersatz',
         amount: 1
     });
+
+    const replacementStudentPopup = useRef(null);
+    const confirmDeletePopup = useRef(null);
 
     const updateMessage = (update = {}) => {
         const tmp = {}
@@ -71,7 +72,7 @@ export default function Setup() {
         setLoading((prev) => ({ ...prev, replacements: true }));
         updateMessage()
 
-        setShowPopup(false);
+        replacementStudentPopup.current.close();
         try {
             const replacementResponse = await axios.post('/api/addReplacements', replacementData);
             console.log(replacementData)
@@ -139,7 +140,7 @@ export default function Setup() {
             console.error('Fehler:', error);
             updateMessage({ delete: 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.' })
         } finally {
-            setShowConfirmDeletePopup(false); // Schließe das Bestätigungs-Popup
+            confirmDeletePopup.current.close();
         }
     };
 
@@ -165,7 +166,7 @@ export default function Setup() {
             {insertedCount > 0 && <p className={styles.message}>Eingefügte Datensätze: {insertedCount}</p>}
 
             <button
-                onClick={() => setShowPopup(true)} // open popup
+                onClick={() => replacementStudentPopup.current.showModal()}
                 className={styles.button}
                 disabled={loading.replacements}
             >
@@ -174,7 +175,7 @@ export default function Setup() {
 
 
             <button
-                onClick={() => setShowConfirmDeletePopup(true)}
+                onClick={() => confirmDeletePopup.current.showModal()}
                 className={styles.redButton}
             >
                 Alle Schüler löschen
@@ -192,76 +193,72 @@ export default function Setup() {
             <br />
             {loading.labels && <div className={styles.progress} />}
 
-            {showPopup && (
-                <div className={styles.popup}>
-                    <div className={styles.popupContent}>
-                        <button className={styles.closeButtonX} onClick={() => setShowPopup(false)}>
-                            &times;
-                        </button>
-                        <h2>Ersatz-Benutzer hinzufügen</h2>
-                        <form onSubmit={handlePopupSubmit}>
-                            <label>Klasse:</label>
-                            <input
-                                type="text"
-                                value={replacementData.className}
-                                onChange={(e) =>
-                                    setReplacementData({ ...replacementData, className: e.target.value })
-                                }
-                                className={styles.input}
-                            />
-                            <label>Anzahl:</label>
-                            <input
-                                type="number"
-                                min="1"
-                                value={replacementData.amount}
-                                onChange={(e) =>
-                                    setReplacementData({ ...replacementData, amount: e.target.value })
-                                }
-                                className={styles.input}
-                            />
-                            <div className={styles.popupButtons}>
-                                <button
-                                    onClick={() => setShowPopup(false)}
-                                    className={styles.redButton}
-                                >
-                                    Abbrechen
-                                </button>
-                                <button
-                                    onClick={handlePopupSubmit}
-                                >
-                                    Hinzufügen
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* confirm-Popup */}
-            {showConfirmDeletePopup && (
-                <div className={styles.popup}>
-                    <div className={styles.popupContent}>
-                        <button className={styles.closeButtonX} onClick={() => setShowConfirmDeletePopup(false)}>
-                            &times;
-                        </button>
-                        <h2>Bestätigen Sie das Löschen</h2>
-                        <p>Möchten Sie wirklich alle Schüler löschen?</p>
+            <dialog ref={replacementStudentPopup} className={styles.popup}>
+                <div className={styles.popupContent}>
+                    <button className={styles.closeButtonX} onClick={() => replacementStudentPopup.current.close()}>
+                        &times;
+                    </button>
+                    <h2>Ersatz-Benutzer hinzufügen</h2>
+                    <form onSubmit={handlePopupSubmit}>
+                        <label>Klasse:</label>
+                        <input
+                            type="text"
+                            value={replacementData.className}
+                            onChange={(e) =>
+                                setReplacementData({ ...replacementData, className: e.target.value })
+                            }
+                            className={styles.input}
+                        />
+                        <label>Anzahl:</label>
+                        <input
+                            type="number"
+                            min="1"
+                            value={replacementData.amount}
+                            onChange={(e) =>
+                                setReplacementData({ ...replacementData, amount: e.target.value })
+                            }
+                            className={styles.input}
+                        />
                         <div className={styles.popupButtons}>
                             <button
-                                onClick={() => setShowConfirmDeletePopup(false)}
+                                onClick={() => replacementStudentPopup.current.close()}
+                                className={styles.redButton}
                             >
                                 Abbrechen
                             </button>
                             <button
-                                onClick={handleDeleteAllStudents}
-                                className={styles.redButton}
+                                onClick={handlePopupSubmit}
                             >
-                                Alle löschen
+                                Hinzufügen
                             </button>
                         </div>
+                    </form>
+                </div>
+            </dialog>
+
+            {/* confirm-Popup */}
+            <dialog ref={confirmDeletePopup} className={styles.popup}>
+                <div className={styles.popupContent}>
+                    <button className={styles.closeButtonX} onClick={() => confirmDeletePopup.current.close()}>
+                        &times;
+                    </button>
+                    <h2>Bestätigen Sie das Löschen</h2>
+                    <p>Möchten Sie wirklich alle Schüler löschen?</p>
+                    <div className={styles.popupButtons}>
+                        <button
+                            onClick={() => confirmDeletePopup.current.close()}
+                        >
+                            Abbrechen
+                        </button>
+                        <button
+                            onClick={handleDeleteAllStudents}
+                            className={styles.redButton}
+                        >
+                            Alle löschen
+                        </button>
                     </div>
                 </div>
-            )}
+            </dialog>
         </div >
     );
 }

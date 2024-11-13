@@ -6,7 +6,7 @@ export default function Setup() {
     const [file, setFile] = useState(null);
     const [message, setMessage] = useState({ download: '', upload: '', replacement: '', delete: '' });
     const [insertedCount, setInsertedCount] = useState(0);
-    const [loading, setLoading] = useState({ upload: false, labels: false, replacements: false });
+    const [loading, setLoading] = useState({ upload: false, labels: false, replacement: false });
     const [replacementData, setReplacementData] = useState({
         className: 'Ersatz',
         amount: 1
@@ -69,7 +69,7 @@ export default function Setup() {
     };
 
     const handlePopupSubmit = async () => {
-        setLoading((prev) => ({ ...prev, replacements: true }));
+        setLoading((prev) => ({ ...prev, replacement: true }));
         updateMessage()
 
         replacementStudentPopup.current.close();
@@ -84,7 +84,7 @@ export default function Setup() {
         } catch (error) {
             updateMessage({ replacement: 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.' })
         } finally {
-            setLoading((prev) => ({ ...prev, replacements: false }));
+            setLoading((prev) => ({ ...prev, replacement: false }));
         }
     };
 
@@ -168,7 +168,7 @@ export default function Setup() {
             <button
                 onClick={() => replacementStudentPopup.current.showModal()}
                 className={styles.button}
-                disabled={loading.replacements}
+                disabled={loading.replacement}
             >
                 Ersatz-Benutzer hinzufügen
             </button>
@@ -181,12 +181,12 @@ export default function Setup() {
                 Alle Schüler löschen
             </button>
             <br />
-            {loading.replacements && <div className={styles.progress} />}
+            {loading.replacement && <div className={styles.progress} />}
             {message.replacement && <p className={styles.message}>{message.replacement}</p>}
 
             {message.download && <p className={styles.message}>{message.download}</p>}
             {message.delete && <p className={styles.message}>{message.delete}</p>}
-
+            <br />
             <button onClick={handleGenerateLabels} className={styles.button} disabled={loading.labels}>
                 Etiketten downloaden
             </button>

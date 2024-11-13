@@ -82,18 +82,7 @@ Schau dir die [Anleitung](/raspberrySetup.md) an, wie du den Raspberry Pi instal
     cp exampleData/* data/
     ```
 
-3. **Erstelle eine `.env`-Datei**:
-    ```bash
-    nano .env
-    ```
-   Füge folgende Zeilen hinzu und ersetze die Platzhalter:
-    ```bash
-    OUTLOOK_MAIL="Deine Outlook-Mailadresse"
-    OUTLOOK_PASSWORD="Dein Outlook-Passwort"
-    OUTLOOK_SENDERNAME="Absendername"
-    ```
-
-4. **Installiere alle benötigten Pakete**:
+3. **Installiere alle benötigten Pakete**:
     ```bash
     npm install
     ```
@@ -189,7 +178,7 @@ Um den Raspberry Pi als Router zu nutzen, folge diesen Schritten:
     DAEMON_CONF="/etc/hostapd/hostapd.conf"
     ```
 
-5. **Dnsmasq konfigurieren**:
+5. **dnsmasq konfigurieren**:
     - Bearbeite die Datei:
       ```bash
       sudo nano /etc/dnsmasq.conf
@@ -198,9 +187,10 @@ Um den Raspberry Pi als Router zu nutzen, folge diesen Schritten:
       ```bash
       interface=wlan0
       dhcp-range=10.0.0.5,10.0.0.200,255.255.255.0,24h
+      address=/sponsorenlauf.de/10.0.0.1
       ```
 
-6. **Dhcpcd konfigurieren**:
+6. **dhcpcd konfigurieren**:
     ```bash
     sudo nano /etc/dhcpcd.conf
     ```
@@ -211,7 +201,7 @@ Um den Raspberry Pi als Router zu nutzen, folge diesen Schritten:
         nohook wpa_supplicant
     ```
 
-7. **Iptables für Routing einrichten**:
+7. **iptables für Routing einrichten**:
     - Aktiviere die Weiterleitung:
       ```bash
       sudo nano /etc/sysctl.conf

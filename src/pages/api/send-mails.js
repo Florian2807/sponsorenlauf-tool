@@ -2,7 +2,7 @@ import nodemailer from 'nodemailer';
 
 export default async function handler(req, res) {
     if (req.method === 'POST') {
-        const { teacherEmails, teacherFiles, senderName, email, password } = req.body;
+        const { teacherEmails, teacherFiles, senderName, mailText, email, password } = req.body;
 
         if (!teacherEmails || !teacherFiles || !email || !password) {
             return res.status(400).json({ message: 'Lehrerlisten, Dateien oder Anmeldedaten fehlen' });
@@ -27,12 +27,12 @@ export default async function handler(req, res) {
                 }
 
                 const mailOptions = {
-                    from: email,
+                    from: `${senderName} <${email}>`,
                     to: teacherEmail[0],
                     cc: teacherEmail.slice(1).join(', '),
                     bcc: email,
-                    subject: `Sponsorenlauf ${new Date().getFullYear()} - Schülerliste ${className}`,
-                    text: `Sehr geehrte Lehrkraft,\n\nanbei finden Sie die Liste der Schülerinnen und Schüler Ihrer Klasse für den Sponsorenlauf ${new Date().getFullYear()}.\n\nSchüler, die mehrmals in dieser Liste stehen, sollten die Runden bitte addiert werden, da diese eine Ersatzkarte erhalten haben.\n\nMit freundlichen Grüßen,\n\n Ihr SV-Team`,
+                    subject: `Sponsorenlauf ${new Date().getFullYear()} - Schülerliste Klasse ${className}`,
+                    text: mailText,
                     attachments: [
                         {
                             filename: `${className}.xlsx`,

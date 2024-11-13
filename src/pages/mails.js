@@ -6,7 +6,9 @@ export default function Home() {
     const [fileData, setFileData] = useState({
         file: null,
         email: '',
-        password: ''
+        password: '',
+        senderName: 'Schülervertretung',
+        mailText: `Sehr geehrte Lehrkraft,\n\nanbei finden Sie die Liste der Schülerinnen und Schüler Ihrer Klasse für den Sponsorenlauf ${new Date().getFullYear()}.\n\nSchüler, die mehrmals in dieser Liste stehen, sollten die Runden bitte addiert werden, da diese eine Ersatzkarte erhalten haben.\n\nMit freundlichen Grüßen,\n\nIhr SV-Team\n`
     });
     const [teacherData, setTeacherData] = useState({
         emails: {},
@@ -14,7 +16,9 @@ export default function Home() {
     });
     const [status, setStatus] = useState({
         message: '',
-        loading: false,
+        loginLoading: false,
+        uploadLoading: false,
+        sendMailLoading: false,
         loginMessage: ''
     });
     const [credentialsCorrect, setCredentialsCorrect] = useState(false);
@@ -40,6 +44,7 @@ export default function Home() {
 
     const handleLogin = async () => {
         try {
+            setStatus({ ...status, loginLoading: true });
             const response = await fetch('/api/mail-auth', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -54,10 +59,11 @@ export default function Home() {
             }
             setStatus({
                 ...status,
+                loginLoading: false,
                 loginMessage: data.success ? 'Login erfolgreich' : 'Login fehlgeschlagen. Überprüfen Sie Ihre Zugangsdaten.'
             });
         } catch (error) {
-            setStatus({ ...status, loginMessage: 'Fehler beim Login: ' + error.message });
+            setStatus({ ...status, loginLoading: false, loginMessage: 'Fehler beim Login: ' + error.message });
         }
     };
 
@@ -73,7 +79,7 @@ export default function Home() {
         }
 
         sendMailsPopup.current.close();
-        setStatus({ ...status, loading: true });
+        setStatus({ ...status, sendMailLoading: true });
 
         try {
             const zip = new JSZip();
@@ -106,12 +112,9 @@ export default function Home() {
         const newEmails = [...teacherData.emails[className]];
         newEmails[index] = e.target.value;
 
-        // Überprüfen, ob das letzte Feld nicht mehr leer ist, um ein weiteres leeres Feld hinzuzufügen
         if (index === newEmails.length - 1 && e.target.value !== '') {
             newEmails.push('');
         }
-
-        // Remove extra empty fields if there is more than one empty field at the end
         if (newEmails.filter(email => email === '').length > 1) {
             while (newEmails[newEmails.length - 1] === '' && newEmails[newEmails.length - 2] === '') {
                 newEmails.pop();
@@ -133,23 +136,29 @@ export default function Home() {
             return;
         }
 
-        setStatus({ ...status, loading: true });
+        setStatus({ ...status, sendMailLoading: true });
         try {
+            Object.keys(teacherData.emails).forEach((className) => {
+                teacherData.emails[className] = teacherData.emails[className].filter((email) => email !== '');
+            });
+
             const response = await fetch('/api/send-mails', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     teacherEmails: teacherData.emails,
                     teacherFiles: teacherData.files,
+                    mailText: fileData.mailText,
                     email: fileData.email,
-                    password: fileData.password
+                    password: fileData.password,
+                    senderName: fileData.senderName
                 })
             });
 
             const data = await response.json();
-            setStatus({ message: data.message, loading: false });
+            setStatus({ message: data.message, sendMailLoading: false });
         } catch (error) {
-            setStatus({ message: `Fehler beim Senden der E-Mails: ${error.message}`, loading: false });
+            setStatus({ message: `Fehler beim Senden der E-Mails: ${error.message}`, sendMailLoading: false });
         }
     };
 
@@ -190,20 +199,27 @@ export default function Home() {
                         required
                     />
                     <label>Sender-Name:</label>
-                    <input type="text" name="senderName" placeholder="Mail Absender-Name" value={"Schülervertretung"} required />
+                    <input
+                        type="text"
+                        name="senderName"
+                        placeholder="Mail Absender-Name"
+                        value={fileData.senderName}
+                        onChange={(e) => setFileData({ ...fileData, senderName: e.target.value })}
+                        required
+                    />
 
                     <button onClick={handleLogin}>Login</button>
                     {status.loginMessage && <p>{status.loginMessage}</p>}
 
                     <div className={styles.popupButtons}>
-                        <button onClick={() => sendMailsPopup.current.close()} className={styles.buttonDelete}>
+                        <button onClick={() => sendMailsPopup.current.close()} className={`${styles.button} ${styles.redButton}`}>
                             Abbrechen
                         </button>
                         <button onClick={handleUpload} disabled={!credentialsCorrect}>
                             Weiter
                         </button>
                     </div>
-                    {status.loading && <div className={styles.process} />}
+                    {status.uploadLoading && <div className={styles.progress} />}
                 </div>
             </dialog>
 
@@ -229,10 +245,18 @@ export default function Home() {
                             </div>
                         </div>
                     ))}
-                    <button onClick={handleSendEmails}>E-Mails senden</button>
+                    <h2>Mail-Inhalt</h2>
+                    <textarea
+                        value={fileData.mailText}
+                        onChange={(e) => setFileData({ ...fileData, mailText: e.target.value })}
+                        className={styles.textarea}
+                    />
+                    <br />
+                    <button onClick={handleSendEmails} className={styles.button}>E-Mails senden</button>
                 </div>
             )}
 
+            {status.sendMailLoading && <div className={styles.progress} />}
             {status.message && <p className={styles.message}>{status.message}</p>}
         </div>
     );

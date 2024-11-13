@@ -1,63 +1,66 @@
 import nodemailer from 'nodemailer';
-import fs from 'fs';
 
 export default async function handler(req, res) {
     if (req.method === 'POST') {
-        const { teacherEmails, teacherFiles } = req.body;
+        const { teacherEmails, teacherFiles, senderName, email, password } = req.body;
 
-        if (!teacherEmails || !teacherFiles) {
-            return res.status(400).json({ message: 'Lehrerlisten oder Dateien fehlen' });
+        if (!teacherEmails || !teacherFiles || !email || !password) {
+            return res.status(400).json({ message: 'Lehrerlisten, Dateien oder Anmeldedaten fehlen' });
         }
 
         try {
             const transporter = nodemailer.createTransport({
                 service: 'Outlook365',
                 auth: {
-                    user: process.env.OUTLOOK_MAIL,
-                    pass: process.env.OUTLOOK_PASSWORD,
+                    user: email,
+                    pass: password,
                 },
             });
 
             for (const className in teacherEmails) {
-                if (!teacherEmails.hasOwnProperty(className)) continue;
-
                 const teacherEmail = teacherEmails[className];
-                const classFile = teacherFiles[className];
+                const classFileBase64 = teacherFiles[className];
 
-                if (!classFile || !teacherEmail.length) {
+                if (!classFileBase64 || !teacherEmail.length) {
                     console.warn(`Keine Datei oder Mailadresse für ${className} gefunden.`);
                     continue;
                 }
 
                 const mailOptions = {
-                    from: `${process.env.OUTLOOK_SENDERNAME} <${process.env.OUTLOOK_MAIL}>`,
+                    from: email,
                     to: teacherEmail[0],
                     cc: teacherEmail.slice(1).join(', '),
-                    bcc: process.env.OUTLOOK_MAIL,
+                    bcc: email,
                     subject: `Sponsorenlauf ${new Date().getFullYear()} - Schülerliste ${className}`,
-                    text:
-                        `Sehr geehrte Lehrkraft,\n\nanbei finden Sie die Liste der Schülerinnen und Schüler Ihrer Klasse für den Sponsorenlauf ${new Date().getFullYear()}.\n\nSchüler, die mehrmals in dieser Liste stehen, sollten die Runden bitte addiert werden, da diese eine Ersatzkarte erhalten haben.\n\nMit freundlichen Grüßen,\n\n Ihr SV-Team`,
+                    text: `Sehr geehrte Lehrkraft,\n\nanbei finden Sie die Liste der Schülerinnen und Schüler Ihrer Klasse für den Sponsorenlauf ${new Date().getFullYear()}.\n\nSchüler, die mehrmals in dieser Liste stehen, sollten die Runden bitte addiert werden, da diese eine Ersatzkarte erhalten haben.\n\nMit freundlichen Grüßen,\n\n Ihr SV-Team`,
                     attachments: [
                         {
                             filename: `${className}.xlsx`,
-                            content: fs.readFileSync(classFile),
+                            content: Buffer.from(classFileBase64, 'base64'),
                             contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                         },
                     ],
                 };
 
-                // send mail
                 await transporter.sendMail(mailOptions);
-                console.log(`E-Mail an ${className} gesendet`);
-
-                // wait 2 seconds
                 await new Promise((resolve) => setTimeout(resolve, 2000));
             }
 
             res.status(200).json({ message: 'E-Mails wurden erfolgreich versendet' });
         } catch (error) {
-            console.error(error);
             res.status(500).json({ message: 'Fehler beim Senden der E-Mails', error });
+        }
+    } else if (req.method === 'POST' && req.url.endsWith('/auth')) {
+        const { email, password } = req.body;
+        try {
+            const transporter = nodemailer.createTransport({
+                service: 'Outlook365',
+                auth: { user: email, pass: password }
+            });
+            await transporter.verify();
+            res.status(200).json({ success: true, message: 'Login erfolgreich' });
+        } catch (error) {
+            res.status(401).json({ success: false, message: 'Login fehlgeschlagen' });
         }
     } else {
         res.status(405).json({ message: 'Methode nicht erlaubt' });

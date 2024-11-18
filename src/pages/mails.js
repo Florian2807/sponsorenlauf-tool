@@ -23,6 +23,8 @@ export default function Home() {
     });
     const [credentialsCorrect, setCredentialsCorrect] = useState(false);
     const sendMailsPopup = useRef(null);
+    const [uploadedFile, setUploadedFile] = useState(null);
+    const [uploadMode, setUploadMode] = useState('api');
 
     useEffect(() => {
         const fetchTeacherEmails = async () => {
@@ -69,42 +71,55 @@ export default function Home() {
 
     const handleFileChange = (e) => {
         setFileData((prev) => ({ ...prev, file: e.target.files[0] }));
+        setUploadMode('file');
+    };
+
+    const fetchFileFromApi = async () => {
+        try {
+            const response = await fetch('/api/exportExcel');
+            if (response.ok) {
+                setUploadMode('api');
+                return await response.blob();
+            } else {
+                setStatus({ message: 'Fehler beim Abrufen der Datei von der API', uploadLoading: false });
+            }
+        } catch (error) {
+            setStatus({ message: `API Fehler: ${error.message}`, uploadLoading: false });
+        }
+        return null;
     };
 
     const handleUpload = async (e) => {
-        e.preventDefault();
-        if (!fileData.file) {
-            setStatus({ ...status, message: 'Bitte wähle eine ZIP-Datei aus.' });
+        e.preventDefault(); // Prevent form submission default behavior
+        setStatus({ ...status, uploadLoading: true });
+
+        const zipFile = uploadedFile || (await fetchFileFromApi());
+
+        if (!zipFile) {
+            setStatus({ message: 'Bitte wähle eine ZIP-Datei aus.', uploadLoading: false });
             return;
         }
 
-        sendMailsPopup.current.close();
-        setStatus({ ...status, sendMailLoading: true });
-
         try {
+            // Use JSZip to process the ZIP file
             const zip = new JSZip();
-            const zipContent = await zip.loadAsync(fileData.file);
-
+            const zipContent = await zip.loadAsync(zipFile);
             const extractedFiles = {};
+
+            // Extract files from the ZIP
             await Promise.all(
                 Object.keys(zipContent.files).map(async (filename) => {
                     const fileContent = await zipContent.files[filename].async('base64');
-                    extractedFiles[filename] = fileContent;
+                    extractedFiles[filename.replace('.xlsx', '')] = fileContent;
                 })
             );
 
-            for (let key in extractedFiles) {
-                if (key.includes('.xlsx')) {
-                    let newKey = key.replace('.xlsx', '');
-                    extractedFiles[newKey] = extractedFiles[key];
-                    delete extractedFiles[key];
-                }
-            }
-
+            // Update teacherData state with extracted files
             setTeacherData((prev) => ({ ...prev, files: extractedFiles }));
-            setStatus({ message: 'Datei erfolgreich verarbeitet!', loading: false });
+            setStatus({ message: 'Datei erfolgreich verarbeitet!', uploadLoading: false });
+            sendMailsPopup.current.close()
         } catch (error) {
-            setStatus({ message: `Fehler beim Verarbeiten der Datei: ${error.message}`, loading: false });
+            setStatus({ message: `Fehler beim Verarbeiten der Datei: ${error.message}`, uploadLoading: false });
         }
     };
 
@@ -165,9 +180,11 @@ export default function Home() {
     return (
         <div className={styles.container}>
             <h1 className={styles.title}>ZIP-Datei hochladen und E-Mails senden</h1>
-            <button className={styles.button} onClick={() => sendMailsPopup.current.showModal()}>
-                Mail versenden
-            </button>
+            {!Object.keys(teacherData.files).length &&
+                <button className={styles.button} onClick={() => sendMailsPopup.current.showModal()}>
+                    Mail versenden
+                </button>
+            }
 
             <dialog ref={sendMailsPopup} className={styles.popup}>
                 <div className={styles.popupContent}>
@@ -175,7 +192,16 @@ export default function Home() {
                     <h2>Mails mit Tabellen versenden</h2>
 
                     <label>Datei auswählen:</label>
-                    <input type="file" onChange={handleFileChange} accept=".zip" required />
+                    <input
+                        type="file"
+                        accept=".zip"
+                        onChange={(e) => {
+                            handleFileChange(e);
+                            setUploadedFile(e.target.files[0]);
+                        }}
+                    />
+                    {uploadMode === 'file' && <p className={styles.indicator}>Modus: Datei hochgeladen</p>}
+                    {uploadMode === 'api' && <p className={styles.indicator}>Modus: API verwendet</p>}
 
                     <h2>Microsoft Login</h2>
                     <label>E-Mail Adresse:</label>
@@ -209,13 +235,16 @@ export default function Home() {
                     />
 
                     <button onClick={handleLogin}>Login</button>
+                    <br />
+                    {status.loginLoading && <div className={styles.progress} />}
                     {status.loginMessage && <p>{status.loginMessage}</p>}
 
                     <div className={styles.popupButtons}>
                         <button onClick={() => sendMailsPopup.current.close()} className={`${styles.button} ${styles.redButton}`}>
                             Abbrechen
                         </button>
-                        <button onClick={handleUpload} disabled={!credentialsCorrect}>
+                        <button
+                            onClick={handleUpload} disabled={!credentialsCorrect}>
                             Weiter
                         </button>
                     </div>

@@ -228,3 +228,9 @@
     padding: 1rem;
     border-top: 1px solid #ddd;
 }
+
+.indicator {
+    font-size: 1rem;
+    color: #4a90e2;
+    margin-top: 10px;
+}

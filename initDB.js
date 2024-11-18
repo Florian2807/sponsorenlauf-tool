@@ -10,7 +10,8 @@ db.serialize(() => {
       vorname TEXT NOT NULL,
       nachname TEXT NOT NULL,
       klasse TEXT NOT NULL,
-      timestamps TEXT
+      timestamps TEXT,
+      spenden TEXT
     )
   `);
 });

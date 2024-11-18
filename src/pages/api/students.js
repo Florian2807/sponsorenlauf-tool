@@ -11,7 +11,8 @@ const loadStudents = () => {
       const parsedRows = rows.map(student => {
         return {
           ...student,
-          timestamps: student.timestamps ? JSON.parse(student.timestamps) : []
+          timestamps: student.timestamps ? JSON.parse(student.timestamps) : [],
+          spenden: student.spenden ? JSON.parse(student.spenden) : [],
         };
       });
 

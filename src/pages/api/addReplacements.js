@@ -26,7 +26,7 @@ export default async function handler(req, res) {
 
 	// add data to the database
 	db.serialize(async () => {
-		const insertQuery = `INSERT INTO students (id, vorname, nachname, klasse, timestamps) VALUES (?, ?, ?, ?, ?)`;
+		const insertQuery = `INSERT INTO students (id, vorname, nachname, klasse, timestamps, spenden) VALUES (?, ?, ?, ?, ?, ?)`;
 
 		const getMaxReplacementID = async () => {
 			return new Promise((resolve, reject) => {
@@ -51,7 +51,7 @@ export default async function handler(req, res) {
 			const newRID = maxRID + i + 1;
 			db.run(
 				insertQuery,
-				[newId, newRID, '', 'Ersatz', '[]'],
+				[newId, newRID, '', 'Ersatz', '[]', '[]'],
 				(err) => {
 					if (err) {
 						console.error('Fehler beim Einfügen:', err.message);

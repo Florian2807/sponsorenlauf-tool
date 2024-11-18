@@ -210,12 +210,12 @@ Um den Raspberry Pi als Router zu nutzen, folge diesen Schritten:
 
     - Setze die iptables-Regeln:
       ```bash
-      sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE && sudo iptables -A FORWARD -i eth0 -o wlan0 -m state --state RELATED,ESTABLISHED -j ACCEPT && sudo iptables -A FORWARD -i wlan0 -o eth0 -j ACCEPT
+      sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE && sudo iptables -A FORWARD -i eth0 -o wlan0 -m state --state RELATED,ESTABLISHED -j ACCEPT && sudo iptables -A FORWARD -i wlan0 -o eth0 -j ACCEPT && sudo chmod 644 /etc/iptables/rules.v4 && sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 3000
       ```
 
     - Speichere die iptables-Regeln:
       ```bash
-      sudo sh -c "iptables-save > /etc/iptables/rules.v4"
+      sudo sh -c "iptables-save > /etc/iptables/rules.v4" && sudo sh -c iptables-restore < /etc/iptables/rules.v4
       ```
 
 8. **Alle Dienste aktivieren**:

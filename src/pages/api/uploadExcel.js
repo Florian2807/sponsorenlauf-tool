@@ -50,13 +50,13 @@ export default async function handler(req, res) {
 
       // paste Data in database
       db.serialize(() => {
-        const insertQuery = `INSERT INTO students (id, vorname, nachname, klasse, timestamps, spenden) VALUES (?, ?, ?, ?, ?, ?)`;
+        const insertQuery = `INSERT INTO students (id, vorname, nachname, klasse, timestamps, spenden, spendenKonto) VALUES (?, ?, ?, ?, ?, ?)`;
 
         data.forEach((row, index) => {
           const newId = parseInt(maxId + index + 1);
           db.run(
             insertQuery,
-            [newId, row.vorname, row.nachname, row.klasse, '[]', '[]'],
+            [newId, row.vorname, row.nachname, row.klasse, '[]', '[]', row.spendenKonto || null],
             (err) => {
               if (err) {
                 console.error('Fehler beim Einfügen:', err.message);

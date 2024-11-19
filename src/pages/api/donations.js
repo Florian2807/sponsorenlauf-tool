@@ -14,9 +14,9 @@ function getStudentById(studentId) {
     });
 }
 
-function updateStudentAmounts(studentId, amounts) {
+function updateStudentAmounts(studentId, amount) {
     return new Promise((resolve, reject) => {
-        db.run('UPDATE students SET spenden = ? WHERE id = ?', [amounts, studentId], function (err) {
+        db.run('UPDATE students SET spenden = ? WHERE id = ?', [amount, studentId], function (err) {
             if (err) {
                 reject(err);
             } else {
@@ -34,14 +34,9 @@ export default async function handler(req, res) {
         }
         try {
             const student = await getStudentById(studentId);
-            console.log(student)
             if (student) {
-                // Betrag hinzufügen
                 const formattedAmount = parseFloat(amount.replace(',', '.')).toFixed(2);
-                console.log(formattedAmount)
-                const amounts = student.spenden ? JSON.parse(student.spenden) : [];
-                amounts.push(formattedAmount);
-                await updateStudentAmounts(studentId, JSON.stringify(amounts));
+                await updateStudentAmounts(studentId, formattedAmount);
             } else {
                 return res.status(404).json({ error: 'Schüler nicht gefunden' });
             }

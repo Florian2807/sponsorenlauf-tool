@@ -12,7 +12,6 @@ const loadStudents = () => {
         return {
           ...student,
           timestamps: student.timestamps ? JSON.parse(student.timestamps) : [],
-          spenden: student.spenden ? JSON.parse(student.spenden) : [],
         };
       });
 

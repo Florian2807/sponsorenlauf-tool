@@ -94,7 +94,7 @@ export default function AddDonations() {
             if (response.status === 200) {
                 setStudentInfo({
                     ...response.data,
-                    spenden: response.data.spenden ? JSON.parse(response.data.spenden) : []
+                    spenden: response.data.spenden
                 });
                 setCurrentTimestamp(new Date());
             } else {
@@ -107,16 +107,13 @@ export default function AddDonations() {
         }
     };
 
-    const handleDeleteDonation = async (indexToRemove) => {
-        const updatedDonations = studentInfo.spenden.filter((_, index) => index !== indexToRemove);
+    const handleDeleteDonation = async () => {
         try {
-            console.log(updatedDonations)
-            await axios.put(`/api/students/${studentInfo.id}`, { spenden: updatedDonations })
-
-            setStudentInfo((prevStudentInfo) => ({
-                ...prevStudentInfo,
-                spenden: updatedDonations,
-            }));
+            setStudentInfo({
+                ...studentInfo,
+                spenden: null
+            })
+            await axios.put(`/api/students/${studentInfo.id}`, { spenden: null })
         } catch (error) {
             console.log(error)
             setMessage('Fehler beim Löschen der Spende');
@@ -192,18 +189,18 @@ export default function AddDonations() {
                     <p><strong>Spenden:</strong></p>
                     <div className={styles.timestamps}>
                         <ul className={styles.timestampList}>
-                            {studentInfo.spenden.map((donation, index) => (
-                                <li key={index} className={styles.timestampItem}>
-                                    <span>{`${donation.replace('.', ',')}€`}</span>
+                            {studentInfo.spenden && (
+                                <li key={0} className={styles.timestampItem}>
+                                    <span>{`${JSON.stringify(studentInfo.spenden).replace('.', ',')}€`}</span>
                                     <button
                                         type="button"
                                         className={styles.deleteTimestampButton}
-                                        onClick={() => handleDeleteDonation(index)}
+                                        onClick={() => handleDeleteDonation()}
                                     >
                                         Löschen
                                     </button>
                                 </li>
-                            ))}
+                            )}
                         </ul>
                     </div>
                 </div>

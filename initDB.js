@@ -11,7 +11,7 @@ db.serialize(() => {
       nachname TEXT NOT NULL,
       klasse TEXT NOT NULL,
       timestamps TEXT,
-      spenden TEXT,
+      spenden REAL,
       spendenKonto REAL
     )
   `);

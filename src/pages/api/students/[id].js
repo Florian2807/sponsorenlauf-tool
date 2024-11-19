@@ -8,7 +8,7 @@ const saveStudent = (id, vorname, nachname, klasse, timestamps, spenden, spenden
     db.run(
       `INSERT INTO students (id, vorname, nachname, klasse, timestamps, spenden, spendenKonto) 
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [id, vorname, nachname, klasse, JSON.stringify(timestamps), JSON.stringify(spenden), spendenKonto],
+      [id, vorname, nachname, klasse, JSON.stringify(timestamps), spenden, spendenKonto],
       function (err) {
         if (err) reject(err);
         resolve();
@@ -34,7 +34,7 @@ const updateStudent = (id, vorname, nachname, klasse, timestamps, spenden, spend
       `UPDATE students 
        SET vorname = ?, nachname = ?, klasse = ?, timestamps = ?, spenden = ?, spendenKonto = ?
        WHERE id = ?`,
-      [vorname, nachname, klasse, JSON.stringify(timestamps), JSON.stringify(spenden), spendenKonto, id],
+      [vorname, nachname, klasse, JSON.stringify(timestamps), spenden, spendenKonto, id],
       function (err) {
         if (err) reject(err);
         resolve();
@@ -71,7 +71,7 @@ export default async function handler(req, res) {
   else if (req.method === 'POST') {
     const { vorname, nachname, klasse, timestamps, spenden, spendenKonto } = req.body;
 
-    if (!id || !vorname || !nachname || !klasse || !Array.isArray(timestamps) || !Array.isArray(spenden), spendenKonto) {
+    if (!id || !vorname || !nachname || !klasse || !Array.isArray(timestamps) || spenden || spendenKonto) {
       return res.status(400).json({ error: 'Alle Felder sind erforderlich und Timestamps müssen ein Array sein' });
     }
 
@@ -84,14 +84,20 @@ export default async function handler(req, res) {
   }
   else if (req.method === 'PUT') {
     const { vorname, nachname, klasse, timestamps, spenden, spendenKonto } = req.body;
-
     try {
       const student = await getStudentById(id);
       if (!student) {
         return res.status(404).json({ error: 'Schüler nicht gefunden' });
       }
-
-      await updateStudent(id, vorname || student.vorname, nachname || student.nachname, klasse || student.klasse, timestamps || JSON.parse(student.timestamps), spenden || JSON.parse(student.spenden), spendenKonto || student.spendenKonto);
+      await updateStudent(
+        id,
+        vorname !== undefined ? vorname : student.vorname,
+        nachname !== undefined ? nachname : student.nachname,
+        klasse !== undefined ? klasse : student.klasse,
+        timestamps !== undefined ? timestamps : JSON.parse(student.timestamps),
+        spenden !== undefined ? spenden : student.spenden,
+        spendenKonto !== undefined ? spendenKonto : student.spendenKonto
+      );
       res.status(200).json({ success: true });
     } catch (error) {
       res.status(500).json({ error: 'Fehler beim Aktualisieren des Schülers' });

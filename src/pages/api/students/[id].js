@@ -84,6 +84,7 @@ export default async function handler(req, res) {
   }
   else if (req.method === 'PUT') {
     const { vorname, nachname, klasse, timestamps, spenden, spendenKonto } = req.body;
+    console.log(req.body);
     try {
       const student = await getStudentById(id);
       if (!student) {

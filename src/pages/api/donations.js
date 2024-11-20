@@ -28,7 +28,7 @@ function updateStudentAmounts(studentId, amount) {
 
 export default async function handler(req, res) {
     if (req.method === 'POST') {
-        const { studentId, amount } = req.body;
+        const { studentId, amount, isSpendenMode } = req.body;
         if (!studentId || !amount) {
             return res.status(400).json({ error: 'Schüler-ID und Betrag sind erforderlich' });
         }
@@ -36,7 +36,11 @@ export default async function handler(req, res) {
             const student = await getStudentById(studentId);
             if (student) {
                 const formattedAmount = parseFloat(amount.replace(',', '.')).toFixed(2);
-                await updateStudentAmounts(studentId, formattedAmount);
+                if (isSpendenMode) {
+                    await updateStudentKontoAmounts(studentId, formattedAmount);
+                } else {
+                    await updateStudentAmounts(studentId, formattedAmount);
+                }
             } else {
                 return res.status(404).json({ error: 'Schüler nicht gefunden' });
             }
@@ -48,4 +52,16 @@ export default async function handler(req, res) {
     } else {
         res.status(405).json({ error: 'Methode nicht erlaubt' });
     }
+}
+
+function updateStudentKontoAmounts(studentId, amount) {
+    return new Promise((resolve, reject) => {
+        db.run('UPDATE students SET spendenKonto = ? WHERE id = ?', [amount, studentId], function (err) {
+            if (err) {
+                reject(err);
+            } else {
+                resolve();
+            }
+        });
+    });
 }

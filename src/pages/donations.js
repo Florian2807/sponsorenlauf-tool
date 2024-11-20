@@ -12,6 +12,7 @@ export default function AddDonations() {
     const [studentInfo, setStudentInfo] = useState(null);
     const [currentTimestamp, setCurrentTimestamp] = useState(null);
     const [highlightedIndex, setHighlightedIndex] = useState(-1);
+    const [isSpendenMode, setIsSpendenMode] = useState(false); // Neuer Zustand für den Modus
     const inputRef = useRef(null);
 
     useEffect(() => {
@@ -76,7 +77,7 @@ export default function AddDonations() {
             return;
         }
         try {
-            await axios.post('/api/donations', { studentId: student.id, amount });
+            await axios.post('/api/donations', { studentId: student.id, amount, isSpendenMode });
             setMessage('Spende erfolgreich hinzugefügt.');
             setSelectedStudent('');
             setAmount('0,00€');
@@ -91,12 +92,12 @@ export default function AddDonations() {
     const fetchStudentInfo = async (studentId) => {
         try {
             const response = await axios.get(`/api/students/${studentId}`);
+            console.log(response)
             if (response.status === 200) {
                 setStudentInfo({
                     ...response.data,
                     spenden: response.data.spenden
                 });
-                setCurrentTimestamp(new Date());
             } else {
                 setStudentInfo(null);
                 setMessage('Schüler nicht gefunden');
@@ -111,9 +112,9 @@ export default function AddDonations() {
         try {
             setStudentInfo({
                 ...studentInfo,
-                spenden: null
+                spendenBank: null
             })
-            await axios.put(`/api/students/${studentInfo.id}`, { spenden: null })
+            await axios.put(`/api/students/${studentInfo.id}`, { spendenBank: null })
         } catch (error) {
             console.log(error)
             setMessage('Fehler beim Löschen der Spende');
@@ -138,10 +139,29 @@ export default function AddDonations() {
         }
     };
 
+    const formatCurrency = (value) => {
+        if (value === null || value === undefined) return '0,00€';
+        const numericValue = parseFloat(value).toFixed(2); // Konvertiere zu einer Zahl mit zwei Dezimalstellen
+        const [euros, cents] = numericValue.split('.'); // Teile die Zahl in Euros und Cents
+        return `${euros},${cents}€`; // Ersetze den Punkt durch ein Komma und füge das Euro-Zeichen hinzu
+    };
+
     return (
         <div className={styles.container}>
             <h1 className={styles.title}>Spenden hinzufügen</h1>
             <form onSubmit={handleSubmit} className={styles.form}>
+                <div className={styles.switchContainer}>
+                    <label className={styles.switch}>
+                        <input
+                            type="checkbox"
+                            checked={isSpendenMode}
+                            onChange={() => setIsSpendenMode(!isSpendenMode)}
+                        />
+                        <span className={styles.slider}></span>
+                    </label>
+                </div>
+                <span>{isSpendenMode ? 'Schülerliste (muss überwiesen werden)' : 'Kontoauszug (wurde bereits überwiesen)'}</span>
+                <br />
                 <label htmlFor="student">Schüler:</label>
                 <div className={styles.inputWrapper}>
                     <input
@@ -186,23 +206,9 @@ export default function AddDonations() {
                     <p><strong>Klasse:</strong> {studentInfo.klasse}</p>
                     <p><strong>Name:</strong> {studentInfo.vorname} {studentInfo.nachname}</p>
                     <p><strong>Runden:</strong> {studentInfo.timestamps.length}</p>
-                    <p><strong>Spenden:</strong></p>
-                    <div className={styles.timestamps}>
-                        <ul className={styles.timestampList}>
-                            {studentInfo.spenden && (
-                                <li key={0} className={styles.timestampItem}>
-                                    <span>{`${JSON.stringify(studentInfo.spenden).replace('.', ',')}€`}</span>
-                                    <button
-                                        type="button"
-                                        className={styles.deleteTimestampButton}
-                                        onClick={() => handleDeleteDonation()}
-                                    >
-                                        Löschen
-                                    </button>
-                                </li>
-                            )}
-                        </ul>
-                    </div>
+                    <p><strong>erwartete Spenden:</strong> {formatCurrency(studentInfo.spenden) ?? "0,00€"}</p>
+                    <p><strong>erhaltene Spenden:</strong> {formatCurrency(studentInfo.spendenKonto) ?? "0,00€"}</p>
+                    <p><strong>Differenz: <u>{formatCurrency(studentInfo.spendenKonto - studentInfo.spenden) ?? "-"}</u></strong></p>
                 </div>
             )}
         </div>

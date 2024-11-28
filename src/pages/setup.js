@@ -14,6 +14,7 @@ export default function Setup() {
 
     const replacementStudentPopup = useRef(null);
     const confirmDeletePopup = useRef(null);
+    const importExcelPopup = useRef(null);
 
     const updateMessage = (update = {}) => {
         const tmp = {}
@@ -75,7 +76,6 @@ export default function Setup() {
         replacementStudentPopup.current.close();
         try {
             const replacementResponse = await axios.post('/api/addReplacements', replacementData);
-            console.log(replacementData)
             if (replacementResponse.status !== 200) {
                 updateMessage({ replacement: 'Fehler beim Hinzufügen der Ersatz-Benutzer.' })
             } else {
@@ -97,7 +97,6 @@ export default function Setup() {
             const labelResponse = await fetch('/api/generate-labels', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
                 },
             });
 
@@ -168,54 +167,71 @@ export default function Setup() {
     return (
         <div className={styles.container}>
             <h1 className={styles.title}>Setup</h1>
-            <form onSubmit={handleUploadExcel} className={styles.uploadForm}>
-                <input
-                    type="file"
-                    onChange={handleFileChange}
-                    accept=".xlsx"
-                    required
-                    className={styles.fileInput}
-                />
-                <button type="submit" className={styles.button} disabled={loading.upload}>
+
+            <div className={styles.section}>
+                <div className={styles.sectionHeader}>
+                    <h2 className={styles.subTitle}>Datenbank</h2>
+                    <hr className={styles.line} />
+                </div>
+
+                <button
+                    onClick={() => importExcelPopup.current.showModal()}
+                    className={styles.button}
+                    disabled={loading.upload}
+                >
                     Excel-Datei hochladen
                 </button>
-                <br />
-                {loading.upload && <div className={styles.progress} />}
-            </form>
 
-            {message.upload && <p className={styles.message}>{message.upload}</p>}
-            {insertedCount > 0 && <p className={styles.message}>Eingefügte Datensätze: {insertedCount}</p>}
+                <button
+                    onClick={() => replacementStudentPopup.current.showModal()}
+                    className={styles.button}
+                    disabled={loading.replacement}
+                >
+                    Ersatz-Benutzer hinzufügen
+                </button>
+                {loading.replacement && <div className={styles.progress} />}
+                {message.replacement && <p className={styles.message}>{message.replacement}</p>}
 
-            <button
-                onClick={() => replacementStudentPopup.current.showModal()}
-                className={styles.button}
-                disabled={loading.replacement}
-            >
-                Ersatz-Benutzer hinzufügen
-            </button>
+                <button
+                    onClick={() => confirmDeletePopup.current.showModal()}
+                    className={styles.redButton}
+                >
+                    Alle Schüler löschen
+                </button>
+                {message.delete && <p className={styles.message}>{message.delete}</p>}
+            </div>
 
+            <div className={styles.section}>
+                <div className={styles.sectionHeader}>
+                    <h2 className={styles.subTitle}>Etiketten</h2>
+                    <hr className={styles.line} />
+                </div>
+                <button onClick={handleGenerateLabels} className={styles.button} disabled={loading.labels}>
+                    Etiketten downloaden
+                </button>
+                {message.download && <p className={styles.message}>{message.download}</p>}
+                {loading.labels && <div className={styles.progress} />}
+            </div>
 
-            <button
-                onClick={() => confirmDeletePopup.current.showModal()}
-                className={styles.redButton}
-            >
-                Alle Schüler löschen
-            </button>
-            <br />
-            {loading.replacement && <div className={styles.progress} />}
-            {message.replacement && <p className={styles.message}>{message.replacement}</p>}
-
-            {message.download && <p className={styles.message}>{message.download}</p>}
-            {message.delete && <p className={styles.message}>{message.delete}</p>}
-            <br />
-            <button onClick={handleGenerateLabels} className={styles.button} disabled={loading.labels}>
-                Etiketten downloaden
-            </button>
-            <br />
-            <button onClick={handleDownloadExcel} className={styles.button}>
-                Spenden-Auswertungen downloaden
-            </button>
-            {loading.labels && <div className={styles.progress} />}
+            <div className={styles.section}>
+                <div className={styles.sectionHeader}>
+                    <h2 className={styles.subTitle}>Auswertungen</h2>
+                    <hr className={styles.line} />
+                </div>
+                <button
+                    onClick={() => window.open('/mails', '_self')}
+                    className={styles.button}
+                    title="Versendet eine E-Mail mit den gelaufenen Runden aller Schüler an die jeweiligen Klassenlehrer."
+                >
+                    gelaufene Runden per Mail versenden
+                </button>
+                <button onClick={() => window.open('/donations', '_self')} className={styles.button}>
+                    Spenden eintragen
+                </button>
+                <button onClick={handleDownloadExcel} className={styles.button}>
+                    Spenden-Auswertungen downloaden
+                </button>
+            </div>
 
             <dialog ref={replacementStudentPopup} className={styles.popup}>
                 <div className={styles.popupContent}>
@@ -260,7 +276,29 @@ export default function Setup() {
                 </div>
             </dialog>
 
-            {/* confirm-Popup */}
+            <dialog ref={importExcelPopup} className={styles.popup}>
+                <div className={styles.popupContent}>
+                    <button className={styles.closeButtonX} onClick={() => importExcelPopup.current.close()}>&times;</button>
+                    <h2>Excel-Datei hochladen</h2>
+                    <form onSubmit={handleUploadExcel} className={styles.uploadForm}>
+                        <input
+                            type="file"
+                            onChange={handleFileChange}
+                            accept=".xlsx"
+                            required
+                            className={styles.fileInput}
+                        />
+                        <button type="submit" className={styles.button} disabled={loading.upload}>
+                            Hochladen
+                        </button>
+                        <br />
+                        {loading.upload && <div className={styles.progress} />}
+                    </form>
+                    {message.upload && <p className={styles.message}>{message.upload}</p>}
+                    {insertedCount > 0 && <p className={styles.message}>Eingefügte Datensätze: {insertedCount}</p>}
+                </div>
+            </dialog>
+
             <dialog ref={confirmDeletePopup} className={styles.popup}>
                 <div className={styles.popupContent}>
                     <button className={styles.closeButtonX} onClick={() => confirmDeletePopup.current.close()}>

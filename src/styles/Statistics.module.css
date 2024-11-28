@@ -55,7 +55,7 @@
   border-bottom: 2px solid #4a90e2;
 }
 
-.section table, 
+.section table,
 .section div {
   transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
   overflow: hidden;

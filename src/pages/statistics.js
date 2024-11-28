@@ -5,13 +5,15 @@ import styles from '../styles/Statistics.module.css';
 export default function Statistics() {
   const [stats, setStats] = useState({
     classStats: [],
-    topStudents: [],
+    topStudentsByRounds: [],
+    topStudentsByMoney: [],
     averageRounds: 0,
     totalRounds: 0,
   });
 
   const [showClassStats, setShowClassStats] = useState(false);
-  const [showTopStudents, setShowTopStudents] = useState(false);
+  const [showTopStudentsByRounds, setShowTopStudentsByRounds] = useState(false);
+  const [showTopStudentsByMoney, setShowTopStudentsByMoney] = useState(false);
   const [showOverallStats, setShowOverallStats] = useState(false);
 
   useEffect(() => {
@@ -69,7 +71,7 @@ export default function Statistics() {
                 <tr key={stat.klasse}>
                   <td className={styles.tableCell}>{stat.klasse}</td>
                   <td className={styles.tableCell}>{stat.totalRounds ?? 0}</td>
-                  <td className={styles.tableCell}>{stat.averageRounds ?? 0}</td>
+                  <td className={styles.tableCell}>{stat.averageRounds.toFixed(2) ?? 0}</td>
                 </tr>
               ))}
             </tbody>
@@ -80,11 +82,11 @@ export default function Statistics() {
       <div className={styles.section}>
         <h2
           className={styles.toggleHeader}
-          onClick={() => setShowTopStudents(!showTopStudents)}
+          onClick={() => setShowTopStudentsByRounds(!showTopStudentsByRounds)}
         >
-          Top Schüler {showTopStudents ? '▲' : '▼'}
+          Top Schüler nach Runden {showTopStudentsByRounds ? '▲' : '▼'}
         </h2>
-        {showTopStudents && (
+        {showTopStudentsByRounds && (
           <table className={styles.table}>
             <thead>
               <tr>
@@ -95,12 +97,43 @@ export default function Statistics() {
               </tr>
             </thead>
             <tbody>
-              {stats.topStudents.map((student) => (
+              {stats.topStudentsByRounds.map((student) => (
                 <tr key={student.id}>
                   <td className={styles.tableCell}>{student.id}</td>
                   <td className={styles.tableCell}>{student.vorname}</td>
                   <td className={styles.tableCell}>{student.nachname}</td>
                   <td className={styles.tableCell}>{student.timestamps.length}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div className={styles.section}>
+        <h2
+          className={styles.toggleHeader}
+          onClick={() => setShowTopStudentsByMoney(!showTopStudentsByMoney)}
+        >
+          Top Schüler nach gesammeltem Geld {showTopStudentsByMoney ? '▲' : '▼'}
+        </h2>
+        {showTopStudentsByMoney && (
+          <table className='table'>
+            <thead>
+              <tr>
+                <th className={styles.tableHeader}>ID</th>
+                <th className={styles.tableHeader}>Vorname</th>
+                <th className={styles.tableHeader}>Nachname</th>
+                <th className={styles.tableHeader}>Gesammeltes Geld</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stats.topStudentsByMoney.map((student) => (
+                <tr key={student.id}>
+                  <td className={styles.tableCell}>{student.id}</td>
+                  <td className={styles.tableCell}>{student.vorname}</td>
+                  <td className={styles.tableCell}>{student.nachname}</td>
+                  <td className={styles.tableCell}>{formatCurrency(student.spenden)}</td>
                 </tr>
               ))}
             </tbody>
@@ -127,3 +160,10 @@ export default function Statistics() {
     </div>
   );
 }
+
+const formatCurrency = (value) => {
+  if (value === null || value === undefined) return '0,00€';
+  const numericValue = parseFloat(value).toFixed(2); // Konvertiere zu einer Zahl mit zwei Dezimalstellen
+  const [euros, cents] = numericValue.split('.'); // Teile die Zahl in Euros und Cents
+  return `${euros},${cents}€`; // Ersetze den Punkt durch ein Komma und füge das Euro-Zeichen hinzu
+};

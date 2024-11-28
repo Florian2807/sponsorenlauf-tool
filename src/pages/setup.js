@@ -144,6 +144,27 @@ export default function Setup() {
         }
     };
 
+    const handleDownloadExcel = async () => {
+        try {
+            const response = await axios.get('/api/exportSpenden', { responseType: 'blob' });
+
+            if (response.status === 200) {
+                const url = window.URL.createObjectURL(new Blob([response.data]));
+                const link = document.createElement('a');
+                link.href = url;
+                link.setAttribute('download', 'students.xlsx');
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } else {
+                updateMessage({ download: 'Fehler beim Herunterladen der Excel-Datei.' });
+            }
+        } catch (error) {
+            console.error('Fehler:', error);
+            updateMessage({ download: 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.' });
+        }
+    };
+
     return (
         <div className={styles.container}>
             <h1 className={styles.title}>Setup</h1>
@@ -191,6 +212,9 @@ export default function Setup() {
                 Etiketten downloaden
             </button>
             <br />
+            <button onClick={handleDownloadExcel} className={styles.button}>
+                Spenden-Auswertungen downloaden
+            </button>
             {loading.labels && <div className={styles.progress} />}
 
             <dialog ref={replacementStudentPopup} className={styles.popup}>

@@ -43,17 +43,24 @@ const calculateStatistics = (students) => {
     }))
     .sort((a, b) => b.totalRounds - a.totalRounds);
 
-  // Top 5 students
-  const topStudents = [...students]
+  // Top 5 students by rounds
+  const topStudentsByRounds = [...students]
     .filter(student => student.timestamps.length > 0)
     .sort((a, b) => b.timestamps.length - a.timestamps.length)
+    .slice(0, 5);
+
+  // Top 5 students by collected money
+  const topStudentsByMoney = [...students]
+    .filter(student => student.spenden > 0)
+    .sort((a, b) => b.spenden - a.spenden)
     .slice(0, 5);
 
   const averageRounds = totalActiveStudents > 0 ? totalRounds / totalActiveStudents : 0;
 
   return {
     classStats: sortedClassStats,
-    topStudents,
+    topStudentsByRounds,
+    topStudentsByMoney,
     averageRounds,
     totalRounds
   };

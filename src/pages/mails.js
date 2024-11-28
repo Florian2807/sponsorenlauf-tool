@@ -179,8 +179,13 @@ export default function Home() {
 
     return (
         <div className={styles.container}>
-            <h1 className={styles.title}>ZIP-Datei hochladen und E-Mails senden</h1>
-            {!Object.keys(teacherData.files).length &&
+            <h1 className={styles.title}>Mails versenden</h1>
+            <p className={styles.description}>
+                Hier werden die Klassenlisten mit gelaufenen Rundern der Schüler generiert und an die jeweiligen Klassenlehrer versendet.
+            </p>
+            < br />
+            {
+                !Object.keys(teacherData.files).length &&
                 <button className={styles.button} onClick={() => sendMailsPopup.current.showModal()}>
                     Mail versenden
                 </button>
@@ -243,7 +248,7 @@ export default function Home() {
                         <button onClick={() => sendMailsPopup.current.close()} className={`${styles.button} ${styles.redButton}`}>
                             Abbrechen
                         </button>
-                        <button
+                        <button className={styles.button}
                             onClick={handleUpload} disabled={!credentialsCorrect}>
                             Weiter
                         </button>
@@ -252,41 +257,43 @@ export default function Home() {
                 </div>
             </dialog>
 
-            {Object.keys(teacherData.files).length > 0 && (
-                <div>
-                    <h2 className={styles.subtitle}>Lehrer E-Mails</h2>
-                    {Object.keys(teacherData.files).map((className) => (
-                        <div key={className} className={styles.classContainer}>
-                            <div className={styles.classTitle}>{className}</div>
-                            <div className={styles.emailFields}>
-                                {teacherData.emails[className]?.map((email, index) => (
-                                    <div key={index} style={{ display: 'flex', alignItems: 'center' }}>
-                                        <span className={styles.emailIndex}>{index + 1}.</span>
-                                        <input
-                                            type="email"
-                                            value={email}
-                                            onChange={handleEmailChange(className, index)}
-                                            placeholder="E-Mail Adresse"
-                                            className={styles.inputEmail}
-                                        />
-                                    </div>
-                                ))}
+            {
+                Object.keys(teacherData.files).length > 0 && (
+                    <div>
+                        <h2 className={styles.subtitle}>Lehrer E-Mails</h2>
+                        {Object.keys(teacherData.files).map((className) => (
+                            <div key={className} className={styles.classContainer}>
+                                <div className={styles.classTitle}>{className}</div>
+                                <div className={styles.emailFields}>
+                                    {teacherData.emails[className]?.map((email, index) => (
+                                        <div key={index} style={{ display: 'flex', alignItems: 'center' }}>
+                                            <span className={styles.emailIndex}>{index + 1}.</span>
+                                            <input
+                                                type="email"
+                                                value={email}
+                                                onChange={handleEmailChange(className, index)}
+                                                placeholder="E-Mail Adresse"
+                                                className={styles.inputEmail}
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                    ))}
-                    <h2>Mail-Inhalt</h2>
-                    <textarea
-                        value={fileData.mailText}
-                        onChange={(e) => setFileData({ ...fileData, mailText: e.target.value })}
-                        className={styles.textarea}
-                    />
-                    <br />
-                    <button onClick={handleSendEmails} className={styles.button}>E-Mails senden</button>
-                </div>
-            )}
+                        ))}
+                        <h2>Mail-Inhalt</h2>
+                        <textarea
+                            value={fileData.mailText}
+                            onChange={(e) => setFileData({ ...fileData, mailText: e.target.value })}
+                            className={styles.textarea}
+                        />
+                        <br />
+                        <button onClick={handleSendEmails} className={styles.button}>E-Mails senden</button>
+                    </div>
+                )
+            }
 
             {status.sendMailLoading && <div className={styles.progress} />}
             {status.message && <p className={styles.message}>{status.message}</p>}
-        </div>
+        </div >
     );
 }

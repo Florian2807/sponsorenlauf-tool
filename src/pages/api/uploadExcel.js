@@ -56,7 +56,7 @@ export default async function handler(req, res) {
           const newId = parseInt(maxId + index + 1);
           db.run(
             insertQuery,
-            [newId, row.vorname, row.nachname, row.klasse, '[]', row.spenden || null, row.spendenKonto || null],
+            [newId, row.vorname, row.nachname, row.klasse, '[]', row.spenden || null, row.spendenKonto || []],
             (err) => {
               if (err) {
                 console.error('Fehler beim Einfügen:', err.message);

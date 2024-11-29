@@ -92,11 +92,9 @@ export default function AddDonations() {
     const fetchStudentInfo = async (studentId) => {
         try {
             const response = await axios.get(`/api/students/${studentId}`);
-            console.log(response)
             if (response.status === 200) {
                 setStudentInfo({
-                    ...response.data,
-                    spenden: response.data.spenden
+                    ...response.data
                 });
             } else {
                 setStudentInfo(null);
@@ -108,13 +106,14 @@ export default function AddDonations() {
         }
     };
 
-    const handleDeleteDonation = async () => {
+    const handleDeleteDonation = async (indexToRemove) => {
+        const updatedDonations = studentInfo.spendenKonto.filter((_, index) => index !== indexToRemove);
         try {
-            setStudentInfo({
-                ...studentInfo,
-                spendenBank: null
-            })
-            await axios.put(`/api/students/${studentInfo.id}`, { spendenBank: null })
+            await axios.put(`/api/students/${studentInfo.id}`, { spendenKonto: updatedDonations })
+            setStudentInfo((prevStudentInfo) => ({
+                ...prevStudentInfo,
+                spendenKonto: updatedDonations,
+            }));
         } catch (error) {
             console.log(error)
             setMessage('Fehler beim Löschen der Spende');
@@ -206,11 +205,29 @@ export default function AddDonations() {
                     <p><strong>Klasse:</strong> {studentInfo.klasse}</p>
                     <p><strong>Name:</strong> {studentInfo.vorname} {studentInfo.nachname}</p>
                     <p><strong>Runden:</strong> {studentInfo.timestamps.length}</p>
-                    <p><strong>erwartete Spenden:</strong> {formatCurrency(studentInfo.spenden) ?? "0,00€"}</p>
-                    <p><strong>erhaltene Spenden:</strong> {formatCurrency(studentInfo.spendenKonto) ?? "0,00€"}</p>
-                    <p><strong>Differenz: <u>{formatCurrency(studentInfo.spendenKonto - studentInfo.spenden) ?? "-"}</u></strong></p>
+                    <p><strong>erwartete Spenden</strong> {formatCurrency(studentInfo.spenden ?? "0,00€")}</p>
+                    <p><strong>erhaltene Spenden:</strong> {formatCurrency(studentInfo.spendenKonto.length ? studentInfo.spendenKonto.reduce((a, b) => a + b) : [0]) ?? "0,00€"}</p>
+                    <p><strong>Differenz: <u>{formatCurrency((studentInfo.spendenKonto.length ? studentInfo.spendenKonto?.reduce((a, b) => a + b) : [0]) - studentInfo.spenden) ?? "-"}</u></strong></p>
+                    <p><strong>erhaltene Spenden:</strong></p>
+                    <div className={styles.timestamps}>
+                        <ul className={styles.timestampList}>
+                            {studentInfo.spendenKonto.map((donation, index) => (
+                                <li key={index} className={styles.timestampItem} >
+                                    <p>{formatCurrency(JSON.stringify(donation).replace('.', ','))}</p>
+                                    <button
+                                        type="button"
+                                        className={styles.deleteTimestampButton}
+                                        onClick={() => handleDeleteDonation(index)}
+                                    >
+                                        Löschen
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
                 </div>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 }

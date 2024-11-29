@@ -51,7 +51,7 @@ export default async function handler(req, res) {
 			const newRID = maxRID + i + 1;
 			db.run(
 				insertQuery,
-				[newId, newRID, '', 'Ersatz', '[]', NULL, NULL],
+				[newId, newRID, '', 'Ersatz', '[]', NULL, '[]'],
 				(err) => {
 					if (err) {
 						console.error('Fehler beim Einfügen:', err.message);

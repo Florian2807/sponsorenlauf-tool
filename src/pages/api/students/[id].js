@@ -8,7 +8,7 @@ const saveStudent = (id, vorname, nachname, klasse, timestamps, spenden, spenden
     db.run(
       `INSERT INTO students (id, vorname, nachname, klasse, timestamps, spenden, spendenKonto) 
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [id, vorname, nachname, klasse, JSON.stringify(timestamps), spenden, spendenKonto],
+      [id, vorname, nachname, klasse, JSON.stringify(timestamps), spenden, JSON.stringify(spendenKonto)],
       function (err) {
         if (err) reject(err);
         resolve();
@@ -34,7 +34,7 @@ const updateStudent = (id, vorname, nachname, klasse, timestamps, spenden, spend
       `UPDATE students 
        SET vorname = ?, nachname = ?, klasse = ?, timestamps = ?, spenden = ?, spendenKonto = ?
        WHERE id = ?`,
-      [vorname, nachname, klasse, JSON.stringify(timestamps), spenden, spendenKonto, id],
+      [vorname, nachname, klasse, JSON.stringify(timestamps), spenden, JSON.stringify(spendenKonto), id],
       function (err) {
         if (err) reject(err);
         resolve();
@@ -60,6 +60,7 @@ export default async function handler(req, res) {
       const student = await getStudentById(id);
       if (student) {
         student.timestamps = JSON.parse(student.timestamps);
+        student.spendenKonto = JSON.parse(student.spendenKonto);
         res.status(200).json(student);
       } else {
         res.status(404).json({ error: 'Schüler nicht gefunden' });
@@ -71,12 +72,12 @@ export default async function handler(req, res) {
   else if (req.method === 'POST') {
     const { vorname, nachname, klasse, timestamps, spenden, spendenKonto } = req.body;
 
-    if (!id || !vorname || !nachname || !klasse || !Array.isArray(timestamps) || spenden || spendenKonto) {
+    if (!id || !vorname || !nachname || !klasse || !Array.isArray(timestamps) || !spenden || !Array.isArray(spendenKonto)) {
       return res.status(400).json({ error: 'Alle Felder sind erforderlich und Timestamps müssen ein Array sein' });
     }
 
     try {
-      await saveStudent(id, vorname, nachname, klasse, timestamps, spenden, spendenKonto);
+      await saveStudent(id, vorname, nachname, klasse, JSON.stringify(timestamps), spenden, JSON.stringify(spendenKonto));
       res.status(201).json({ id, vorname, nachname, klasse, timestamps, spenden, spendenKonto });
     } catch (error) {
       res.status(500).json({ error: 'Fehler beim Speichern des Schülers' });
@@ -84,7 +85,6 @@ export default async function handler(req, res) {
   }
   else if (req.method === 'PUT') {
     const { vorname, nachname, klasse, timestamps, spenden, spendenKonto } = req.body;
-    console.log(req.body);
     try {
       const student = await getStudentById(id);
       if (!student) {
@@ -97,7 +97,7 @@ export default async function handler(req, res) {
         klasse !== undefined ? klasse : student.klasse,
         timestamps !== undefined ? timestamps : JSON.parse(student.timestamps),
         spenden !== undefined ? spenden : student.spenden,
-        spendenKonto !== undefined ? spendenKonto : student.spendenKonto
+        spendenKonto !== undefined ? spendenKonto : JSON.parse(student.spendenKonto)
       );
       res.status(200).json({ success: true });
     } catch (error) {

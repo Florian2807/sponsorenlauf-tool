@@ -12,7 +12,7 @@ db.serialize(() => {
       klasse TEXT NOT NULL,
       timestamps TEXT,
       spenden REAL,
-      spendenKonto REAL
+      spendenKonto TEXT
     )
   `);
 });

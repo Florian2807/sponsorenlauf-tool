@@ -14,18 +14,6 @@ function getStudentById(studentId) {
     });
 }
 
-function updateStudentAmounts(studentId, amount) {
-    return new Promise((resolve, reject) => {
-        db.run('UPDATE students SET spenden = ? WHERE id = ?', [amount, studentId], function (err) {
-            if (err) {
-                reject(err);
-            } else {
-                resolve();
-            }
-        });
-    });
-}
-
 export default async function handler(req, res) {
     if (req.method === 'POST') {
         const { studentId, amount, isSpendenMode } = req.body;
@@ -35,11 +23,11 @@ export default async function handler(req, res) {
         try {
             const student = await getStudentById(studentId);
             if (student) {
-                const formattedAmount = parseFloat(amount.replace(',', '.')).toFixed(2);
+                const formattedAmount = parseFloat(amount.replaceAll(',', '.').replaceAll('€', '')).toFixed(2);
                 if (isSpendenMode) {
-                    await updateStudentKontoAmounts(studentId, formattedAmount);
+                    await updateStudentAmounts(student, formattedAmount);
                 } else {
-                    await updateStudentAmounts(studentId, formattedAmount);
+                    await updateStudentKontoAmounts(student, formattedAmount);
                 }
             } else {
                 return res.status(404).json({ error: 'Schüler nicht gefunden' });
@@ -54,9 +42,23 @@ export default async function handler(req, res) {
     }
 }
 
-function updateStudentKontoAmounts(studentId, amount) {
+function updateStudentAmounts(student, amount) {
     return new Promise((resolve, reject) => {
-        db.run('UPDATE students SET spendenKonto = ? WHERE id = ?', [amount, studentId], function (err) {
+        db.run('UPDATE students SET spenden = ? WHERE id = ?', [amount, student.id], function (err) {
+            if (err) {
+                reject(err);
+            } else {
+                resolve();
+            }
+        });
+    });
+}
+
+function updateStudentKontoAmounts(student, amount) {
+    const amounts = student.spendenKonto ? JSON.parse(student.spendenKonto) : [];
+    amounts.push(Number(amount));
+    return new Promise((resolve, reject) => {
+        db.run('UPDATE students SET spendenKonto = ? WHERE id = ?', [JSON.stringify(amounts), student.id], function (err) {
             if (err) {
                 reject(err);
             } else {

@@ -10,7 +10,7 @@ async function getClassData() {
     });
 
     const classData = await db.all(`
-      SELECT id, klasse, vorname, nachname, spenden, spendenKonto, timestamps
+      SELECT klasse, vorname, nachname, spenden, spendenKonto, timestamps
       FROM students
       ORDER BY klasse, nachname
     `);
@@ -23,8 +23,6 @@ async function getClassData() {
             acc[row.klasse] = [];
         }
         acc[row.klasse].push({
-            id: row.id,
-            klasse: row.klasse,
             vorname: row.vorname,
             nachname: row.nachname,
             rounds: timestampsArray.length,
@@ -47,11 +45,7 @@ export default async function handler(req, res) {
             const db = new sqlite3.Database('./data/students.db');
 
             const studentData = await new Promise((resolve, reject) => {
-                db.all(`
-                    SELECT id, klasse, vorname, nachname, spenden, spendenKonto, timestamps
-                    FROM students
-                    ORDER BY klasse, nachname
-                `, (err, rows) => {
+                db.all('SELECT id, klasse, vorname, nachname, spenden, spendenKonto, timestamps FROM students', (err, rows) => {
                     if (err) {
                         reject(err);
                     } else {
@@ -63,12 +57,23 @@ export default async function handler(req, res) {
             // Sortiere die Daten nach Klassen und Unterklassen
             const classOrder = ['5', '6', '7', '8', '9', '10', 'EF', 'Q1', 'Q2'];
             studentData.sort((a, b) => {
-                const classA = classOrder.indexOf(a.klasse);
-                const classB = classOrder.indexOf(b.klasse);
-                if (classA !== classB) {
-                    return classA - classB;
+                const classA = a.klasse.match(/(\d+|EF|Q1|Q2)([a-f]?)/);
+                const classB = b.klasse.match(/(\d+|EF|Q1|Q2)([a-f]?)/);
+
+                if (!classA || !classB) {
+                    return 0;
+                }
+
+                const gradeA = classOrder.indexOf(classA[1]);
+                const gradeB = classOrder.indexOf(classB[1]);
+
+                if (gradeA === gradeB) {
+                    if (classA[2] === classB[2]) {
+                        return a.nachname.localeCompare(b.nachname);
+                    }
+                    return (classA[2] || '').localeCompare(classB[2] || '');
                 } else {
-                    return a.nachname.localeCompare(b.nachname);
+                    return gradeA - gradeB;
                 }
             });
 
@@ -76,13 +81,14 @@ export default async function handler(req, res) {
             const worksheet = workbook.addWorksheet('Students');
 
             worksheet.columns = [
+                { header: 'ID', key: 'id', width: 5 },
                 { header: 'Klasse', key: 'klasse', width: 10 },
-                { header: 'Vorname', key: 'vorname', width: 20 / 7.5 }, // 20 Pixel
-                { header: 'Nachname', key: 'nachname', width: 20 / 7.5 }, // 20 Pixel
-                { header: 'Runden', key: 'runden', width: 10 / 7.5 }, // 10 Pixel
-                { header: 'erwartete Spenden', key: 'spenden', width: 20 / 7.5, style: { numFmt: '_-* #,##0.00 €_-;_-* -#,##0.00 €_-;_-* "-"?? €_-;_-@_-' } }, // 20 Pixel
-                { header: 'erhaltene Spenden', key: 'spendenKonto', width: 20 / 7.5, style: { numFmt: '_-* #,##0.00 €_-;_-* -#,##0.00 €_-;_-* "-"?? €_-;_-@_-' } }, // 20 Pixel
-                { header: 'Differenz', key: 'differenz', width: 20 / 7.5, style: { numFmt: '_-* #,##0.00 €_-;_-* -#,##0.00 €_-;_-* "-"?? €_-;_-@_-' } } // 20 Pixel
+                { header: 'Vorname', key: 'vorname', width: 20 },
+                { header: 'Nachname', key: 'nachname', width: 20 },
+                { header: 'Runden', key: 'runden', width: 10 },
+                { header: 'erwartete Spenden', key: 'spenden', width: 20, style: { numFmt: '_-* #,##0.00 €_-;_-* -#,##0.00 €_-;_-* "-"?? €_-;_-@_-' } },
+                { header: 'erhaltene Spenden', key: 'spendenKonto', width: 20, style: { numFmt: '_-* #,##0.00 €_-;_-* -#,##0.00 €_-;_-* "-"?? €_-;_-@_-' } },
+                { header: 'Differenz', key: 'differenz', width: 20, style: { numFmt: '_-* #,##0.00 €_-;_-* -#,##0.00 €_-;_-* "-"?? €_-;_-@_-' } }
             ];
 
             studentData.forEach(student => {
@@ -91,24 +97,26 @@ export default async function handler(req, res) {
                 const spendenKonto = student.spendenKonto !== null ? JSON.parse(student.spendenKonto).reduce((a, b) => a + b, 0) : 0.00;
                 const differenz = spendenKonto - spenden;
                 const row = worksheet.addRow({
-                    klasse: student.klasse,
-                    vorname: student.vorname,
-                    nachname: student.nachname,
-                    runden: runden,
-                    spenden: spenden,
-                    spendenKonto: spendenKonto,
-                    differenz: differenz
+                    ...student,
+                    spenden,
+                    spendenKonto,
+                    runden,
+                    differenz
                 });
 
-                // Tabellenlinien anzeigen
-                row.eachCell({ includeEmpty: true }, (cell) => {
-                    cell.border = {
-                        top: { style: 'thin' },
-                        left: { style: 'thin' },
-                        bottom: { style: 'thin' },
-                        right: { style: 'thin' }
-                    };
-                });
+                // Bedingte Formatierung anwenden
+                if (differenz < 0) {
+                    row.getCell('differenz').font = { color: { argb: 'FFFF0000' } }; // Rot
+                }
+
+                if (spenden !== 0 && differenz === 0) {
+                    // color cell green
+                    row.getCell('differenz').fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: 'A1BA66' } // Grün
+                    }
+                };
             });
 
             res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -122,37 +130,51 @@ export default async function handler(req, res) {
         }
     } else if (requestedType === 'zip') {
         try {
-            const classData = await getClassData();
             const zip = new JSZip();
+
+            const classData = await getClassData();
 
             for (const [klasse, students] of Object.entries(classData)) {
                 const workbook = new excel.Workbook();
-                const worksheet = workbook.addWorksheet('Students');
+                const worksheet = workbook.addWorksheet('Schüler');
 
                 worksheet.columns = [
-                    { header: 'Klasse', key: 'klasse', width: 10 },
                     { header: 'Vorname', key: 'vorname', width: 20 },
                     { header: 'Nachname', key: 'nachname', width: 20 },
-                    { header: 'Runden', key: 'runden', width: 10 },
+                    { header: 'Runden', key: 'rounds', width: 10 },
                     { header: 'erwartete Spenden', key: 'spenden', width: 20, style: { numFmt: '_-* #,##0.00 €_-;_-* -#,##0.00 €_-;_-* "-"?? €_-;_-@_-' } },
                     { header: 'erhaltene Spenden', key: 'spendenKonto', width: 20, style: { numFmt: '_-* #,##0.00 €_-;_-* -#,##0.00 €_-;_-* "-"?? €_-;_-@_-' } },
                     { header: 'Differenz', key: 'differenz', width: 20, style: { numFmt: '_-* #,##0.00 €_-;_-* -#,##0.00 €_-;_-* "-"?? €_-;_-@_-' } }
                 ];
 
                 students.forEach(student => {
-                    const row = worksheet.addRow(student);
-                    row.eachCell({ includeEmpty: true }, (cell) => {
-                        cell.border = {
-                            top: { style: 'thin' },
-                            left: { style: 'thin' },
-                            bottom: { style: 'thin' },
-                            right: { style: 'thin' }
-                        };
+                    const row = worksheet.addRow({
+                        vorname: student.vorname,
+                        nachname: student.nachname,
+                        rounds: student.rounds,
+                        spenden: student.spenden,
+                        spendenKonto: student.spendenKonto,
+                        differenz: student.differenz
                     });
+
+                    // Bedingte Formatierung anwenden
+                    if (student.differenz < 0) {
+                        row.getCell('differenz').font = { color: { argb: 'FFFF0000' } }; // Rot
+                    }
+
+                    if (student.spenden !== 0 && student.differenz === 0) {
+                        // color cell green
+                        row.getCell('differenz').fill = {
+                            type: 'pattern',
+                            pattern: 'solid',
+                            fgColor: { argb: 'A1BA66' } // Grün
+                        }
+                    };
                 });
 
+                // create ZIP file
                 const buffer = await workbook.xlsx.writeBuffer();
-                zip.file(`Klasse_${klasse}.xlsx`, buffer);
+                zip.file(`${klasse}.xlsx`, buffer);
             }
 
             const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' });

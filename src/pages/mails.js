@@ -23,8 +23,6 @@ export default function Home() {
     });
     const [credentialsCorrect, setCredentialsCorrect] = useState(false);
     const sendMailsPopup = useRef(null);
-    const [uploadedFile, setUploadedFile] = useState(null);
-    const [uploadMode, setUploadMode] = useState('api');
 
     useEffect(() => {
         const fetchTeacherEmails = async () => {
@@ -69,16 +67,10 @@ export default function Home() {
         }
     };
 
-    const handleFileChange = (e) => {
-        setFileData((prev) => ({ ...prev, file: e.target.files[0] }));
-        setUploadMode('file');
-    };
-
     const fetchFileFromApi = async () => {
         try {
             const response = await fetch('/api/exportExcel');
             if (response.ok) {
-                setUploadMode('api');
                 return await response.blob();
             } else {
                 setStatus({ message: 'Fehler beim Abrufen der Datei von der API', uploadLoading: false });
@@ -93,7 +85,7 @@ export default function Home() {
         e.preventDefault(); // Prevent form submission default behavior
         setStatus({ ...status, uploadLoading: true });
 
-        const zipFile = uploadedFile || (await fetchFileFromApi());
+        const zipFile = await fetchFileFromApi();
 
         if (!zipFile) {
             setStatus({ message: 'Bitte wähle eine ZIP-Datei aus.', uploadLoading: false });
@@ -195,18 +187,6 @@ export default function Home() {
                 <div className={styles.popupContent}>
                     <button className={styles.closeButtonX} onClick={() => sendMailsPopup.current.close()}>&times;</button>
                     <h2>Mails mit Tabellen versenden</h2>
-
-                    <label>Datei auswählen:</label>
-                    <input
-                        type="file"
-                        accept=".zip"
-                        onChange={(e) => {
-                            handleFileChange(e);
-                            setUploadedFile(e.target.files[0]);
-                        }}
-                    />
-                    {uploadMode === 'file' && <p className={styles.indicator}>Modus: Datei hochgeladen</p>}
-                    {uploadMode === 'api' && <p className={styles.indicator}>Modus: API verwendet</p>}
 
                     <h2>Microsoft Login</h2>
                     <label>E-Mail Adresse:</label>

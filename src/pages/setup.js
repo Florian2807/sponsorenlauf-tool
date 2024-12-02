@@ -6,7 +6,7 @@ export default function Setup() {
     const [file, setFile] = useState(null);
     const [message, setMessage] = useState({ download: '', upload: '', replacement: '', delete: '' });
     const [insertedCount, setInsertedCount] = useState(0);
-    const [loading, setLoading] = useState({ upload: false, labels: false, replacement: false });
+    const [loading, setLoading] = useState({ upload: false, labels: false, replacement: false, downloadResults: false });
     const [replacementData, setReplacementData] = useState({
         className: 'Ersatz',
         amount: 1
@@ -15,6 +15,7 @@ export default function Setup() {
     const replacementStudentPopup = useRef(null);
     const confirmDeletePopup = useRef(null);
     const importExcelPopup = useRef(null);
+    const exportSpendenPopup = useRef(null);
 
     const updateMessage = (update = {}) => {
         const tmp = {}
@@ -143,15 +144,16 @@ export default function Setup() {
         }
     };
 
-    const handleDownloadExcel = async () => {
+    const downloadAllResults = async () => {
+        setLoading((prev) => ({ ...prev, downloadResults: true }));
         try {
-            const response = await axios.get('/api/exportSpenden', { responseType: 'blob' });
+            const response = await axios.get('/api/exportSpenden', { responseType: 'blob', params: { requestedType: 'xlsx' } });
 
             if (response.status === 200) {
                 const url = window.URL.createObjectURL(new Blob([response.data]));
                 const link = document.createElement('a');
                 link.href = url;
-                link.setAttribute('download', 'students.xlsx');
+                link.setAttribute('download', 'Gesamtauswertung.xlsx');
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
@@ -162,6 +164,30 @@ export default function Setup() {
             console.error('Fehler:', error);
             updateMessage({ download: 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.' });
         }
+        setLoading((prev) => ({ ...prev, downloadResults: false }));
+    };
+
+    const downloadClassResults = async () => {
+        setLoading((prev) => ({ ...prev, downloadResults: true }));
+        try {
+            const response = await axios.get('/api/exportSpenden', { responseType: 'blob', params: { requestedType: 'xlsx' } });
+
+            if (response.status === 200) {
+                const url = window.URL.createObjectURL(new Blob([response.data]));
+                const link = document.createElement('a');
+                link.href = url;
+                link.setAttribute('download', 'klassenauswertungen.pdf');
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } else {
+                updateMessage({ download: 'Fehler beim Herunterladen der Excel-Datei.' });
+            }
+        } catch (error) {
+            console.error('Fehler:', error);
+            updateMessage({ download: 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.' });
+        }
+        setLoading((prev) => ({ ...prev, downloadResults: false }));
     };
 
     return (
@@ -228,7 +254,7 @@ export default function Setup() {
                 <button onClick={() => window.open('/donations', '_self')} className={styles.button}>
                     Spenden eintragen
                 </button>
-                <button onClick={handleDownloadExcel} className={styles.button}>
+                <button onClick={() => exportSpendenPopup.current.showModal()} className={styles.button}>
                     Spenden-Auswertungen downloaden
                 </button>
             </div>
@@ -298,6 +324,22 @@ export default function Setup() {
                     {insertedCount > 0 && <p className={styles.message}>Eingefügte Datensätze: {insertedCount}</p>}
                 </div>
             </dialog>
+
+            <dialog ref={exportSpendenPopup} className={styles.popup}>
+                <div className={styles.popupContent}>
+                    <button className={styles.closeButtonX} onClick={() => exportSpendenPopup.current.close()}>&times;</button>
+                    <h2>Spenden Auswertungen downloaden</h2>
+                    <div className={styles.popupButtons}>
+                        <button onClick={downloadAllResults} className={styles.button} disabled={loading.downloadResults}>
+                            Gesamtauswertung
+                        </button>
+                        <button className={styles.button} onClick={downloadClassResults} disabled={loading.downloadResults}>
+                            Klassenweise Auswertung
+                        </button>
+                    </div>
+                    {loading.downloadResults && <div className={styles.progress} />}
+                </div>
+            </dialog >
 
             <dialog ref={confirmDeletePopup} className={styles.popup}>
                 <div className={styles.popupContent}>

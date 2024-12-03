@@ -1,6 +1,6 @@
 import sqlite3 from 'sqlite3';
-import xlsx from 'xlsx';
 import multer from 'multer';
+import ExcelJS from 'exceljs';
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -19,11 +19,22 @@ export default async function handler(req, res) {
     try {
       const buffer = req.file.buffer;
 
-      const workbook = xlsx.read(buffer, { type: 'buffer' });
-      const firstSheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[firstSheetName];
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(buffer);
+      const worksheet = workbook.worksheets[0];
 
-      const data = xlsx.utils.sheet_to_json(worksheet, { header: ['vorname', 'nachname', 'klasse'], defval: '', range: 1 });
+      const data = [];
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber > 1) {
+          data.push({
+            vorname: row.getCell(1).value,
+            nachname: row.getCell(2).value,
+            klasse: row.getCell(3).value,
+            spenden: row.getCell(4).value,
+            spendenKonto: row.getCell(5).value
+          });
+        }
+      });
 
       const db = new sqlite3.Database('./data/students.db', (err) => {
         if (err) {
@@ -48,9 +59,8 @@ export default async function handler(req, res) {
       const maxId = await getMaxIdPromise();
       let insertedCount = 0;
 
-      // paste Data in database
       db.serialize(() => {
-        const insertQuery = `INSERT INTO students (id, vorname, nachname, klasse, timestamps, spenden, spendenKonto) VALUES (?, ?, ?, ?, ?, ?)`;
+        const insertQuery = `INSERT INTO students (id, vorname, nachname, klasse, timestamps, spenden, spendenKonto) VALUES (?, ?, ?, ?, ?, ?, ?)`;
 
         data.forEach((row, index) => {
           const newId = parseInt(maxId + index + 1);
@@ -68,7 +78,6 @@ export default async function handler(req, res) {
           );
         });
       });
-
 
       db.close((err) => {
         if (err) {

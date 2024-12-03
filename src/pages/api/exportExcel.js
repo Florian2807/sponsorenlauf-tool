@@ -1,19 +1,23 @@
 import JSZip from 'jszip';
 import { Workbook } from 'exceljs';
 import sqlite3 from 'sqlite3';
-import { open } from 'sqlite';
 
 async function getClassData() {
-  const db = await open({
-    filename: './data/students.db',
-    driver: sqlite3.Database,
-  });
+  const db = new sqlite3.Database('./data/students.db');
 
-  const classData = await db.all(`
-    SELECT klasse, vorname, nachname, timestamps
-    FROM students
-    ORDER BY klasse, nachname
-  `);
+  const classData = await new Promise((resolve, reject) => {
+    db.all(`
+      SELECT klasse, vorname, nachname, timestamps
+      FROM students
+      ORDER BY klasse, nachname
+    `, (err, rows) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(rows);
+      }
+    });
+  });
 
   const groupedByClass = classData.reduce((acc, row) => {
     const timestampsArray = row.timestamps ? JSON.parse(row.timestamps) : [];
@@ -30,7 +34,7 @@ async function getClassData() {
     return acc;
   }, {});
 
-  await db.close();
+  db.close();
   return groupedByClass;
 }
 

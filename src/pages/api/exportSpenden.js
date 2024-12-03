@@ -1,19 +1,22 @@
 const excel = require('exceljs');
 const sqlite3 = require('sqlite3').verbose();
-const JSZip = require('jszip');
-const { open } = require('sqlite');
 
 async function getClassData() {
-    const db = await open({
-        filename: './data/students.db',
-        driver: sqlite3.Database,
-    });
+    const db = new sqlite3.Database('./data/students.db');
 
-    const classData = await db.all(`
-      SELECT klasse, vorname, nachname, spenden, spendenKonto, timestamps
-      FROM students
-      ORDER BY klasse, nachname
-    `);
+    const classData = await new Promise((resolve, reject) => {
+        db.all(`
+          SELECT klasse, vorname, nachname, spenden, spendenKonto, timestamps
+          FROM students
+          ORDER BY klasse, nachname
+        `, (err, rows) => {
+            if (err) {
+                reject(err);
+            } else {
+                resolve(rows);
+            }
+        });
+    });
 
     const groupedByClass = classData.reduce((acc, row) => {
         const timestampsArray = row.timestamps ? JSON.parse(row.timestamps) : [];
@@ -34,157 +37,217 @@ async function getClassData() {
         return acc;
     }, {});
 
-    await db.close();
+    db.close();
     return groupedByClass;
 }
 
 export default async function handler(req, res) {
     const requestedType = req.query.requestedType ?? 'xlsx';
-    if (requestedType === 'xlsx') {
-        try {
-            const db = new sqlite3.Database('./data/students.db');
+    const classOrder = ['5', '6', '7', '8', '9', '10', 'EF', 'Q1', 'Q2'];
 
-            const studentData = await new Promise((resolve, reject) => {
-                db.all('SELECT id, klasse, vorname, nachname, spenden, spendenKonto, timestamps FROM students', (err, rows) => {
-                    if (err) {
-                        reject(err);
+    switch (requestedType) {
+        case 'allstudents': {
+            try {
+                const db = new sqlite3.Database('./data/students.db');
+
+                const studentData = await new Promise((resolve, reject) => {
+                    db.all('SELECT id, klasse, vorname, nachname, spenden, spendenKonto, timestamps FROM students', (err, rows) => {
+                        if (err) {
+                            reject(err);
+                        } else {
+                            resolve(rows);
+                        }
+                    });
+                });
+
+                // Sortiere die Daten nach Klassen und Unterklassen
+                studentData.sort((a, b) => {
+                    const classA = a.klasse.match(/(\d+|EF|Q1|Q2)([a-f]?)/);
+                    const classB = b.klasse.match(/(\d+|EF|Q1|Q2)([a-f]?)/);
+
+                    if (!classA || !classB) {
+                        return 0;
+                    }
+
+                    const gradeA = classOrder.indexOf(classA[1]);
+                    const gradeB = classOrder.indexOf(classB[1]);
+
+                    if (gradeA === gradeB) {
+                        if (classA[2] === classB[2]) {
+                            return a.nachname.localeCompare(b.nachname);
+                        }
+                        return (classA[2] || '').localeCompare(classB[2] || '');
                     } else {
-                        resolve(rows);
+                        return gradeA - gradeB;
                     }
                 });
-            });
 
-            // Sortiere die Daten nach Klassen und Unterklassen
-            const classOrder = ['5', '6', '7', '8', '9', '10', 'EF', 'Q1', 'Q2'];
-            studentData.sort((a, b) => {
-                const classA = a.klasse.match(/(\d+|EF|Q1|Q2)([a-f]?)/);
-                const classB = b.klasse.match(/(\d+|EF|Q1|Q2)([a-f]?)/);
-
-                if (!classA || !classB) {
-                    return 0;
-                }
-
-                const gradeA = classOrder.indexOf(classA[1]);
-                const gradeB = classOrder.indexOf(classB[1]);
-
-                if (gradeA === gradeB) {
-                    if (classA[2] === classB[2]) {
-                        return a.nachname.localeCompare(b.nachname);
-                    }
-                    return (classA[2] || '').localeCompare(classB[2] || '');
-                } else {
-                    return gradeA - gradeB;
-                }
-            });
-
-            const workbook = new excel.Workbook();
-            const worksheet = workbook.addWorksheet('Students');
-
-            worksheet.columns = [
-                { header: 'ID', key: 'id', width: 5 },
-                { header: 'Klasse', key: 'klasse', width: 10 },
-                { header: 'Vorname', key: 'vorname', width: 20 },
-                { header: 'Nachname', key: 'nachname', width: 20 },
-                { header: 'Runden', key: 'runden', width: 10 },
-                { header: 'erwartete Spenden', key: 'spenden', width: 20, style: { numFmt: '_-* #,##0.00 €_-;_-* -#,##0.00 €_-;_-* "-"?? €_-;_-@_-' } },
-                { header: 'erhaltene Spenden', key: 'spendenKonto', width: 20, style: { numFmt: '_-* #,##0.00 €_-;_-* -#,##0.00 €_-;_-* "-"?? €_-;_-@_-' } },
-                { header: 'Differenz', key: 'differenz', width: 20, style: { numFmt: '_-* #,##0.00 €_-;_-* -#,##0.00 €_-;_-* "-"?? €_-;_-@_-' } }
-            ];
-
-            studentData.forEach(student => {
-                const runden = student.timestamps ? JSON.parse(student.timestamps).length : 0;
-                const spenden = student.spenden !== null ? student.spenden : 0.00;
-                const spendenKonto = student.spendenKonto !== null ? JSON.parse(student.spendenKonto).reduce((a, b) => a + b, 0) : 0.00;
-                const differenz = spendenKonto - spenden;
-                const row = worksheet.addRow({
-                    ...student,
-                    spenden,
-                    spendenKonto,
-                    runden,
-                    differenz
-                });
-
-                // Bedingte Formatierung anwenden
-                if (differenz < 0) {
-                    row.getCell('differenz').font = { color: { argb: 'FFFF0000' } }; // Rot
-                }
-
-                if (spenden !== 0 && differenz === 0) {
-                    // color cell green
-                    row.getCell('differenz').fill = {
-                        type: 'pattern',
-                        pattern: 'solid',
-                        fgColor: { argb: 'A1BA66' } // Grün
-                    }
-                };
-            });
-
-            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-            res.setHeader('Content-Disposition', 'attachment; filename=students.xlsx');
-
-            await workbook.xlsx.write(res);
-            res.end();
-        } catch (error) {
-            console.error('Fehler beim Generieren der Excel-Datei:', error);
-            res.status(500).send('Fehler beim Generieren der Excel-Datei');
-        }
-    } else if (requestedType === 'zip') {
-        try {
-            const zip = new JSZip();
-
-            const classData = await getClassData();
-
-            for (const [klasse, students] of Object.entries(classData)) {
                 const workbook = new excel.Workbook();
                 const worksheet = workbook.addWorksheet('Schüler');
 
                 worksheet.columns = [
+                    { header: 'ID', key: 'id', width: 5 },
+                    { header: 'Klasse', key: 'klasse', width: 10 },
                     { header: 'Vorname', key: 'vorname', width: 20 },
                     { header: 'Nachname', key: 'nachname', width: 20 },
-                    { header: 'Runden', key: 'rounds', width: 10 },
+                    { header: 'Runden', key: 'runden', width: 10 },
                     { header: 'erwartete Spenden', key: 'spenden', width: 20, style: { numFmt: '_-* #,##0.00 €_-;_-* -#,##0.00 €_-;_-* "-"?? €_-;_-@_-' } },
                     { header: 'erhaltene Spenden', key: 'spendenKonto', width: 20, style: { numFmt: '_-* #,##0.00 €_-;_-* -#,##0.00 €_-;_-* "-"?? €_-;_-@_-' } },
                     { header: 'Differenz', key: 'differenz', width: 20, style: { numFmt: '_-* #,##0.00 €_-;_-* -#,##0.00 €_-;_-* "-"?? €_-;_-@_-' } }
                 ];
 
-                students.forEach(student => {
+                studentData.forEach(student => {
+                    const timestampsArray = student.timestamps ? JSON.parse(student.timestamps) : [];
+                    const spendenKontoArray = student.spendenKonto ? JSON.parse(student.spendenKonto) : [];
+                    const differenz = spendenKontoArray.reduce((a, b) => a + b, 0) - (student.spenden !== null ? student.spenden : 0.00);
+
                     const row = worksheet.addRow({
+                        id: student.id,
+                        klasse: student.klasse,
                         vorname: student.vorname,
                         nachname: student.nachname,
-                        rounds: student.rounds,
-                        spenden: student.spenden,
-                        spendenKonto: student.spendenKonto,
-                        differenz: student.differenz
+                        runden: timestampsArray.length,
+                        spenden: student.spenden !== null ? student.spenden : 0.00,
+                        spendenKonto: spendenKontoArray.reduce((a, b) => a + b, 0),
+                        differenz: differenz
                     });
 
-                    // Bedingte Formatierung anwenden
-                    if (student.differenz < 0) {
+                    if (differenz < 0) {
                         row.getCell('differenz').font = { color: { argb: 'FFFF0000' } }; // Rot
                     }
 
-                    if (student.spenden !== 0 && student.differenz === 0) {
-                        // color cell green
+                    if (student.spenden !== 0 && differenz === 0) {
                         row.getCell('differenz').fill = {
                             type: 'pattern',
                             pattern: 'solid',
-                            fgColor: { argb: 'A1BA66' } // Grün
-                        }
-                    };
+                            fgColor: { argb: 'A1BA66' }
+                        };
+                    }
                 });
 
-                // create ZIP file
-                const buffer = await workbook.xlsx.writeBuffer();
-                zip.file(`${klasse}.xlsx`, buffer);
+                worksheet.getRow(1).eachCell((cell) => {
+                    cell.font = { bold: true };
+                    cell.numFmt = null;
+                });
+
+                res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+                res.setHeader('Content-Disposition', 'attachment; filename=students.xlsx');
+
+                await workbook.xlsx.write(res);
+                res.end();
+            } catch (error) {
+                console.error('Fehler beim Generieren der Excel-Datei:', error);
+                res.status(500).json({ error: 'Fehler beim Generieren der Excel-Datei.' });
             }
+        }
+        case 'classes': {
+            try {
+                const workbook = new excel.Workbook();
+                const classData = await getClassData();
 
-            const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' });
+                // Sortiere die Klassen nach der festgelegten Reihenfolge
+                const sortedClassData = Object.keys(classData).sort((a, b) => {
+                    const classA = a.match(/(\d+|EF|Q1|Q2)([a-f]?)/);
+                    const classB = b.match(/(\d+|EF|Q1|Q2)([a-f]?)/);
 
-            res.setHeader('Content-Type', 'application/zip');
-            res.setHeader('Content-Disposition', `attachment; filename=class_statistics.zip`);
-            res.send(zipBuffer);
-        } catch (error) {
-            console.error('Error generating Excel files:', error);
-            res.status(500).json({ message: 'Fehler beim Erstellen der Excel-Dateien.' });
+                    if (!classA || !classB) {
+                        return 0;
+                    }
+
+                    const gradeA = classOrder.indexOf(classA[1]);
+                    const gradeB = classOrder.indexOf(classB[1]);
+
+                    if (gradeA === gradeB) {
+                        return (classA[2] || '').localeCompare(classB[2] || '');
+                    } else {
+                        return gradeA - gradeB;
+                    }
+                });
+
+                for (const klasse of sortedClassData) {
+                    const students = classData[klasse];
+                    const worksheet = workbook.addWorksheet(klasse);
+
+                    // Überschrift
+                    worksheet.mergeCells('A1:G1');
+                    worksheet.getCell('A1').value = 'Sponsorenlauf 2024';
+                    worksheet.getCell('A1').font = { size: 24, bold: true };
+                    worksheet.getCell('A1').alignment = { vertical: 'middle', horizontal: 'center' };
+
+                    // Unterüberschrift
+                    worksheet.mergeCells('A2:G2');
+                    worksheet.getCell('A2').value = `Klasse: ${klasse}`;
+                    worksheet.getCell('A2').font = { size: 18, bold: true };
+                    worksheet.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
+
+                    // Tabellenkopf in der dritten Zeile
+
+                    worksheet.addRow(["Vorname", "Nachname", "Runden", "erwartet", "erhalten", "Differenz", "Notizen"]);
+                    worksheet.columns = [
+                        { key: 'vorname', width: 15 },
+                        { key: 'nachname', width: 15 },
+                        { key: 'rounds', width: 10 },
+                        { key: 'spenden', width: 10, style: { numFmt: '_-* #,##0.00 €_-;_-* -#,##0.00 €_-;_-* "-"?? €_-;_-@_-' } },
+                        { key: 'spendenKonto', width: 10, style: { numFmt: '_-* #,##0.00 €_-;_-* -#,##0.00 €_-;_-* "-"?? €_-;_-@_-' } },
+                        { key: 'differenz', width: 10, style: { numFmt: '_-* #,##0.00 €_-;_-* -#,##0.00 €_-;_-* "-"?? €_-;_-@_-' } },
+                        { key: 'notizen', width: 20 }
+                    ];
+
+
+                    // Setze den Druckbereich
+                    worksheet.pageSetup.printArea = `A1:G${students.length + 1}`;
+
+                    students.forEach(student => {
+                        worksheet.addRow({
+                            vorname: student.vorname,
+                            nachname: student.nachname,
+                            rounds: student.rounds,
+                            spenden: student.spenden,
+                            spendenKonto: student.spendenKonto,
+                            differenz: student.differenz,
+                            notizen: ""
+                        });
+                    });
+
+                    // Setze die Linien der Spalten für den Druck
+                    worksheet.eachRow({ includeEmpty: true }, (row) => {
+                        row.eachCell({ includeEmpty: true }, (cell) => {
+                            cell.border = {
+                                top: { style: 'thin' },
+                                left: { style: 'thin' },
+                                bottom: { style: 'thin' },
+                                right: { style: 'thin' }
+                            };
+                        });
+                    });
+
+                    // dritte zeile fett
+                    worksheet.getRow(3).eachCell((cell) => {
+                        cell.border = {
+                            top: { style: 'medium' },
+                            left: { style: 'medium' },
+                            bottom: { style: 'medium' },
+                            right: { style: 'medium' }
+                        };
+                    });
+
+                    worksheet.eachRow((row) => {
+                        row.height = 20;
+                    });
+                }
+
+                res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+                res.setHeader('Content-Disposition', 'attachment; filename=klassenauswertungen.xlsx');
+
+                await workbook.xlsx.write(res);
+                res.end();
+            } catch (error) {
+                console.error('Fehler beim Generieren der Excel-Datei:', error);
+                res.status(500).json({ error: 'Fehler beim Generieren der Excel-Datei.' });
+            }
+        }
+        default: {
+            res.status(400).json({ error: 'Ungültiger requestedType-Parameter.' });
         }
     }
 }

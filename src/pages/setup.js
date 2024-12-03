@@ -147,13 +147,13 @@ export default function Setup() {
     const downloadAllResults = async () => {
         setLoading((prev) => ({ ...prev, downloadResults: true }));
         try {
-            const response = await axios.get('/api/exportSpenden', { responseType: 'blob', params: { requestedType: 'xlsx' } });
+            const response = await axios.get('/api/exportSpenden', { responseType: 'blob', params: { requestedType: 'allstudents' } });
 
             if (response.status === 200) {
                 const url = window.URL.createObjectURL(new Blob([response.data]));
                 const link = document.createElement('a');
                 link.href = url;
-                link.setAttribute('download', 'Gesamtauswertung.xlsx');
+                link.setAttribute('download', 'Auswertung_Gesamt.xlsx');
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
@@ -170,13 +170,13 @@ export default function Setup() {
     const downloadClassResults = async () => {
         setLoading((prev) => ({ ...prev, downloadResults: true }));
         try {
-            const response = await axios.get('/api/exportSpenden', { responseType: 'blob', params: { requestedType: 'xlsx' } });
+            const response = await axios.get('/api/exportSpenden', { responseType: 'blob', params: { requestedType: 'classes' } });
 
             if (response.status === 200) {
                 const url = window.URL.createObjectURL(new Blob([response.data]));
                 const link = document.createElement('a');
                 link.href = url;
-                link.setAttribute('download', 'klassenauswertungen.pdf');
+                link.setAttribute('download', 'Auswertung_Klassen.xlsx');
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);

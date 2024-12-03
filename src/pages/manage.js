@@ -3,6 +3,7 @@ import axios from 'axios';
 import styles from '../styles/Manage.module.css';
 import { formatDate } from 'utils/globalFunctions';
 
+// TODO Link students to the database for replacement students
 export default function Manage() {
   const [students, setStudents] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState(null);

@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import JSZip from 'jszip';
 import styles from '../styles/Mails.module.css';
 
+// TODO feature dropdown for teachers with db
+
 export default function Home() {
     const [fileData, setFileData] = useState({
         file: null,

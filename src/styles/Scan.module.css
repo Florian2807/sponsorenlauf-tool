@@ -139,21 +139,17 @@
 .popup {
   border-radius: 8px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  padding: 0;
   border: none;
   width: 90%;
   max-width: 600px;
   max-height: 70%;
+  background: #fff;
+  padding: 2rem;
+  overflow-y: auto;
 }
 
 .popup::backdrop {
   background-color: rgba(0, 0, 0, 0.5);
-}
-
-.popupContent {
-  background: #fff;
-  padding: 2rem;
-  overflow-y: auto;
 }
 
 .popup p {

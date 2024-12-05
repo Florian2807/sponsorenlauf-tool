@@ -195,131 +195,125 @@ export default function Manage() {
       </table>
 
       <dialog ref={editStudentPopup} className={styles.popup}>
-        <div className={styles.popupContent}>
-          <button className={styles.closeButtonX} onClick={() => editStudentPopup.current.close()}>
-            &times;
+        <button className={styles.closeButtonX} onClick={() => editStudentPopup.current.close()}>
+          &times;
+        </button>
+        <h2>Schüler bearbeiten</h2>
+        <label>ID:</label>
+        <input
+          type="text"
+          value={selectedStudent?.id}
+          disabled
+        />
+        <label>Vorname:</label>
+        <input
+          type="text"
+          value={editVorname}
+          onChange={(e) => setEditVorname(e.target.value)}
+        />
+        <label>Nachname:</label>
+        <input
+          type="text"
+          value={editNachname}
+          onChange={(e) => setEditNachname(e.target.value)}
+        />
+        <label>Klasse:</label>
+        <input
+          type="text"
+          value={editKlasse}
+          onChange={(e) => setEditKlasse(e.target.value)}
+        />
+
+        <h3>Gelaufene Runden: {selectedStudent?.timestamps.length}</h3>
+        <h3>Timestamps:</h3>
+        <ul className={styles.timestampList}>
+          {selectedStudent?.timestamps.map((timestamp, index) => (
+            <li key={index} className={styles.timestampItem}>
+              <span>{formatDate(new Date(timestamp))}</span>
+              <button
+                className={styles.deleteTimestampButton}
+                onClick={() => deleteTimestamp(index)}
+              >
+                Löschen
+              </button>
+            </li>
+          ))}
+        </ul>
+
+        <div className={styles.popupButtons}>
+          <button
+            className={styles.redButton}
+            onClick={() => confirmDeletePopup.current.showModal()}
+          >
+            Schüler löschen
           </button>
-          <h2>Schüler bearbeiten</h2>
-          <label>ID:</label>
-          <input
-            type="text"
-            value={selectedStudent?.id}
-            disabled
-          />
-          <label>Vorname:</label>
-          <input
-            type="text"
-            value={editVorname}
-            onChange={(e) => setEditVorname(e.target.value)}
-          />
-          <label>Nachname:</label>
-          <input
-            type="text"
-            value={editNachname}
-            onChange={(e) => setEditNachname(e.target.value)}
-          />
-          <label>Klasse:</label>
-          <input
-            type="text"
-            value={editKlasse}
-            onChange={(e) => setEditKlasse(e.target.value)}
-          />
-
-          <h3>Gelaufene Runden: {selectedStudent?.timestamps.length}</h3>
-          <h3>Timestamps:</h3>
-          <ul className={styles.timestampList}>
-            {selectedStudent?.timestamps.map((timestamp, index) => (
-              <li key={index} className={styles.timestampItem}>
-                <span>{formatDate(new Date(timestamp))}</span>
-                <button
-                  className={styles.deleteTimestampButton}
-                  onClick={() => deleteTimestamp(index)}
-                >
-                  Löschen
-                </button>
-              </li>
-            ))}
-          </ul>
-
-          <div className={styles.popupButtons}>
-            <button
-              className={styles.redButton}
-              onClick={() => confirmDeletePopup.current.showModal()}
-            >
-              Schüler löschen
-            </button>
-            <button type="submit">Speichern</button>
-          </div>
+          <button type="submit">Speichern</button>
         </div>
       </dialog>
 
       <dialog ref={addStudentPopup} className={styles.popup}>
-        <div className={styles.popupContent}>
-          <button className={styles.closeButtonX} onClick={() => addStudentPopup.current.close()}>
-            &times;
-          </button>
-          <h2>Neuen Schüler hinzufügen</h2>
-          <form onSubmit={addStudentSubmit}>
-            <label>ID:</label>
-            <input
-              type="text"
-              name="id"
-              value={newStudent.id}
-              readOnly
-            />
-            <label>Vorname:</label>
-            <input
-              type="text"
-              name="vorname"
-              value={newStudent.vorname}
-              onChange={addStudentChangeField}
-              required
-            />
-            <label>Nachname:</label>
-            <input
-              type="text"
-              name="nachname"
-              value={newStudent.nachname}
-              onChange={addStudentChangeField}
-              required
-            />
-            <label>Klasse:</label>
-            <input
-              type="text"
-              name="klasse"
-              value={newStudent.klasse}
-              onChange={addStudentChangeField}
-              required
-            />
-            <div className={styles.popupButtons}>
-              <button className={styles.redButton} onClick={() => addStudentPopup.current.close()}>Abbrechen</button>
-              <button type="submit">Hinzufügen</button>
-            </div>
-          </form>
-        </div>
-      </dialog>
+        <button className={styles.closeButtonX} onClick={() => addStudentPopup.current.close()}>
+          &times;
+        </button>
+        <h2>Neuen Schüler hinzufügen</h2>
+        <form onSubmit={addStudentSubmit}>
+          <label>ID:</label>
+          <input
+            type="text"
+            name="id"
+            value={newStudent.id}
+            readOnly
+          />
+          <label>Vorname:</label>
+          <input
+            type="text"
+            name="vorname"
+            value={newStudent.vorname}
+            onChange={addStudentChangeField}
+            required
+          />
+          <label>Nachname:</label>
+          <input
+            type="text"
+            name="nachname"
+            value={newStudent.nachname}
+            onChange={addStudentChangeField}
+            required
+          />
+          <label>Klasse:</label>
+          <input
+            type="text"
+            name="klasse"
+            value={newStudent.klasse}
+            onChange={addStudentChangeField}
+            required
+          />
+          <div className={styles.popupButtons}>
+            <button className={styles.redButton} onClick={() => addStudentPopup.current.close()}>Abbrechen</button>
+            <button type="submit">Hinzufügen</button>
+          </div>
+        </form>
+      </dialog >
 
       {/* confirm-Popup */}
-      <dialog ref={confirmDeletePopup} className={styles.popup}>
-        <div className={styles.popupContent}>
-          <button className={styles.closeButtonX} onClick={() => confirmDeletePopup.current.close()}>
-            &times;
+      < dialog ref={confirmDeletePopup} className={styles.popup} >
+        <button className={styles.closeButtonX} onClick={() => confirmDeletePopup.current.close()}>
+          &times;
+        </button>
+        <h2>Bestätigen Sie das Löschen</h2>
+        <p>Möchten Sie diesen Schüler wirklich löschen?</p>
+        <div className={styles.popupButtons}>
+          <button
+            onClick={() => confirmDeletePopup.current.close()}
+          >
+            Abbrechen
           </button>
-          <h2>Bestätigen Sie das Löschen</h2>
-          <p>Möchten Sie diesen Schüler wirklich löschen?</p>
-          <div className={styles.popupButtons}>
-            <button
-              onClick={() => confirmDeletePopup.current.close()}
-            >
-              Abbrechen
-            </button>
-            <button
-              onClick={() => { deleteStudent(); confirmDeletePopup.current.close(); editStudentPopup.current.close(); }}
-              className={styles.redButton}
-            >
-              Schüler löschen
-            </button>
-          </div>
+          <button
+            onClick={() => { deleteStudent(); confirmDeletePopup.current.close(); editStudentPopup.current.close(); }}
+            className={styles.redButton}
+          >
+            Schüler löschen
+          </button>
         </div>
       </dialog>
     </div>

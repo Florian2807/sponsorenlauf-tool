@@ -260,107 +260,99 @@ export default function Setup() {
             </div>
 
             <dialog ref={replacementStudentPopup} className={styles.popup}>
-                <div className={styles.popupContent}>
-                    <button className={styles.closeButtonX} onClick={() => replacementStudentPopup.current.close()}>
-                        &times;
-                    </button>
-                    <h2>Ersatz-Benutzer hinzufügen</h2>
-                    <form onSubmit={handlePopupSubmit}>
-                        <label>Klasse:</label>
-                        <input
-                            type="text"
-                            value={replacementData.className}
-                            onChange={(e) =>
-                                setReplacementData({ ...replacementData, className: e.target.value })
-                            }
-                            className={styles.input}
-                        />
-                        <label>Anzahl:</label>
-                        <input
-                            type="number"
-                            min="1"
-                            value={replacementData.amount}
-                            onChange={(e) =>
-                                setReplacementData({ ...replacementData, amount: e.target.value })
-                            }
-                            className={styles.input}
-                        />
-                        <div className={styles.popupButtons}>
-                            <button
-                                onClick={() => replacementStudentPopup.current.close()}
-                                className={styles.redButton}
-                            >
-                                Abbrechen
-                            </button>
-                            <button
-                                onClick={handlePopupSubmit}
-                            >
-                                Hinzufügen
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </dialog>
-
-            <dialog ref={importExcelPopup} className={styles.popup}>
-                <div className={styles.popupContent}>
-                    <button className={styles.closeButtonX} onClick={() => importExcelPopup.current.close()}>&times;</button>
-                    <h2>Excel-Datei hochladen</h2>
-                    <form onSubmit={handleUploadExcel} className={styles.uploadForm}>
-                        <input
-                            type="file"
-                            onChange={handleFileChange}
-                            accept=".xlsx"
-                            required
-                            className={styles.fileInput}
-                        />
-                        <button type="submit" className={styles.button} disabled={loading.upload}>
-                            Hochladen
-                        </button>
-                        <br />
-                        {loading.upload && <div className={styles.progress} />}
-                    </form>
-                    {message.upload && <p className={styles.message}>{message.upload}</p>}
-                    {insertedCount > 0 && <p className={styles.message}>Eingefügte Datensätze: {insertedCount}</p>}
-                </div>
-            </dialog>
-
-            <dialog ref={exportSpendenPopup} className={styles.popup}>
-                <div className={styles.popupContent}>
-                    <button className={styles.closeButtonX} onClick={() => exportSpendenPopup.current.close()}>&times;</button>
-                    <h2>Spenden Auswertungen downloaden</h2>
-                    <div className={styles.popupButtons}>
-                        <button onClick={downloadAllResults} className={styles.button} disabled={loading.downloadResults}>
-                            Gesamtauswertung
-                        </button>
-                        <button className={styles.button} onClick={downloadClassResults} disabled={loading.downloadResults}>
-                            Klassenweise Auswertung
-                        </button>
-                    </div>
-                    {loading.downloadResults && <div className={styles.progress} />}
-                </div>
-            </dialog >
-
-            <dialog ref={confirmDeletePopup} className={styles.popup}>
-                <div className={styles.popupContent}>
-                    <button className={styles.closeButtonX} onClick={() => confirmDeletePopup.current.close()}>
-                        &times;
-                    </button>
-                    <h2>Bestätigen Sie das Löschen</h2>
-                    <p>Möchten Sie wirklich alle Schüler löschen?</p>
+                <button className={styles.closeButtonX} onClick={() => replacementStudentPopup.current.close()}>
+                    &times;
+                </button>
+                <h2>Ersatz-Benutzer hinzufügen</h2>
+                <form onSubmit={handlePopupSubmit}>
+                    <label>Klasse:</label>
+                    <input
+                        type="text"
+                        value={replacementData.className}
+                        onChange={(e) =>
+                            setReplacementData({ ...replacementData, className: e.target.value })
+                        }
+                        className={styles.input}
+                    />
+                    <label>Anzahl:</label>
+                    <input
+                        type="number"
+                        min="1"
+                        value={replacementData.amount}
+                        onChange={(e) =>
+                            setReplacementData({ ...replacementData, amount: e.target.value })
+                        }
+                        className={styles.input}
+                    />
                     <div className={styles.popupButtons}>
                         <button
-                            onClick={() => confirmDeletePopup.current.close()}
+                            onClick={() => replacementStudentPopup.current.close()}
+                            className={styles.redButton}
                         >
                             Abbrechen
                         </button>
                         <button
-                            onClick={handleDeleteAllStudents}
-                            className={styles.redButton}
+                            onClick={handlePopupSubmit}
                         >
-                            Alle löschen
+                            Hinzufügen
                         </button>
                     </div>
+                </form>
+            </dialog>
+
+            <dialog ref={importExcelPopup} className={styles.popup}>
+                <button className={styles.closeButtonX} onClick={() => importExcelPopup.current.close()}>&times;</button>
+                <h2>Excel-Datei hochladen</h2>
+                <form onSubmit={handleUploadExcel} className={styles.uploadForm}>
+                    <input
+                        type="file"
+                        onChange={handleFileChange}
+                        accept=".xlsx"
+                        required
+                        className={styles.fileInput}
+                    />
+                    <button type="submit" className={styles.button} disabled={loading.upload}>
+                        Hochladen
+                    </button>
+                    <br />
+                    {loading.upload && <div className={styles.progress} />}
+                </form>
+                {message.upload && <p className={styles.message}>{message.upload}</p>}
+                {insertedCount > 0 && <p className={styles.message}>Eingefügte Datensätze: {insertedCount}</p>}
+            </dialog>
+
+            <dialog ref={exportSpendenPopup} className={styles.popup}>
+                <button className={styles.closeButtonX} onClick={() => exportSpendenPopup.current.close()}>&times;</button>
+                <h2>Spenden Auswertungen downloaden</h2>
+                <div className={styles.popupButtons}>
+                    <button onClick={downloadAllResults} className={styles.button} disabled={loading.downloadResults}>
+                        Gesamtauswertung
+                    </button>
+                    <button className={styles.button} onClick={downloadClassResults} disabled={loading.downloadResults}>
+                        Klassenweise Auswertung
+                    </button>
+                </div>
+                {loading.downloadResults && <div className={styles.progress} />}
+            </dialog >
+
+            <dialog ref={confirmDeletePopup} className={styles.popup}>
+                <button className={styles.closeButtonX} onClick={() => confirmDeletePopup.current.close()}>
+                    &times;
+                </button>
+                <h2>Bestätigen Sie das Löschen</h2>
+                <p>Möchten Sie wirklich alle Schüler löschen?</p>
+                <div className={styles.popupButtons}>
+                    <button
+                        onClick={() => confirmDeletePopup.current.close()}
+                    >
+                        Abbrechen
+                    </button>
+                    <button
+                        onClick={handleDeleteAllStudents}
+                        className={styles.redButton}
+                    >
+                        Alle löschen
+                    </button>
                 </div>
             </dialog>
         </div >

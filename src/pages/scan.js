@@ -103,48 +103,49 @@ export default function Scan() {
 
       {/* Enter-Popup */}
       <dialog ref={popupRef} className={styles.popup}>
-        <div className={styles.popupContent}>
-          <button className={styles.closeButtonX} onClick={() => popupRef.current.close()}>
-            &times;
-          </button>
-          <h2>Fehler</h2>
-          <p>Klicke auf das Eingabefeld, damit die Daten in die Datenbank aufgenommen werden können!</p>
-          <div className={styles.popupButtons}>
-            <button onClick={() => popupRef.current.close()}>Schließen</button>
-          </div>
+        <button className={styles.closeButtonX} onClick={() => popupRef.current.close()}>
+          &times;
+        </button>
+        <h2>Fehler</h2>
+        <p>Klicke auf das Eingabefeld, damit die Daten in die Datenbank aufgenommen werden können!</p>
+        <div className={styles.popupButtons}>
+          <button onClick={() => popupRef.current.close()}>Schließen</button>
         </div>
-      </dialog>
+      </dialog >
 
       {message && (
         <p className={`${styles.message} ${styles[messageType]}`}>{message}</p>
-      )}
-      {studentInfo && (
-        <div className={styles.studentInfo}>
-          <h2>Schüler-Informationen</h2>
-          <p><strong>Klasse:</strong> {studentInfo.klasse}</p>
-          <p><strong>Name:</strong> {studentInfo.vorname} {studentInfo.nachname}</p>
-          <p><strong>Gelaufene Runden:</strong> {studentInfo.timestamps.length}</p>
+      )
+      }
+      {
+        studentInfo && (
+          <div className={styles.studentInfo}>
+            <h2>Schüler-Informationen</h2>
+            <p><strong>Klasse:</strong> {studentInfo.klasse}</p>
+            <p><strong>Name:</strong> {studentInfo.vorname} {studentInfo.nachname}</p>
+            <p><strong>Gelaufene Runden:</strong> {studentInfo.timestamps.length}</p>
 
-          {studentInfo.timestamps && studentInfo.timestamps.length > 0 && (
-            <div className={styles.timestamps}>
-              <h3>Scan-Timestamps:</h3>
-              <ul className={styles.timestampList}>
-                {studentInfo.timestamps.map((timestamp, index) => (
-                  <li key={index} className={styles.timestampItem}>
-                    <span>{formatDate(new Date(timestamp)) + " Uhr => " + timeAgo(currentTimestamp, new Date(timestamp))}</span>
-                    <button
-                      className={styles.deleteTimestampButton}
-                      onClick={() => handleDeleteTimestamp(studentInfo, index)}
-                    >
-                      Löschen
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+            {studentInfo.timestamps && studentInfo.timestamps.length > 0 && (
+              <div className={styles.timestamps}>
+                <h3>Scan-Timestamps:</h3>
+                <ul className={styles.timestampList}>
+                  {studentInfo.timestamps.map((timestamp, index) => (
+                    <li key={index} className={styles.timestampItem}>
+                      <span>{formatDate(new Date(timestamp)) + " Uhr => " + timeAgo(currentTimestamp, new Date(timestamp))}</span>
+                      <button
+                        className={styles.deleteTimestampButton}
+                        onClick={() => handleDeleteTimestamp(studentInfo, index)}
+                      >
+                        Löschen
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )
+      }
+    </div >
   );
 }

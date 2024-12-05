@@ -186,57 +186,55 @@ export default function Home() {
             }
 
             <dialog ref={sendMailsPopup} className={styles.popup}>
-                <div className={styles.popupContent}>
-                    <button className={styles.closeButtonX} onClick={() => sendMailsPopup.current.close()}>&times;</button>
-                    <h2>Mails mit Tabellen versenden</h2>
+                <button className={styles.closeButtonX} onClick={() => sendMailsPopup.current.close()}>&times;</button>
+                <h2>Mails mit Tabellen versenden</h2>
 
-                    <h2>Microsoft Login</h2>
-                    <label>E-Mail Adresse:</label>
-                    <input
-                        type="email"
-                        name="email"
-                        placeholder="E-Mail Adresse"
-                        value={fileData.email}
-                        onChange={(e) => setFileData({ ...fileData, email: e.target.value })}
-                        disabled={credentialsCorrect}
-                        required
-                    />
-                    <label>Passwort:</label>
-                    <input
-                        type="password"
-                        name="password"
-                        placeholder="Microsoft Passwort"
-                        value={fileData.password}
-                        onChange={(e) => setFileData({ ...fileData, password: e.target.value })}
-                        disabled={credentialsCorrect}
-                        required
-                    />
-                    <label>Sender-Name:</label>
-                    <input
-                        type="text"
-                        name="senderName"
-                        placeholder="Mail Absender-Name"
-                        value={fileData.senderName}
-                        onChange={(e) => setFileData({ ...fileData, senderName: e.target.value })}
-                        required
-                    />
+                <h2>Microsoft Login</h2>
+                <label>E-Mail Adresse:</label>
+                <input
+                    type="email"
+                    name="email"
+                    placeholder="E-Mail Adresse"
+                    value={fileData.email}
+                    onChange={(e) => setFileData({ ...fileData, email: e.target.value })}
+                    disabled={credentialsCorrect}
+                    required
+                />
+                <label>Passwort:</label>
+                <input
+                    type="password"
+                    name="password"
+                    placeholder="Microsoft Passwort"
+                    value={fileData.password}
+                    onChange={(e) => setFileData({ ...fileData, password: e.target.value })}
+                    disabled={credentialsCorrect}
+                    required
+                />
+                <label>Sender-Name:</label>
+                <input
+                    type="text"
+                    name="senderName"
+                    placeholder="Mail Absender-Name"
+                    value={fileData.senderName}
+                    onChange={(e) => setFileData({ ...fileData, senderName: e.target.value })}
+                    required
+                />
 
-                    <button onClick={handleLogin}>Login</button>
-                    <br />
-                    {status.loginLoading && <div className={styles.progress} />}
-                    {status.loginMessage && <p>{status.loginMessage}</p>}
+                <button onClick={handleLogin}>Login</button>
+                <br />
+                {status.loginLoading && <div className={styles.progress} />}
+                {status.loginMessage && <p>{status.loginMessage}</p>}
 
-                    <div className={styles.popupButtons}>
-                        <button onClick={() => sendMailsPopup.current.close()} className={`${styles.button} ${styles.redButton}`}>
-                            Abbrechen
-                        </button>
-                        <button className={styles.button}
-                            onClick={handleUpload} disabled={!credentialsCorrect}>
-                            Weiter
-                        </button>
-                    </div>
-                    {status.uploadLoading && <div className={styles.progress} />}
+                <div className={styles.popupButtons}>
+                    <button onClick={() => sendMailsPopup.current.close()} className={`${styles.button} ${styles.redButton}`}>
+                        Abbrechen
+                    </button>
+                    <button className={styles.button}
+                        onClick={handleUpload} disabled={!credentialsCorrect}>
+                        Weiter
+                    </button>
                 </div>
+                {status.uploadLoading && <div className={styles.progress} />}
             </dialog>
 
             {

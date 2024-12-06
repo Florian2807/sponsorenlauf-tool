@@ -21,7 +21,7 @@ export default function Scan() {
     event.preventDefault();
 
     try {
-      const response = await axios.get(`/api/students/${id.replace(new RegExp(`/${new Date().getFullYear()}[ß\/\-]/gm`), '')}`);
+      const response = await axios.get(`/api/students/${id.replace(new RegExp(`${new Date().getFullYear()}[ß/\\-]`, 'gm'), '')}`);
       if (response.status === 200) {
         setStudentInfo(response.data);
         setCurrentTimestamp(new Date());
@@ -41,7 +41,7 @@ export default function Scan() {
 
   const handleDeleteTimestamp = (selectedStudent, indexToRemove) => {
     const updatedTimestamps = selectedStudent.timestamps.filter((_, index) => index !== indexToRemove);
-    axios.put(`/api/students/${savedID.replace(new RegExp(`/${new Date().getFullYear()}[ß\/\-]/gm`), '')}`, { timestamps: updatedTimestamps })
+    axios.put(`/api/students/${savedID.replace(new RegExp(`${new Date().getFullYear()}[ß/\\-]`, 'gm'), '')}`, { timestamps: updatedTimestamps })
       .then(() => {
         setStudentInfo((prevStudentInfo) => ({
           ...prevStudentInfo,

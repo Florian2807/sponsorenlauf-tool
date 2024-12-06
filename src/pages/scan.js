@@ -40,13 +40,15 @@ export default function Scan() {
     event.preventDefault();
 
     try {
-      const response = await axios.post('/api/runden', { id: id.replace(new RegExp(`/${new Date().getFullYear()}[ß\/\-]/gm`), ''), date: new Date() });
+      const response = await axios.post('/api/runden', {
+        id: id.replace(new RegExp(`${new Date().getFullYear()}[ß/\\-]`, 'gm'), ''), date: new Date()
+      });
 
       if (response.data.success) {
         setMessage('Runde erfolgreich gezählt!');
         setMessageType('success');
 
-        const studentResponse = await axios.get(`/api/students/${id.replace(new RegExp(`/${new Date().getFullYear()}[ß\/\-]/gm`), '')}`);
+        const studentResponse = await axios.get(`/api/students/${id.replace(new RegExp(`${new Date().getFullYear()}[ß/\\-]`, 'gm'), '')}`);
         setStudentInfo(studentResponse.data);
         setCurrentTimestamp(new Date());
         setID('');
@@ -72,7 +74,7 @@ export default function Scan() {
 
   const handleDeleteTimestamp = (selectedStudent, indexToRemove) => {
     const updatedTimestamps = selectedStudent.timestamps.filter((_, index) => index !== indexToRemove);
-    axios.put(`/api/students/${savedID.replace(new RegExp(`/${new Date().getFullYear()}[ß\/\-]/gm`), '')}`, { timestamps: updatedTimestamps })
+    axios.put(`/api/students/${savedID.replace(new RegExp(`${new Date().getFullYear()}[ß/\\-]`, 'gm'), '')}`, { timestamps: updatedTimestamps })
       .then(() => {
         setStudentInfo((prevStudentInfo) => ({
           ...prevStudentInfo,

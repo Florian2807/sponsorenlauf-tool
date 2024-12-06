@@ -129,7 +129,7 @@ export default function Setup() {
 
     const handleDeleteAllStudents = async () => {
         try {
-            const response = await axios.delete('/api/deleteStudents');
+            const response = await axios.delete('/api/deleteAllStudents');
 
             if (response.status === 200) {
                 updateMessage({ delete: 'Alle Schüler wurden erfolgreich gelöscht.' })

@@ -45,12 +45,12 @@ export default function Scan() {
       });
 
       if (response.data.success) {
-        setMessage('Runde erfolgreich gezählt!');
-        setMessageType('success');
-
         const studentResponse = await axios.get(`/api/students/${id.replace(new RegExp(`${new Date().getFullYear()}[ß/\\-]`, 'gm'), '')}`);
         setStudentInfo(studentResponse.data);
         setCurrentTimestamp(new Date());
+
+        setMessage('Runde erfolgreich gezählt!');
+        setMessageType('success');
         setID('');
       } else {
         setID('');

@@ -8,13 +8,24 @@ const loadStudents = () => {
         reject(err);
       }
 
-      const parsedRows = rows.map(student => {
+      const parsedRows = Promise.all(rows.map(async student => {
+        const replacements = await new Promise((resolve, reject) => {
+          db.all('SELECT id FROM replacements WHERE studentID = ?', [student.id], (err, rows) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve(rows.map(row => row.id));
+            }
+          });
+        });
+
         return {
           ...student,
           timestamps: student.timestamps ? JSON.parse(student.timestamps) : [],
           spendenKonto: student.spendenKonto ? JSON.parse(student.spendenKonto) : [],
+          replacements: replacements
         };
-      });
+      }));
 
       resolve(parsedRows);
     });

@@ -18,14 +18,25 @@ const saveStudent = (id, vorname, nachname, klasse, timestamps, spenden, spenden
 };
 
 // load student 
-const getStudentById = (id) => {
-  return new Promise((resolve, reject) => {
+const getStudentById = async (id) => {
+  const student = await new Promise((resolve, reject) => {
     db.get(`SELECT * FROM students WHERE id = ?`, [id], (err, row) => {
       if (err) reject(err);
       resolve(row);
     });
   });
+  student.replacements = await getReplacementByStudentId(id);
+  return student;
 };
+
+const getReplacementByStudentId = async (studentId) => {
+  return await new Promise((resolve, reject) => {
+    db.all(`SELECT id FROM replacements WHERE studentID = ?`, [studentId], (err, rows) => {
+      if (err) reject(err);
+      resolve(rows.map(row => row.id));
+    });
+  });
+}
 
 // update student
 const updateStudent = (id, vorname, nachname, klasse, timestamps, spenden, spendenKonto) => {
@@ -43,18 +54,61 @@ const updateStudent = (id, vorname, nachname, klasse, timestamps, spenden, spend
   });
 };
 
-// delete student
-const deleteStudent = (id) => {
+const updateReplacement = async (studentID, replacementIDs = []) => {
+  const replacements = await getReplacementByStudentId(studentID);
+  const replacementsToDelete = replacements.filter(replacement => !replacementIDs.includes(replacement));
+  const replacementsToAdd = replacementIDs.filter(replacement => !replacements.includes(replacement));
+
   return new Promise((resolve, reject) => {
-    db.run(`DELETE FROM students WHERE id = ?`, [id], function (err) {
-      if (err) reject(err);
+    db.serialize(() => {
+      replacementsToDelete.forEach(replacement => {
+        db.run(`DELETE FROM replacements WHERE studentID = ? AND id = ?`, [studentID, replacement], (err) => {
+          if (err) reject(err);
+        });
+      });
+
+      replacementsToAdd.forEach(replacement => {
+        db.run(`INSERT INTO replacements (studentID, id) VALUES (?, ?)`, [studentID, replacement], (err) => {
+          if (err) reject(err);
+        });
+      });
+
+      resolve();
+    }
+    );
+  });
+};
+
+// delete student
+const deleteStudent = async (id) => {
+  return new Promise((resolve, reject) => {
+    db.serialize(() => {
+      db.run(`DELETE FROM students WHERE id = ?`, [id], (err) => {
+        if (err) reject(err);
+      });
+
+      db.run(`DELETE FROM replacements WHERE studentID = ?`, [id], (err) => {
+        if (err) reject(err);
+      });
       resolve();
     });
   });
 };
 
 export default async function handler(req, res) {
-  const { id } = req.query;
+  let { id } = req.query;
+
+  if (id.startsWith('E')) {
+    id = (await new Promise((resolve, reject) => {
+      db.get('SELECT studentID FROM replacements WHERE id = ?', [id.replace('E', '')], (err, row) => {
+        if (err) {
+          reject(err);
+        }
+        resolve(row);
+      });
+    })).studentID;
+  }
+
   if (req.method === 'GET') {
     try {
       const student = await getStudentById(id);
@@ -78,13 +132,14 @@ export default async function handler(req, res) {
 
     try {
       await saveStudent(id, vorname, nachname, klasse, JSON.stringify(timestamps), spenden, JSON.stringify(spendenKonto));
+      await updateReplacement(id, replacements);
       res.status(201).json({ id, vorname, nachname, klasse, timestamps, spenden, spendenKonto });
     } catch (error) {
       res.status(500).json({ error: 'Fehler beim Speichern des Schülers' });
     }
   }
   else if (req.method === 'PUT') {
-    const { vorname, nachname, klasse, timestamps, spenden, spendenKonto } = req.body;
+    const { vorname, nachname, klasse, timestamps, spenden, spendenKonto, replacements } = req.body;
     try {
       const student = await getStudentById(id);
       if (!student) {
@@ -99,6 +154,9 @@ export default async function handler(req, res) {
         spenden !== undefined ? spenden : student.spenden,
         spendenKonto !== undefined ? spendenKonto : JSON.parse(student.spendenKonto)
       );
+
+      if (replacements) await updateReplacement(id, replacements);
+
       res.status(200).json({ success: true });
     } catch (error) {
       res.status(500).json({ error: 'Fehler beim Aktualisieren des Schülers' });

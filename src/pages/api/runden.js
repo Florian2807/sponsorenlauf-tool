@@ -39,10 +39,20 @@ async function updateStudentTimestamps(id, timestamps) {
 
 export default async function handler(req, res) {
   if (req.method === 'POST') {
-    const { id, date } = req.body;
+    let { id, date } = req.body;
 
     if (!id) {
       return res.status(400).json({ error: 'ID ist erforderlich' });
+    }
+    if (id.startsWith('E')) {
+      id = (await new Promise((resolve, reject) => {
+        db.get('SELECT studentID FROM replacements WHERE id = ?', [id.replace('E', '')], (err, row) => {
+          if (err) {
+            reject(err);
+          }
+          resolve(row);
+        });
+      })).studentID;
     }
 
     try {

@@ -212,3 +212,82 @@
 .deleteTimestampButton:hover {
   background-color: #d43f5e;
 }
+
+.replacementContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.replacementTag {
+  background-color: #f0f0f0;
+  border-radius: 12px;
+  padding: 5px 10px;
+  font-size: 14px;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+.replacementTag:hover {
+  background-color: #e0e0e0;
+  transform: scale(1.05);
+}
+
+.replacementText {
+  display: flex;
+  align-items: center;
+}
+
+.deleteReplacementButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.deleteIcon {
+  color: red;
+  transition: color 0.3s ease;
+}
+
+.deleteReplacementButton:hover .deleteIcon {
+  color: darkred;
+}
+
+.replacementInput {
+  background-color: #f0f0f0;
+  border: none;
+  border-radius: 12px;
+  padding: 5px 10px;
+  font-size: 14px;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+.addReplacementButton {
+  background-color: #f0f0f0;
+  border: none;
+  border-radius: 12px;
+  padding: 5px 10px;
+  font-size: 14px;
+  color: #333;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+.addReplacementButton:hover {
+  background-color: #e0e0e0;
+  transform: scale(1.05);
+}
+
+.errorMessage {
+  color: red;
+  margin-top: 10px;
+}

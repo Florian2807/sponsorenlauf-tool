@@ -15,8 +15,12 @@ export default function Manage() {
     vorname: '',
     nachname: '',
     klasse: '',
-    timestamps: []
+    timestamps: [],
+    replacements: []
   });
+
+  const [newReplacement, setNewReplacement] = useState('');
+  const [message, setMessage] = useState('');
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState('id');
@@ -25,14 +29,19 @@ export default function Manage() {
   const editStudentPopup = useRef(null);
   const addStudentPopup = useRef(null);
   const confirmDeletePopup = useRef(null);
+  const addReplacementPopup = useRef(null);
 
   useEffect(() => {
     fetchStudents();
   }, []);
 
   const fetchStudents = async () => {
-    const response = await axios.get('/api/students');
-    setStudents(response.data);
+    try {
+      const response = await axios.get('/api/getAllStudents');
+      setStudents(response.data);
+    } catch (error) {
+      console.error('Error fetching students:', error);
+    }
   };
 
   const sortStudentsFunc = (field) => {
@@ -58,7 +67,6 @@ export default function Manage() {
     );
   };
 
-
   const editStudentClick = (student) => {
     setSelectedStudent(student);
     setEditVorname(student.vorname);
@@ -69,10 +77,42 @@ export default function Manage() {
 
   const deleteTimestamp = (indexToRemove) => {
     const updatedTimestamps = selectedStudent.timestamps.filter((_, index) => index !== indexToRemove);
-    setSelectedStudent({
-      ...selectedStudent,
+    setSelectedStudent((prev) => ({
+      ...prev,
       timestamps: updatedTimestamps
-    });
+    }));
+  };
+
+  const addReplacementID = async () => {
+    const updatedReplacements = [...selectedStudent.replacements, newReplacement];
+    // check if replacement ID is available
+    try {
+      const response = await axios.get(`/api/checkReplacement/${newReplacement}`);
+      if (response.data.success) {
+        if (selectedStudent.replacements.includes(newReplacement)) {
+          setMessage('Ersatz-ID ist bereits vergeben');
+          return;
+        }
+        setMessage('');
+        setSelectedStudent((prev) => ({
+          ...prev,
+          replacements: updatedReplacements
+        }));
+        addReplacementPopup.current.close();
+      } else {
+        setMessage(response.data.message);
+      }
+    } catch (error) {
+      console.error('Error adding replacement:', error);
+    }
+  };
+
+  const deleteReplacement = (indexToRemove) => {
+    const updatedReplacements = selectedStudent.replacements.filter((_, index) => index !== indexToRemove);
+    setSelectedStudent((prev) => ({
+      ...prev,
+      replacements: updatedReplacements
+    }));
   };
 
   const editStudent = async (e) => {
@@ -82,7 +122,8 @@ export default function Manage() {
       vorname: editVorname,
       nachname: editNachname,
       klasse: editKlasse,
-      timestamps: selectedStudent.timestamps
+      timestamps: selectedStudent.timestamps,
+      replacements: selectedStudent.replacements
     };
 
     try {
@@ -96,7 +137,7 @@ export default function Manage() {
         editStudentPopup.current.close();
       }
     } catch (error) {
-      console.error('Fehler beim Speichern der Änderungen:', error);
+      console.error('Error saving changes:', error);
     }
   };
 
@@ -107,7 +148,7 @@ export default function Manage() {
       setSelectedStudent(null);
       editStudentPopup.current.close();
     } catch (error) {
-      console.error('Fehler beim Löschen des Schülers:', error);
+      console.error('Error deleting student:', error);
     }
   };
 
@@ -118,7 +159,8 @@ export default function Manage() {
       vorname: '',
       nachname: '',
       klasse: '',
-      timestamps: []
+      timestamps: [],
+      replacements: []
     });
     addStudentPopup.current.showModal();
   };
@@ -138,10 +180,11 @@ export default function Manage() {
         vorname: '',
         nachname: '',
         klasse: '',
-        timestamps: []
+        timestamps: [],
+        replacements: []
       });
     } catch (error) {
-      console.error('Fehler beim Hinzufügen des Schülers', error);
+      console.error('Error adding student:', error);
     }
   };
 
@@ -198,47 +241,78 @@ export default function Manage() {
         <button className={styles.closeButtonX} onClick={() => editStudentPopup.current.close()}>
           &times;
         </button>
-        <h2>Schüler bearbeiten</h2>
-        <label>ID:</label>
-        <input
-          type="text"
-          value={selectedStudent?.id}
-          disabled
-        />
-        <label>Vorname:</label>
-        <input
-          type="text"
-          value={editVorname}
-          onChange={(e) => setEditVorname(e.target.value)}
-        />
-        <label>Nachname:</label>
-        <input
-          type="text"
-          value={editNachname}
-          onChange={(e) => setEditNachname(e.target.value)}
-        />
-        <label>Klasse:</label>
-        <input
-          type="text"
-          value={editKlasse}
-          onChange={(e) => setEditKlasse(e.target.value)}
-        />
 
-        <h3>Gelaufene Runden: {selectedStudent?.timestamps.length}</h3>
-        <h3>Timestamps:</h3>
-        <ul className={styles.timestampList}>
-          {selectedStudent?.timestamps.map((timestamp, index) => (
-            <li key={index} className={styles.timestampItem}>
-              <span>{formatDate(new Date(timestamp))}</span>
+        <div> {/*Schüler bearbeiten*/}
+          <h2>Schüler bearbeiten</h2>
+          <label>ID:</label>
+          <input
+            type="text"
+            value={selectedStudent?.id}
+            disabled
+          />
+          <label>Vorname:</label>
+          <input
+            type="text"
+            value={editVorname}
+            onChange={(e) => setEditVorname(e.target.value)}
+          />
+          <label>Nachname:</label>
+          <input
+            type="text"
+            value={editNachname}
+            onChange={(e) => setEditNachname(e.target.value)}
+          />
+          <label>Klasse:</label>
+          <input
+            type="text"
+            value={editKlasse}
+            onChange={(e) => setEditKlasse(e.target.value)}
+          />
+        </div>
+
+        <div> {/*gelaufene Runden*/}
+          <h3>Gelaufene Runden: {selectedStudent?.timestamps.length}</h3>
+          <h3>Timestamps:</h3>
+          <ul className={styles.timestampList}>
+            {selectedStudent?.timestamps.map((timestamp, index) => (
+              <li key={index} className={styles.timestampItem}>
+                <span>{formatDate(new Date(timestamp))}</span>
+                <button
+                  className={styles.deleteTimestampButton}
+                  onClick={() => deleteTimestamp(index)}
+                >
+                  Löschen
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <h3>Ersatz-IDs:</h3>
+        <div className={styles.replacementContainer}>
+          {selectedStudent?.replacements.map((replacement, index) => (
+            <div key={index} className={styles.replacementTag}>
+              <span className={styles.replacementText}>{replacement}</span>
               <button
-                className={styles.deleteTimestampButton}
-                onClick={() => deleteTimestamp(index)}
+                className={styles.deleteReplacementButton}
+                onClick={() => deleteReplacement(index)}
               >
-                Löschen
+                <span className={styles.deleteIcon}>&times;</span>
               </button>
-            </li>
+            </div>
           ))}
-        </ul>
+          <button
+            type="button"
+            className={styles.replacementTag}
+            onClick={() => {
+              setMessage('');
+              setNewReplacement('');
+              addReplacementPopup.current.showModal()
+            }}
+          >
+            ➕
+          </button>
+        </div>
 
         <div className={styles.popupButtons}>
           <button
@@ -247,11 +321,41 @@ export default function Manage() {
           >
             Schüler löschen
           </button>
-          <button type="submit">Speichern</button>
+          <button onClick={editStudent}>Speichern</button>
         </div>
-      </dialog>
+      </dialog >
 
-      <dialog ref={addStudentPopup} className={styles.popup}>
+      {/* addReplacement-Popup */}
+      < dialog ref={addReplacementPopup} className={styles.popup} >
+        <button className={styles.closeButtonX} onClick={() => addReplacementPopup.current.close()}>
+          &times;
+        </button>
+        <h2>Ersatz-ID hinzufügen</h2>
+        <p>Füge eine Ersatz-ID zum Schüler hinzu</p>
+        <input
+          type="number"
+          name="replacement"
+          value={newReplacement}
+          onChange={(e) => setNewReplacement(e.target.value)}
+          required
+        />
+        {message && <p className={styles.errorMessage}>{message}</p>}
+        <div className={styles.popupButtons}>
+          <button
+            onClick={() => addReplacementPopup.current.close()}
+          >
+            Abbrechen
+          </button>
+          <button
+            onClick={addReplacementID}
+          >
+            Hinzufügen
+          </button>
+        </div>
+      </dialog >
+
+      {/* addStudent-Popup */}
+      < dialog ref={addStudentPopup} className={styles.popup} >
         <button className={styles.closeButtonX} onClick={() => addStudentPopup.current.close()}>
           &times;
         </button>
@@ -315,7 +419,7 @@ export default function Manage() {
             Schüler löschen
           </button>
         </div>
-      </dialog>
-    </div>
+      </dialog >
+    </div >
   );
 }

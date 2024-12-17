@@ -4,14 +4,9 @@ import sqlite3 from 'sqlite3';
 
 const db = new sqlite3.Database('./data/students.db');
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
-
 export default function handler(req, res) {
-  if (req.method === 'POST') {
+  if (req.method === 'GET') {
+    const replacementAmount = req.query.replacementAmount;
     db.all('SELECT * FROM students', async (err, rows) => {
       if (err) {
         console.error('Fehler beim Abrufen der Daten:', err);
@@ -21,6 +16,16 @@ export default function handler(req, res) {
       if (rows.length === 0) {
         console.error('Keine Daten in der Datenbank gefunden.');
         return res.status(400).send('Keine Daten in der Datenbank gefunden.');
+      }
+
+      for (let i = 1; i < replacementAmount; i++) {
+        const replacement = {
+          id: `E${i}`,
+          vorname: i,
+          nachname: 'Ersatz',
+          klasse: 'Ersatz',
+        };
+        rows.push(replacement);
       }
 
       try {
@@ -85,7 +90,7 @@ export default function handler(req, res) {
       }
     });
   } else {
-    res.status(405).json({ message: 'Nur POST-Anfragen erlaubt' });
+    res.status(405).json({ message: 'Nur GET-Anfragen erlaubt' });
   }
 }
 

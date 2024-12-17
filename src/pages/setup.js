@@ -7,12 +7,10 @@ export default function Setup() {
     const [message, setMessage] = useState({ download: '', upload: '', replacement: '', delete: '' });
     const [insertedCount, setInsertedCount] = useState(0);
     const [loading, setLoading] = useState({ upload: false, labels: false, replacement: false, downloadResults: false });
-    const [replacementData, setReplacementData] = useState({
-        className: 'Ersatz',
-        amount: 1
-    });
+    const [replacementAmount, setReplacementAmount] = useState(0);
 
-    const replacementStudentPopup = useRef(null);
+
+    const generateLabelsPopup = useRef(null);
     const confirmDeletePopup = useRef(null);
     const importExcelPopup = useRef(null);
     const exportSpendenPopup = useRef(null);
@@ -70,58 +68,28 @@ export default function Setup() {
         }
     };
 
-    const handlePopupSubmit = async () => {
-        setLoading((prev) => ({ ...prev, replacement: true }));
-        updateMessage()
-
-        replacementStudentPopup.current.close();
-        try {
-            const replacementResponse = await axios.post('/api/addReplacements', replacementData);
-            if (replacementResponse.status !== 200) {
-                updateMessage({ replacement: 'Fehler beim Hinzufügen der Ersatz-Benutzer.' })
-            } else {
-                updateMessage({ replacement: `Erfolgreich ${replacementData.amount} Ersatz-Benutzer hinzugefügt.` })
-            }
-        } catch (error) {
-            updateMessage({ replacement: 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.' })
-        } finally {
-            setLoading((prev) => ({ ...prev, replacement: false }));
-        }
-    };
-
     const handleGenerateLabels = async () => {
         setLoading((prev) => ({ ...prev, labels: true }));
-        setInsertedCount(0);
-        updateMessage({ download: 'Etiketten werden generiert...' })
+        updateMessage({ download: 'Etiketten werden generiert...' });
 
         try {
-            const labelResponse = await fetch('/api/generate-labels', {
-                method: 'POST',
-                headers: {
-                },
-            });
+            const response = await axios.get('/api/generate-labels', { responseType: 'blob', params: { replacementAmount } });
+            if (response.status === 200) {
+                const url = window.URL.createObjectURL(new Blob([response.data]));
+                const link = document.createElement('a');
+                link.href = url;
+                link.setAttribute('download', 'labels.pdf');
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
 
-            if (!labelResponse.ok) {
-                const errorData = await labelResponse.json();
-                updateMessage({ download: `Fehler beim Generieren der Etiketten: ${errorData.message}` })
-                setLoading((prev) => ({ ...prev, labels: false }));
-                return;
+                updateMessage({ download: 'Etiketten erfolgreich generiert und heruntergeladen.' });
+            } else {
+                updateMessage({ download: 'Fehler beim Generieren der Etiketten.' });
             }
-
-            const labelBlob = await labelResponse.blob();
-            const labelUrl = URL.createObjectURL(labelBlob);
-
-            const a = document.createElement('a');
-            a.href = labelUrl;
-            a.download = 'labels.pdf';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-
-            updateMessage({ download: 'Etiketten erfolgreich generiert und heruntergeladen.' })
         } catch (error) {
             console.error('Fehler:', error);
-            updateMessage({ download: 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.' })
+            updateMessage({ download: 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.' });
         } finally {
             setLoading((prev) => ({ ...prev, labels: false }));
         }
@@ -209,16 +177,6 @@ export default function Setup() {
                 </button>
 
                 <button
-                    onClick={() => replacementStudentPopup.current.showModal()}
-                    className={styles.button}
-                    disabled={loading.replacement}
-                >
-                    Ersatz-Benutzer hinzufügen
-                </button>
-                {loading.replacement && <div className={styles.progress} />}
-                {message.replacement && <p className={styles.message}>{message.replacement}</p>}
-
-                <button
                     onClick={() => confirmDeletePopup.current.showModal()}
                     className={styles.redButton}
                 >
@@ -232,11 +190,13 @@ export default function Setup() {
                     <h2 className={styles.subTitle}>Etiketten</h2>
                     <hr className={styles.line} />
                 </div>
-                <button onClick={handleGenerateLabels} className={styles.button} disabled={loading.labels}>
-                    Etiketten downloaden
+                <button
+                    onClick={() => generateLabelsPopup.current.showModal()}
+                    className={styles.button}
+                    disabled={loading.replacement}
+                >
+                    Etiketten generieren
                 </button>
-                {message.download && <p className={styles.message}>{message.download}</p>}
-                {loading.labels && <div className={styles.progress} />}
             </div>
 
             <div className={styles.section}>
@@ -259,45 +219,39 @@ export default function Setup() {
                 </button>
             </div>
 
-            <dialog ref={replacementStudentPopup} className={styles.popup}>
-                <button className={styles.closeButtonX} onClick={() => replacementStudentPopup.current.close()}>
+            <dialog ref={generateLabelsPopup} className={styles.popup}>
+                <button className={styles.closeButtonX} onClick={() => generateLabelsPopup.current.close()}>
                     &times;
                 </button>
-                <h2>Ersatz-Benutzer hinzufügen</h2>
-                <form onSubmit={handlePopupSubmit}>
-                    <label>Klasse:</label>
-                    <input
-                        type="text"
-                        value={replacementData.className}
-                        onChange={(e) =>
-                            setReplacementData({ ...replacementData, className: e.target.value })
-                        }
-                        className={styles.input}
-                    />
-                    <label>Anzahl:</label>
-                    <input
-                        type="number"
-                        min="1"
-                        value={replacementData.amount}
-                        onChange={(e) =>
-                            setReplacementData({ ...replacementData, amount: e.target.value })
-                        }
-                        className={styles.input}
-                    />
-                    <div className={styles.popupButtons}>
-                        <button
-                            onClick={() => replacementStudentPopup.current.close()}
-                            className={styles.redButton}
-                        >
-                            Abbrechen
-                        </button>
-                        <button
-                            onClick={handlePopupSubmit}
-                        >
-                            Hinzufügen
-                        </button>
-                    </div>
-                </form>
+                <h2>Etiketten generieren</h2>
+                <p>Füge Ersatz-IDs hinzu, welche später Schülern zugeordnet werden, welche ihren Zettel verloren haben</p>
+                <label>Ersatz-IDs hinzufügen:</label>
+                <input
+                    type="number"
+                    value={replacementAmount}
+                    onChange={(e) =>
+                        setReplacementAmount(e.target.value)
+                    }
+                    className={styles.input}
+                />
+
+                {message.download && <p className={styles.message}>{message.download}</p>}
+                {loading.labels && <div className={styles.progress} />}
+
+                <div className={styles.popupButtons}>
+                    <button
+                        onClick={() => generateLabelsPopup.current.close()}
+                        className={styles.redButton}
+                    >
+                        Abbrechen
+                    </button>
+                    <button
+                        onClick={handleGenerateLabels}
+                        disabled={loading.labels}
+                    >
+                        Generieren
+                    </button>
+                </div>
             </dialog>
 
             <dialog ref={importExcelPopup} className={styles.popup}>

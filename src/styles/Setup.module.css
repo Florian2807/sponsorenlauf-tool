@@ -95,8 +95,10 @@
   border: 1px solid #b3d7ff;
   border-radius: 4px;
   width: 100%;
-  max-width: 600px;
+  max-width: 70%;
   margin: 0.5rem auto;
+  display: flex;
+  justify-content: center;
 }
 
 /* Popup Styles */

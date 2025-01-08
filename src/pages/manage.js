@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import styles from '../styles/Manage.module.css';
-import { formatDate } from 'utils/globalFunctions';
+import { formatDate } from '/utils/globalFunctions';
 
 export default function Manage() {
   const [students, setStudents] = useState([]);

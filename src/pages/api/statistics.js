@@ -35,6 +35,19 @@ const calculateStatistics = (students) => {
     }
   });
 
+  // topClassesOfGrades should be an object with arrays of classes for each grade but the classes are sorted by totalRounds
+  const grades = {5: ['5a', '5b', '5c', '5d', '5e', '5f'], 6: ['6a', '6b', '6c', '6d', '6e', '6f'], 7: ['7a', '7b', '7c', '7d', '7e', '7f'], 8: ['8a', '8b', '8c', '8d', '8e', '8f'], 9: ['9a', '9b', '9c', '9d', '9e', '9f'], 10: ['10a', '10b', '10c', '10d', '10e', '10f'], "Sek-2": ['EF', 'Q1', 'Q2']};
+  const topClassesOfGrades = Object.entries(grades).reduce((acc, [grade, classes]) => {
+    acc[grade] = classes
+      .map(klasse => ({
+        klasse,
+        totalRounds: classStats[klasse]?.totalRounds || 0,
+        averageRounds: classStats[klasse]?.totalRounds / classStats[klasse]?.studentCount || 0
+      }))
+      .sort((a, b) => b.averageRounds - a.averageRounds);
+    return acc;
+  }, {});
+
   const sortedClassStats = Object.entries(classStats)
     .map(([klasse, stats]) => ({
       klasse,
@@ -61,6 +74,7 @@ const calculateStatistics = (students) => {
     classStats: sortedClassStats,
     topStudentsByRounds,
     topStudentsByMoney,
+    topClassesOfGrades,
     averageRounds,
     totalRounds
   };

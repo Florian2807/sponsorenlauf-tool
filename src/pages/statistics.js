@@ -7,6 +7,7 @@ export default function Statistics() {
     classStats: [],
     topStudentsByRounds: [],
     topStudentsByMoney: [],
+    topClassesOfGrades: {},
     averageRounds: 0,
     totalRounds: 0,
   });
@@ -14,6 +15,7 @@ export default function Statistics() {
   const [showClassStats, setShowClassStats] = useState(false);
   const [showTopStudentsByRounds, setShowTopStudentsByRounds] = useState(false);
   const [showTopStudentsByMoney, setShowTopStudentsByMoney] = useState(false);
+  const [showTopClassesOfGrades, setShowTopClassesOfGrades] = useState(false);
   const [showOverallStats, setShowOverallStats] = useState(false);
 
   useEffect(() => {
@@ -118,7 +120,7 @@ export default function Statistics() {
           Top Schüler nach gesammeltem Geld {showTopStudentsByMoney ? '▲' : '▼'}
         </h2>
         {showTopStudentsByMoney && (
-          <table className='table'>
+          <table className={styles.table}>
             <thead>
               <tr>
                 <th className={styles.tableHeader}>ID</th>
@@ -138,6 +140,42 @@ export default function Statistics() {
               ))}
             </tbody>
           </table>
+        )}
+      </div>
+
+      <div className={styles.section}>
+        <h2
+          className={styles.toggleHeader}
+          onClick={() => setShowTopClassesOfGrades(!showTopClassesOfGrades)}
+        >
+          Top Klassen jeder Stufe {showClassStats ? '▲' : '▼'}
+        </h2>
+        {showTopClassesOfGrades && (
+          <>
+            {Object.keys(stats.topClassesOfGrades).map((grade) => (
+              <div>
+              <h2>Stufe {grade}:</h2>
+              <table key={grade} className={styles.table}>
+                <thead>
+                  <tr>
+                    <th className={styles.tableHeader}>Klasse</th>
+                    <th className={styles.tableHeader}>Gesamt Runden</th>
+                    <th className={styles.tableHeader}>Durchschnitt Runden</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.topClassesOfGrades[grade].map((stat) => (
+                    <tr key={stat.klasse}>
+                      <td className={styles.tableCell}>{stat.klasse}</td>
+                      <td className={styles.tableCell}>{stat.totalRounds ?? 0}</td>
+                      <td className={styles.tableCell}>{stat.averageRounds.toFixed(2) ?? 0}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              </div>
+            ))}
+          </>
         )}
       </div>
 

@@ -32,6 +32,21 @@
   color: white;
   padding: 10px;
   text-align: left;
+  cursor: pointer;
+  /* Zeigt an, dass die Header anklickbar sind */
+}
+
+.tableHeader::after {
+  content: '';
+  margin-left: 5px;
+}
+
+.tableHeader[data-sort='ascending']::after {
+  content: '▲';
+}
+
+.tableHeader[data-sort='descending']::after {
+  content: '▼';
 }
 
 .tableCell {

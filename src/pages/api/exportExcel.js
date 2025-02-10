@@ -2,10 +2,10 @@ import JSZip from 'jszip';
 import { Workbook } from 'exceljs';
 import sqlite3 from 'sqlite3';
 
-async function getClassData() {
+const getClassData = () => {
   const db = new sqlite3.Database('./data/students.db');
 
-  const classData = await new Promise((resolve, reject) => {
+  return new Promise((resolve, reject) => {
     db.all(`
       SELECT klasse, vorname, nachname, timestamps
       FROM students
@@ -14,35 +14,33 @@ async function getClassData() {
       if (err) {
         reject(err);
       } else {
-        resolve(rows);
+        const groupedByClass = rows.reduce((acc, row) => {
+          const timestampsArray = row.timestamps ? JSON.parse(row.timestamps) : [];
+
+          if (!acc[row.klasse]) {
+            acc[row.klasse] = [];
+          }
+          acc[row.klasse].push({
+            vorname: row.vorname,
+            nachname: row.nachname,
+            rounds: timestampsArray.length,
+          });
+
+          return acc;
+        }, {});
+
+        resolve(groupedByClass);
       }
     });
+  }).finally(() => {
+    db.close();
   });
-
-  const groupedByClass = classData.reduce((acc, row) => {
-    const timestampsArray = row.timestamps ? JSON.parse(row.timestamps) : [];
-
-    if (!acc[row.klasse]) {
-      acc[row.klasse] = [];
-    }
-    acc[row.klasse].push({
-      vorname: row.vorname,
-      nachname: row.nachname,
-      rounds: timestampsArray.length,
-    });
-
-    return acc;
-  }, {});
-
-  db.close();
-  return groupedByClass;
-}
+};
 
 export default async function handler(req, res) {
   if (req.method === 'GET') {
     try {
       const zip = new JSZip();
-
       const classData = await getClassData();
 
       for (const [klasse, students] of Object.entries(classData)) {
@@ -63,16 +61,14 @@ export default async function handler(req, res) {
           });
         });
 
-        // add the worksheet to the workbook
         const buffer = await workbook.xlsx.writeBuffer();
         zip.file(`${klasse}.xlsx`, buffer);
       }
 
-      // create ZIP file
       const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' });
 
       res.setHeader('Content-Type', 'application/zip');
-      res.setHeader('Content-Disposition', `attachment; filename=class_statistics.zip`);
+      res.setHeader('Content-Disposition', 'attachment; filename=class_statistics.zip');
       res.send(zipBuffer);
     } catch (error) {
       console.error('Error generating Excel files:', error);

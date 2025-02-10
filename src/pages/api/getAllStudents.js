@@ -1,4 +1,5 @@
-const sqlite3 = require('sqlite3').verbose();
+import sqlite3 from 'sqlite3';
+
 const db = new sqlite3.Database('./data/students.db');
 
 const loadStudents = () => {
@@ -6,28 +7,36 @@ const loadStudents = () => {
     db.all('SELECT * FROM students', [], (err, rows) => {
       if (err) {
         reject(err);
-      }
-
-      const parsedRows = Promise.all(rows.map(async student => {
-        const replacements = await new Promise((resolve, reject) => {
-          db.all('SELECT id FROM replacements WHERE studentID = ?', [student.id], (err, rows) => {
-            if (err) {
-              reject(err);
-            } else {
-              resolve(rows.map(row => row.id));
-            }
-          });
-        });
-
-        return {
+      } else {
+        const parsedRows = rows.map(student => ({
           ...student,
           timestamps: student.timestamps ? JSON.parse(student.timestamps) : [],
           spendenKonto: student.spendenKonto ? JSON.parse(student.spendenKonto) : [],
-          replacements: replacements
-        };
-      }));
+        }));
 
-      resolve(parsedRows);
+        const studentIds = parsedRows.map(student => student.id);
+
+        db.all(`SELECT studentID, id FROM replacements WHERE studentID IN (${studentIds.map(() => '?').join(',')})`, studentIds, (err, replacements) => {
+          if (err) {
+            reject(err);
+          } else {
+            const replacementsMap = replacements.reduce((acc, { studentID, id }) => {
+              if (!acc[studentID]) {
+                acc[studentID] = [];
+              }
+              acc[studentID].push(id);
+              return acc;
+            }, {});
+
+            const studentsWithReplacements = parsedRows.map(student => ({
+              ...student,
+              replacements: replacementsMap[student.id] || [],
+            }));
+
+            resolve(studentsWithReplacements);
+          }
+        });
+      }
     });
   });
 };

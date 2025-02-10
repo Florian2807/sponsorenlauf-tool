@@ -3,7 +3,7 @@ import axios from 'axios';
 import styles from '../styles/Show.module.css';
 import { formatDate, timeAgo } from '/utils/globalFunctions';
 
-export default function Scan() {
+export default function Show() {
   const [id, setID] = useState('');
   const [savedID, setSavedID] = useState('');
   const [currentTimestamp, setCurrentTimestamp] = useState(null);
@@ -31,28 +31,30 @@ export default function Scan() {
         setID('');
         setStudentInfo(null);
         setMessage('Schüler nicht gefunden');
+        setMessageType('error');
       }
     } catch (error) {
       setID('');
       setStudentInfo(null);
       setMessage('Schüler nicht gefunden');
+      setMessageType('error');
     }
   };
 
-  const handleDeleteTimestamp = (selectedStudent, indexToRemove) => {
+  const handleDeleteTimestamp = async (selectedStudent, indexToRemove) => {
     const updatedTimestamps = selectedStudent.timestamps.filter((_, index) => index !== indexToRemove);
-    axios.put(`/api/students/${savedID.replace(new RegExp(`${new Date().getFullYear()}[ß/\\-]`, 'gm'), '')}`, { timestamps: updatedTimestamps })
-      .then(() => {
-        setStudentInfo((prevStudentInfo) => ({
-          ...prevStudentInfo,
-          timestamps: updatedTimestamps,
-        }));
-      })
-      .catch(() => {
-        setMessage('Fehler beim Löschen des Zeitstempels');
-        setMessageType('error');
-      });
+    try {
+      await axios.put(`/api/students/${savedID.replace(new RegExp(`${new Date().getFullYear()}[ß/\\-]`, 'gm'), '')}`, { timestamps: updatedTimestamps });
+      setStudentInfo((prevStudentInfo) => ({
+        ...prevStudentInfo,
+        timestamps: updatedTimestamps,
+      }));
+    } catch (error) {
+      setMessage('Fehler beim Löschen des Zeitstempels');
+      setMessageType('error');
+    }
   };
+
   return (
     <div className={styles.container}>
       <h1 className={styles.title}>Schüler anzeigen</h1>

@@ -19,7 +19,7 @@ export default function Scan() {
     const handleKeyDown = (event) => {
       if (event.key === 'Enter' && document.activeElement !== inputRef.current) {
         event.preventDefault();
-        popupRef.current.showModal()
+        popupRef.current.showModal();
       }
     };
 
@@ -65,26 +65,25 @@ export default function Scan() {
         setMessageType('error');
       } else {
         console.error(error);
-        setMessage('Fehler beim speichern der Runde');
+        setMessage('Fehler beim Speichern der Runde');
         setMessageType('error');
       }
       setStudentInfo(null);
     }
   };
 
-  const handleDeleteTimestamp = (selectedStudent, indexToRemove) => {
+  const handleDeleteTimestamp = async (selectedStudent, indexToRemove) => {
     const updatedTimestamps = selectedStudent.timestamps.filter((_, index) => index !== indexToRemove);
-    axios.put(`/api/students/${savedID.replace(new RegExp(`${new Date().getFullYear()}[ß/\\-]`, 'gm'), '')}`, { timestamps: updatedTimestamps })
-      .then(() => {
-        setStudentInfo((prevStudentInfo) => ({
-          ...prevStudentInfo,
-          timestamps: updatedTimestamps,
-        }));
-      })
-      .catch(() => {
-        setMessage('Fehler beim Löschen des Zeitstempels');
-        setMessageType('error');
-      });
+    try {
+      await axios.put(`/api/students/${savedID.replace(new RegExp(`${new Date().getFullYear()}[ß/\\-]`, 'gm'), '')}`, { timestamps: updatedTimestamps });
+      setStudentInfo((prevStudentInfo) => ({
+        ...prevStudentInfo,
+        timestamps: updatedTimestamps,
+      }));
+    } catch (error) {
+      setMessage('Fehler beim Löschen des Zeitstempels');
+      setMessageType('error');
+    }
   };
 
   return (
@@ -113,41 +112,38 @@ export default function Scan() {
         <div className={styles.popupButtons}>
           <button onClick={() => popupRef.current.close()}>Schließen</button>
         </div>
-      </dialog >
+      </dialog>
 
       {message && (
         <p className={`${styles.message} ${styles[messageType]}`}>{message}</p>
-      )
-      }
-      {
-        studentInfo && (
-          <div className={styles.studentInfo}>
-            <h2>Schüler-Informationen</h2>
-            <p><strong>Klasse:</strong> {studentInfo.klasse}</p>
-            <p><strong>Name:</strong> {studentInfo.vorname} {studentInfo.nachname}</p>
-            <p><strong>Gelaufene Runden:</strong> {studentInfo.timestamps.length}</p>
+      )}
+      {studentInfo && (
+        <div className={styles.studentInfo}>
+          <h2>Schüler-Informationen</h2>
+          <p><strong>Klasse:</strong> {studentInfo.klasse}</p>
+          <p><strong>Name:</strong> {studentInfo.vorname} {studentInfo.nachname}</p>
+          <p><strong>Gelaufene Runden:</strong> {studentInfo.timestamps.length}</p>
 
-            {studentInfo.timestamps && studentInfo.timestamps.length > 0 && (
-              <div className={styles.timestamps}>
-                <h3>Scan-Timestamps:</h3>
-                <ul className={styles.timestampList}>
-                  {studentInfo.timestamps.map((timestamp, index) => (
-                    <li key={index} className={styles.timestampItem}>
-                      <span>{formatDate(new Date(timestamp)) + " Uhr => " + timeAgo(currentTimestamp, new Date(timestamp))}</span>
-                      <button
-                        className={styles.deleteTimestampButton}
-                        onClick={() => handleDeleteTimestamp(studentInfo, index)}
-                      >
-                        Löschen
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        )
-      }
-    </div >
+          {studentInfo.timestamps && studentInfo.timestamps.length > 0 && (
+            <div className={styles.timestamps}>
+              <h3>Scan-Timestamps:</h3>
+              <ul className={styles.timestampList}>
+                {studentInfo.timestamps.map((timestamp, index) => (
+                  <li key={index} className={styles.timestampItem}>
+                    <span>{formatDate(new Date(timestamp)) + " Uhr => " + timeAgo(currentTimestamp, new Date(timestamp))}</span>
+                    <button
+                      className={styles.deleteTimestampButton}
+                      onClick={() => handleDeleteTimestamp(studentInfo, index)}
+                    >
+                      Löschen
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

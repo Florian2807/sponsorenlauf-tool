@@ -2,7 +2,6 @@ import sqlite3 from 'sqlite3';
 
 const db = new sqlite3.Database('./data/students.db');
 
-// save student to database
 const saveStudent = (id, vorname, nachname, klasse, timestamps, spenden, spendenKonto) => {
   return new Promise((resolve, reject) => {
     db.run(
@@ -17,28 +16,29 @@ const saveStudent = (id, vorname, nachname, klasse, timestamps, spenden, spenden
   });
 };
 
-// load student 
-const getStudentById = async (id) => {
-  const student = await new Promise((resolve, reject) => {
-    db.get(`SELECT * FROM students WHERE id = ?`, [id], (err, row) => {
+const getStudentById = (id) => {
+  return new Promise((resolve, reject) => {
+    db.get(`SELECT * FROM students WHERE id = ?`, [id], async (err, row) => {
       if (err) reject(err);
-      resolve(row);
+      if (row) {
+        row.replacements = await getReplacementByStudentId(id);
+        resolve(row);
+      } else {
+        resolve(null);
+      }
     });
   });
-  student.replacements = await getReplacementByStudentId(id);
-  return student;
 };
 
-const getReplacementByStudentId = async (studentId) => {
-  return await new Promise((resolve, reject) => {
+const getReplacementByStudentId = (studentId) => {
+  return new Promise((resolve, reject) => {
     db.all(`SELECT id FROM replacements WHERE studentID = ?`, [studentId], (err, rows) => {
       if (err) reject(err);
       resolve(rows.map(row => row.id));
     });
   });
-}
+};
 
-// update student
 const updateStudent = (id, vorname, nachname, klasse, timestamps, spenden, spendenKonto) => {
   return new Promise((resolve, reject) => {
     db.run(
@@ -54,33 +54,25 @@ const updateStudent = (id, vorname, nachname, klasse, timestamps, spenden, spend
   });
 };
 
-const updateReplacement = async (studentID, replacementIDs = []) => {
-  const replacements = await getReplacementByStudentId(studentID);
-  const replacementsToDelete = replacements.filter(replacement => !replacementIDs.includes(replacement));
-  const replacementsToAdd = replacementIDs.filter(replacement => !replacements.includes(replacement));
-
+const updateReplacement = (studentID, replacementIDs = []) => {
   return new Promise((resolve, reject) => {
     db.serialize(() => {
-      replacementsToDelete.forEach(replacement => {
-        db.run(`DELETE FROM replacements WHERE studentID = ? AND id = ?`, [studentID, replacement], (err) => {
-          if (err) reject(err);
-        });
+      db.run(`DELETE FROM replacements WHERE studentID = ?`, [studentID], (err) => {
+        if (err) reject(err);
       });
 
-      replacementsToAdd.forEach(replacement => {
+      replacementIDs.forEach(replacement => {
         db.run(`INSERT INTO replacements (studentID, id) VALUES (?, ?)`, [studentID, replacement], (err) => {
           if (err) reject(err);
         });
       });
 
       resolve();
-    }
-    );
+    });
   });
 };
 
-// delete student
-const deleteStudent = async (id) => {
+const deleteStudent = (id) => {
   return new Promise((resolve, reject) => {
     db.serialize(() => {
       db.run(`DELETE FROM students WHERE id = ?`, [id], (err) => {
@@ -90,6 +82,7 @@ const deleteStudent = async (id) => {
       db.run(`DELETE FROM replacements WHERE studentID = ?`, [id], (err) => {
         if (err) reject(err);
       });
+
       resolve();
     });
   });
@@ -99,14 +92,17 @@ export default async function handler(req, res) {
   let { id } = req.query;
 
   if (id.startsWith('E')) {
-    id = (await new Promise((resolve, reject) => {
-      db.get('SELECT studentID FROM replacements WHERE id = ?', [id.replace('E', '')], (err, row) => {
-        if (err) {
-          reject(err);
-        }
-        resolve(row);
+    try {
+      const row = await new Promise((resolve, reject) => {
+        db.get('SELECT studentID FROM replacements WHERE id = ?', [id.replace('E', '')], (err, row) => {
+          if (err) reject(err);
+          resolve(row);
+        });
       });
-    })).studentID;
+      id = row.studentID;
+    } catch (error) {
+      return res.status(500).json({ error: 'Fehler beim Abrufen der Ersatz-ID' });
+    }
   }
 
   if (req.method === 'GET') {
@@ -122,29 +118,29 @@ export default async function handler(req, res) {
     } catch (error) {
       res.status(500).json({ error: 'Fehler beim Abrufen der Daten' });
     }
-  }
-  else if (req.method === 'POST') {
-    const { vorname, nachname, klasse, timestamps, spenden, spendenKonto } = req.body;
+  } else if (req.method === 'POST') {
+    const { vorname, nachname, klasse, timestamps, spenden, spendenKonto, replacements } = req.body;
 
     if (!id || !vorname || !nachname || !klasse || !Array.isArray(timestamps) || !spenden || !Array.isArray(spendenKonto)) {
       return res.status(400).json({ error: 'Alle Felder sind erforderlich und Timestamps müssen ein Array sein' });
     }
 
     try {
-      await saveStudent(id, vorname, nachname, klasse, JSON.stringify(timestamps), spenden, JSON.stringify(spendenKonto));
+      await saveStudent(id, vorname, nachname, klasse, timestamps, spenden, spendenKonto);
       await updateReplacement(id, replacements);
       res.status(201).json({ id, vorname, nachname, klasse, timestamps, spenden, spendenKonto });
     } catch (error) {
       res.status(500).json({ error: 'Fehler beim Speichern des Schülers' });
     }
-  }
-  else if (req.method === 'PUT') {
+  } else if (req.method === 'PUT') {
     const { vorname, nachname, klasse, timestamps, spenden, spendenKonto, replacements } = req.body;
+
     try {
       const student = await getStudentById(id);
       if (!student) {
         return res.status(404).json({ error: 'Schüler nicht gefunden' });
       }
+
       await updateStudent(
         id,
         vorname !== undefined ? vorname : student.vorname,
@@ -161,8 +157,7 @@ export default async function handler(req, res) {
     } catch (error) {
       res.status(500).json({ error: 'Fehler beim Aktualisieren des Schülers' });
     }
-  }
-  else if (req.method === 'DELETE') {
+  } else if (req.method === 'DELETE') {
     try {
       const student = await getStudentById(id);
       if (!student) {
@@ -174,8 +169,7 @@ export default async function handler(req, res) {
     } catch (error) {
       res.status(500).json({ error: 'Fehler beim Löschen des Schülers' });
     }
-  }
-  else {
+  } else {
     res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE']);
     res.status(405).end(`Method ${req.method} Not Allowed`);
   }

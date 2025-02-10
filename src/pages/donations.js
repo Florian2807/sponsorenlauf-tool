@@ -1,4 +1,3 @@
-// src/pages/donations.js
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import styles from '../styles/Donations.module.css';
@@ -10,14 +9,13 @@ export default function AddDonations() {
     const [amount, setAmount] = useState('0,00€');
     const [message, setMessage] = useState('');
     const [studentInfo, setStudentInfo] = useState(null);
-    const [currentTimestamp, setCurrentTimestamp] = useState(null);
     const [highlightedIndex, setHighlightedIndex] = useState(-1);
-    const [isSpendenMode, setIsSpendenMode] = useState(false); // Neuer Zustand für den Modus
+    const [isSpendenMode, setIsSpendenMode] = useState(false);
     const inputRef = useRef(null);
 
     useEffect(() => {
         fetchStudents();
-        inputRef.current.focus(); // Setze den Fokus auf das Schüler-Eingabefeld
+        inputRef.current.focus();
     }, []);
 
     const fetchStudents = async () => {
@@ -32,7 +30,7 @@ export default function AddDonations() {
     const handleStudentChange = (e) => {
         const value = e.target.value;
         setSelectedStudent(value);
-        setHighlightedIndex(-1); // Setze den hervorgehobenen Index zurück
+        setHighlightedIndex(-1);
         if (value) {
             const filtered = students.filter(student =>
                 `${student.vorname} ${student.nachname}`.toLowerCase().includes(value.toLowerCase())
@@ -46,27 +44,24 @@ export default function AddDonations() {
     const handleStudentSelect = (student) => {
         setSelectedStudent(`${student.vorname} ${student.nachname}`);
         setFilteredStudents([]);
-        setHighlightedIndex(-1); // Rücksetzen des hervorgehobenen Index
+        setHighlightedIndex(-1);
     };
 
     const handleAmountChange = (e) => {
-        let value = e.target.value.replace(/[^\d]/g, ''); // Entferne alle nicht-numerischen Zeichen
+        let value = e.target.value.replace(/[^\d]/g, '');
         if (e.nativeEvent.inputType === 'deleteContentBackward') {
-            value = value.slice(0, -1); // Entferne die letzte Zahl
+            value = value.slice(0, -1);
         }
         const formattedValue = formatAmount(value);
         setAmount(formattedValue);
     };
 
     const formatAmount = (value) => {
-        const numericValue = value.padStart(3, '0'); // Füge führende Nullen hinzu, um mindestens 3 Zeichen zu haben
-        let euros = numericValue.slice(0, -2); // Alles außer den letzten beiden Zeichen sind Euros
-        const cents = numericValue.slice(-2); // Die letzten beiden Zeichen sind Cents
-
-        // Entferne führende Nullen bei Euros, wenn weiter vorne keine andere Zahl als 0 kommt
+        const numericValue = value.padStart(3, '0');
+        let euros = numericValue.slice(0, -2);
+        const cents = numericValue.slice(-2);
         euros = euros.replace(/^0+(?=\d)/, '');
-
-        return `${euros || '0'},${cents}€`; // Formatieren als 00,00€
+        return `${euros || '0'},${cents}€`;
     };
 
     const handleSubmit = async (e) => {
@@ -81,8 +76,8 @@ export default function AddDonations() {
             setMessage('Spende erfolgreich hinzugefügt.');
             setSelectedStudent('');
             setAmount('0,00€');
-            fetchStudentInfo(student.id); // Aktualisiere die Schülerinformationen
-            inputRef.current.focus(); // Setze den Fokus zurück auf das Schüler-Eingabefeld
+            fetchStudentInfo(student.id);
+            inputRef.current.focus();
         } catch (error) {
             console.error('Fehler beim Hinzufügen der Spende:', error);
             setMessage('Fehler beim Hinzufügen der Spende.');
@@ -93,9 +88,7 @@ export default function AddDonations() {
         try {
             const response = await axios.get(`/api/students/${studentId}`);
             if (response.status === 200) {
-                setStudentInfo({
-                    ...response.data
-                });
+                setStudentInfo(response.data);
             } else {
                 setStudentInfo(null);
                 setMessage('Schüler nicht gefunden');
@@ -109,29 +102,25 @@ export default function AddDonations() {
     const handleDeleteDonation = async (indexToRemove) => {
         const updatedDonations = studentInfo.spendenKonto.filter((_, index) => index !== indexToRemove);
         try {
-            await axios.put(`/api/students/${studentInfo.id}`, { spendenKonto: updatedDonations })
+            await axios.put(`/api/students/${studentInfo.id}`, { spendenKonto: updatedDonations });
             setStudentInfo((prevStudentInfo) => ({
                 ...prevStudentInfo,
                 spendenKonto: updatedDonations,
             }));
         } catch (error) {
-            console.log(error)
+            console.log(error);
             setMessage('Fehler beim Löschen der Spende');
         }
     };
 
-    // Funktion zum Navigieren mit den Pfeiltasten
     const handleKeyDown = (e) => {
         if (e.key === 'ArrowDown') {
-            // Pfeiltaste nach unten
             setHighlightedIndex((prevIndex) =>
                 prevIndex < filteredStudents.length - 1 ? prevIndex + 1 : prevIndex
             );
         } else if (e.key === 'ArrowUp') {
-            // Pfeiltaste nach oben
             setHighlightedIndex((prevIndex) => (prevIndex > 0 ? prevIndex - 1 : prevIndex));
         } else if (e.key === 'Enter' || e.key === 'Tab') {
-            // Auswahl mit Enter oder Tab
             if (highlightedIndex >= 0 && highlightedIndex < filteredStudents.length) {
                 handleStudentSelect(filteredStudents[highlightedIndex]);
             }
@@ -140,9 +129,9 @@ export default function AddDonations() {
 
     const formatCurrency = (value) => {
         if (value === null || value === undefined) return '0,00€';
-        const numericValue = parseFloat(value).toFixed(2); // Konvertiere zu einer Zahl mit zwei Dezimalstellen
-        const [euros, cents] = numericValue.split('.'); // Teile die Zahl in Euros und Cents
-        return `${euros},${cents}€`; // Ersetze den Punkt durch ein Komma und füge das Euro-Zeichen hinzu
+        const numericValue = parseFloat(value).toFixed(2);
+        const [euros, cents] = numericValue.split('.');
+        return `${euros},${cents}€`;
     };
 
     return (
@@ -205,15 +194,15 @@ export default function AddDonations() {
                     <p><strong>Klasse:</strong> {studentInfo.klasse}</p>
                     <p><strong>Name:</strong> {studentInfo.vorname} {studentInfo.nachname}</p>
                     <p><strong>Runden:</strong> {studentInfo.timestamps.length}</p>
-                    <p><strong>erwartete Spenden</strong> {formatCurrency(studentInfo.spenden ?? "0,00€")}</p>
+                    <p><strong>erwartete Spenden:</strong> {formatCurrency(studentInfo.spenden ?? "0,00€")}</p>
                     <p><strong>erhaltene Spenden:</strong> {formatCurrency(studentInfo.spendenKonto.length ? studentInfo.spendenKonto.reduce((a, b) => a + b) : [0]) ?? "0,00€"}</p>
-                    <p><strong>Differenz: <u>{formatCurrency((studentInfo.spendenKonto.length ? studentInfo.spendenKonto?.reduce((a, b) => a + b) : [0]) - studentInfo.spenden) ?? "-"}</u></strong></p>
+                    <p><strong>Differenz:</strong> <u>{formatCurrency((studentInfo.spendenKonto.length ? studentInfo.spendenKonto.reduce((a, b) => a + b) : [0]) - studentInfo.spenden) ?? "-"}</u></p>
                     <p><strong>erhaltene Spenden:</strong></p>
                     <div className={styles.timestamps}>
                         <ul className={styles.timestampList}>
                             {studentInfo.spendenKonto.map((donation, index) => (
-                                <li key={index} className={styles.timestampItem} >
-                                    <p>{formatCurrency(JSON.stringify(donation).replace('.', ','))}</p>
+                                <li key={index} className={styles.timestampItem}>
+                                    <p>{formatCurrency(donation)}</p>
                                     <button
                                         type="button"
                                         className={styles.deleteTimestampButton}
@@ -226,8 +215,7 @@ export default function AddDonations() {
                         </ul>
                     </div>
                 </div>
-            )
-            }
-        </div >
+            )}
+        </div>
     );
 }

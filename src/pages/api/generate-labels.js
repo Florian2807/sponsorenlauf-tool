@@ -2,11 +2,25 @@ import PDFDocument from 'pdfkit';
 import bwipjs from 'bwip-js';
 import sqlite3 from 'sqlite3';
 
+// TODO select menu in popup, which class to print
+
 const db = new sqlite3.Database('./data/students.db');
+
+const generateBarcode = async (ID) => {
+  return await bwipjs.toBuffer({
+    bcid: 'code128',
+    text: `${new Date().getFullYear()}-${ID}`,
+    scale: 2,
+    height: 15,
+    includetext: true,
+    textxalign: 'center',
+  });
+};
 
 export default function handler(req, res) {
   if (req.method === 'GET') {
-    const replacementAmount = req.query.replacementAmount;
+    const replacementAmount = parseInt(req.query.replacementAmount, 10) || 0;
+
     db.all('SELECT * FROM students', async (err, rows) => {
       if (err) {
         console.error('Fehler beim Abrufen der Daten:', err);
@@ -18,14 +32,13 @@ export default function handler(req, res) {
         return res.status(400).send('Keine Daten in der Datenbank gefunden.');
       }
 
-      for (let i = 1; i < replacementAmount; i++) {
-        const replacement = {
+      for (let i = 1; i <= replacementAmount; i++) {
+        rows.push({
           id: `E${i}`,
-          vorname: i,
+          vorname: i.toString(),
           nachname: 'Ersatz',
           klasse: 'Ersatz',
-        };
-        rows.push(replacement);
+        });
       }
 
       try {
@@ -92,15 +105,4 @@ export default function handler(req, res) {
   } else {
     res.status(405).json({ message: 'Nur GET-Anfragen erlaubt' });
   }
-}
-
-async function generateBarcode(ID) {
-  return await bwipjs.toBuffer({
-    bcid: 'code128',
-    text: `${new Date().getFullYear()}-${ID}`,
-    scale: 2,
-    height: 15,
-    includetext: true,
-    textxalign: 'center',
-  });
 }

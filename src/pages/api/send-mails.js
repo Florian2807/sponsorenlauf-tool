@@ -17,13 +17,12 @@ export default async function handler(req, res) {
                 },
             });
 
-            for (const className in teacherEmails) {
-                const teacherEmail = teacherEmails[className];
+            const sendMailPromises = Object.entries(teacherEmails).map(async ([className, teacherEmail]) => {
                 const classFileBase64 = teacherFiles[className];
 
                 if (!classFileBase64 || !teacherEmail.length) {
                     console.warn(`Keine Datei oder Mailadresse für ${className} gefunden.`);
-                    continue;
+                    return;
                 }
 
                 const mailOptions = {
@@ -44,7 +43,9 @@ export default async function handler(req, res) {
 
                 await transporter.sendMail(mailOptions);
                 await new Promise((resolve) => setTimeout(resolve, 2000));
-            }
+            });
+
+            await Promise.all(sendMailPromises);
 
             res.status(200).json({ message: 'E-Mails wurden erfolgreich versendet' });
         } catch (error) {

@@ -1,4 +1,4 @@
-const sqlite3 = require('sqlite3').verbose();
+import sqlite3 from 'sqlite3';
 const db = new sqlite3.Database('./data/students.db');
 
 const getStudentById = (id) => {
@@ -6,36 +6,34 @@ const getStudentById = (id) => {
     db.get('SELECT * FROM students WHERE id = ?', [id], (err, row) => {
       if (err) {
         reject(err);
+      } else {
+        resolve(row);
       }
-      resolve(row);
     });
   });
 };
 
-
-async function updateStudentTimestamps(id, timestamps) {
+const updateStudentTimestamps = (id, timestamps) => {
   return new Promise((resolve, reject) => {
     db.run(
       'UPDATE students SET timestamps = ? WHERE id = ?',
       [JSON.stringify(timestamps), id],
       function (err) {
         if (err) {
-          return reject(err);
+          reject(err);
+        } else {
+          db.get('SELECT timestamps FROM students WHERE id = ?', [id], (err, row) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve(JSON.parse(row.timestamps));
+            }
+          });
         }
-
-        db.get('SELECT timestamps FROM students WHERE id = ?', [id], (err, row) => {
-          if (err) {
-            return reject(err);
-          }
-
-          const storedTimestamps = JSON.parse(row.timestamps);
-          resolve(storedTimestamps);
-        });
       }
     );
   });
-}
-
+};
 
 export default async function handler(req, res) {
   if (req.method === 'POST') {
@@ -44,15 +42,22 @@ export default async function handler(req, res) {
     if (!id) {
       return res.status(400).json({ error: 'ID ist erforderlich' });
     }
+
     if (id.startsWith('E')) {
-      id = (await new Promise((resolve, reject) => {
-        db.get('SELECT studentID FROM replacements WHERE id = ?', [id.replace('E', '')], (err, row) => {
-          if (err) {
-            reject(err);
-          }
-          resolve(row);
+      try {
+        const row = await new Promise((resolve, reject) => {
+          db.get('SELECT studentID FROM replacements WHERE id = ?', [id.replace('E', '')], (err, row) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve(row);
+            }
+          });
         });
-      })).studentID;
+        id = row.studentID;
+      } catch (error) {
+        return res.status(500).json({ error: 'Fehler beim Abrufen der Ersatz-ID' });
+      }
     }
 
     try {
@@ -62,12 +67,8 @@ export default async function handler(req, res) {
         return res.status(404).json({ error: 'Schüler nicht gefunden' });
       }
 
-      // add new round (timestamp) 
       const newTimestamp = new Date(date).toISOString();
-      const timestamps = student.timestamps
-        ? JSON.parse(student.timestamps)
-        : [];
-
+      const timestamps = student.timestamps ? JSON.parse(student.timestamps) : [];
       timestamps.unshift(newTimestamp);
 
       const storedTimestamps = await updateStudentTimestamps(id, timestamps);
@@ -82,7 +83,7 @@ export default async function handler(req, res) {
         timestamps,
       });
     } catch (error) {
-      console.error(error)
+      console.error(error);
       return res.status(500).json({ error: 'Fehler beim Aktualisieren der Timestamps' });
     }
   } else {

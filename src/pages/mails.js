@@ -2,8 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import JSZip from 'jszip';
 import styles from '../styles/Mails.module.css';
 
-// TODO feature dropdown for teachers with db
-
 export default function Home() {
     const [fileData, setFileData] = useState({
         file: null,
@@ -28,16 +26,20 @@ export default function Home() {
 
     useEffect(() => {
         const fetchTeacherEmails = async () => {
-            const response = await fetch('/api/teachers');
-            if (response.ok) {
-                const data = await response.json();
-                const initialEmails = {};
-                Object.keys(data).forEach((className) => {
-                    initialEmails[className] = data[className].length ? [...data[className], ''] : [''];
-                });
-                setTeacherData({ ...teacherData, emails: initialEmails });
-            } else {
-                console.error('Fehler beim Laden der Lehrer E-Mails');
+            try {
+                const response = await fetch('/api/teachers');
+                if (response.ok) {
+                    const data = await response.json();
+                    const initialEmails = {};
+                    Object.keys(data).forEach((className) => {
+                        initialEmails[className] = data[className].length ? [...data[className], ''] : [''];
+                    });
+                    setTeacherData((prev) => ({ ...prev, emails: initialEmails }));
+                } else {
+                    console.error('Fehler beim Laden der Lehrer E-Mails');
+                }
+            } catch (error) {
+                console.error('Fehler beim Laden der Lehrer E-Mails:', error);
             }
         };
 
@@ -46,7 +48,7 @@ export default function Home() {
 
     const handleLogin = async () => {
         try {
-            setStatus({ ...status, loginLoading: true });
+            setStatus((prev) => ({ ...prev, loginLoading: true }));
             const response = await fetch('/api/mail-auth', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -59,13 +61,13 @@ export default function Home() {
             if (data.success) {
                 setCredentialsCorrect(true);
             }
-            setStatus({
-                ...status,
+            setStatus((prev) => ({
+                ...prev,
                 loginLoading: false,
                 loginMessage: data.success ? 'Login erfolgreich' : 'Login fehlgeschlagen. Überprüfen Sie Ihre Zugangsdaten.'
-            });
+            }));
         } catch (error) {
-            setStatus({ ...status, loginLoading: false, loginMessage: 'Fehler beim Login: ' + error.message });
+            setStatus((prev) => ({ ...prev, loginLoading: false, loginMessage: 'Fehler beim Login: ' + error.message }));
         }
     };
 
@@ -75,32 +77,30 @@ export default function Home() {
             if (response.ok) {
                 return await response.blob();
             } else {
-                setStatus({ message: 'Fehler beim Abrufen der Datei von der API', uploadLoading: false });
+                setStatus((prev) => ({ ...prev, message: 'Fehler beim Abrufen der Datei von der API', uploadLoading: false }));
             }
         } catch (error) {
-            setStatus({ message: `API Fehler: ${error.message}`, uploadLoading: false });
+            setStatus((prev) => ({ ...prev, message: `API Fehler: ${error.message}`, uploadLoading: false }));
         }
         return null;
     };
 
     const handleUpload = async (e) => {
-        e.preventDefault(); // Prevent form submission default behavior
-        setStatus({ ...status, uploadLoading: true });
+        e.preventDefault();
+        setStatus((prev) => ({ ...prev, uploadLoading: true }));
 
         const zipFile = await fetchFileFromApi();
 
         if (!zipFile) {
-            setStatus({ message: 'Bitte wähle eine ZIP-Datei aus.', uploadLoading: false });
+            setStatus((prev) => ({ ...prev, message: 'Bitte wähle eine ZIP-Datei aus.', uploadLoading: false }));
             return;
         }
 
         try {
-            // Use JSZip to process the ZIP file
             const zip = new JSZip();
             const zipContent = await zip.loadAsync(zipFile);
             const extractedFiles = {};
 
-            // Extract files from the ZIP
             await Promise.all(
                 Object.keys(zipContent.files).map(async (filename) => {
                     const fileContent = await zipContent.files[filename].async('base64');
@@ -108,12 +108,11 @@ export default function Home() {
                 })
             );
 
-            // Update teacherData state with extracted files
             setTeacherData((prev) => ({ ...prev, files: extractedFiles }));
-            setStatus({ message: 'Datei erfolgreich verarbeitet!', uploadLoading: false });
-            sendMailsPopup.current.close()
+            setStatus((prev) => ({ ...prev, message: 'Datei erfolgreich verarbeitet!', uploadLoading: false }));
+            sendMailsPopup.current.close();
         } catch (error) {
-            setStatus({ message: `Fehler beim Verarbeiten der Datei: ${error.message}`, uploadLoading: false });
+            setStatus((prev) => ({ ...prev, message: `Fehler beim Verarbeiten der Datei: ${error.message}`, uploadLoading: false }));
         }
     };
 
@@ -141,11 +140,11 @@ export default function Home() {
 
     const handleSendEmails = async () => {
         if (!Object.keys(teacherData.files || {}).length) {
-            setStatus({ ...status, message: 'Bitte lade zuerst eine ZIP-Datei hoch.' });
+            setStatus((prev) => ({ ...prev, message: 'Bitte lade zuerst eine ZIP-Datei hoch.' }));
             return;
         }
 
-        setStatus({ ...status, sendMailLoading: true });
+        setStatus((prev) => ({ ...prev, sendMailLoading: true }));
         try {
             Object.keys(teacherData.emails).forEach((className) => {
                 teacherData.emails[className] = teacherData.emails[className].filter((email) => email !== '');
@@ -165,9 +164,9 @@ export default function Home() {
             });
 
             const data = await response.json();
-            setStatus({ message: data.message, sendMailLoading: false });
+            setStatus((prev) => ({ ...prev, message: data.message, sendMailLoading: false }));
         } catch (error) {
-            setStatus({ message: `Fehler beim Senden der E-Mails: ${error.message}`, sendMailLoading: false });
+            setStatus((prev) => ({ ...prev, message: `Fehler beim Senden der E-Mails: ${error.message}`, sendMailLoading: false }));
         }
     };
 
@@ -177,13 +176,12 @@ export default function Home() {
             <p className={styles.description}>
                 Hier werden die Klassenlisten mit gelaufenen Rundern der Schüler generiert und an die jeweiligen Klassenlehrer versendet.
             </p>
-            < br />
-            {
-                !Object.keys(teacherData.files).length &&
+            <br />
+            {!Object.keys(teacherData.files).length && (
                 <button className={styles.button} onClick={() => sendMailsPopup.current.showModal()}>
                     Mail versenden
                 </button>
-            }
+            )}
 
             <dialog ref={sendMailsPopup} className={styles.popup}>
                 <button className={styles.closeButtonX} onClick={() => sendMailsPopup.current.close()}>&times;</button>
@@ -196,7 +194,7 @@ export default function Home() {
                     name="email"
                     placeholder="E-Mail Adresse"
                     value={fileData.email}
-                    onChange={(e) => setFileData({ ...fileData, email: e.target.value })}
+                    onChange={(e) => setFileData((prev) => ({ ...prev, email: e.target.value }))}
                     disabled={credentialsCorrect}
                     required
                 />
@@ -206,7 +204,7 @@ export default function Home() {
                     name="password"
                     placeholder="Microsoft Passwort"
                     value={fileData.password}
-                    onChange={(e) => setFileData({ ...fileData, password: e.target.value })}
+                    onChange={(e) => setFileData((prev) => ({ ...prev, password: e.target.value }))}
                     disabled={credentialsCorrect}
                     required
                 />
@@ -216,7 +214,7 @@ export default function Home() {
                     name="senderName"
                     placeholder="Mail Absender-Name"
                     value={fileData.senderName}
-                    onChange={(e) => setFileData({ ...fileData, senderName: e.target.value })}
+                    onChange={(e) => setFileData((prev) => ({ ...prev, senderName: e.target.value }))}
                     required
                 />
 
@@ -229,51 +227,48 @@ export default function Home() {
                     <button onClick={() => sendMailsPopup.current.close()} className={`${styles.button} ${styles.redButton}`}>
                         Abbrechen
                     </button>
-                    <button className={styles.button}
-                        onClick={handleUpload} disabled={!credentialsCorrect}>
+                    <button className={styles.button} onClick={handleUpload} disabled={!credentialsCorrect}>
                         Weiter
                     </button>
                 </div>
                 {status.uploadLoading && <div className={styles.progress} />}
             </dialog>
 
-            {
-                Object.keys(teacherData.files).length > 0 && (
-                    <div>
-                        <h2 className={styles.subtitle}>Lehrer E-Mails</h2>
-                        {Object.keys(teacherData.files).map((className) => (
-                            <div key={className} className={styles.classContainer}>
-                                <div className={styles.classTitle}>{className}</div>
-                                <div className={styles.emailFields}>
-                                    {teacherData.emails[className]?.map((email, index) => (
-                                        <div key={index} style={{ display: 'flex', alignItems: 'center' }}>
-                                            <span className={styles.emailIndex}>{index + 1}.</span>
-                                            <input
-                                                type="email"
-                                                value={email}
-                                                onChange={handleEmailChange(className, index)}
-                                                placeholder="E-Mail Adresse"
-                                                className={styles.inputEmail}
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
+            {Object.keys(teacherData.files).length > 0 && (
+                <div>
+                    <h2 className={styles.subtitle}>Lehrer E-Mails</h2>
+                    {Object.keys(teacherData.files).map((className) => (
+                        <div key={className} className={styles.classContainer}>
+                            <div className={styles.classTitle}>{className}</div>
+                            <div className={styles.emailFields}>
+                                {teacherData.emails[className]?.map((email, index) => (
+                                    <div key={index} style={{ display: 'flex', alignItems: 'center' }}>
+                                        <span className={styles.emailIndex}>{index + 1}.</span>
+                                        <input
+                                            type="email"
+                                            value={email}
+                                            onChange={handleEmailChange(className, index)}
+                                            placeholder="E-Mail Adresse"
+                                            className={styles.inputEmail}
+                                        />
+                                    </div>
+                                ))}
                             </div>
-                        ))}
-                        <h2>Mail-Inhalt</h2>
-                        <textarea
-                            value={fileData.mailText}
-                            onChange={(e) => setFileData({ ...fileData, mailText: e.target.value })}
-                            className={styles.textarea}
-                        />
-                        <br />
-                        <button onClick={handleSendEmails} className={styles.button}>E-Mails senden</button>
-                    </div>
-                )
-            }
+                        </div>
+                    ))}
+                    <h2>Mail-Inhalt</h2>
+                    <textarea
+                        value={fileData.mailText}
+                        onChange={(e) => setFileData((prev) => ({ ...prev, mailText: e.target.value }))}
+                        className={styles.textarea}
+                    />
+                    <br />
+                    <button onClick={handleSendEmails} className={styles.button}>E-Mails senden</button>
+                </div>
+            )}
 
             {status.sendMailLoading && <div className={styles.progress} />}
             {status.message && <p className={styles.message}>{status.message}</p>}
-        </div >
+        </div>
     );
 }

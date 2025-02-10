@@ -1,25 +1,28 @@
-const sqlite3 = require('sqlite3').verbose();
+import sqlite3 from 'sqlite3';
 const db = new sqlite3.Database('./data/students.db');
 
+const deleteAllStudents = () => {
+    return new Promise((resolve, reject) => {
+        db.run('DELETE FROM students', function (err) {
+            if (err) {
+                reject(err);
+            } else {
+                resolve(this.changes);
+            }
+        });
+    });
+};
 
 export default async function handler(req, res) {
     if (req.method === 'DELETE') {
         try {
-            const deletedStudents = db.serialize(() => {
-                return db.run('DELETE FROM students', [], function (err) {
-                    if (err) {
-                        return res.status(500).json({ error: 'Fehler beim Löschen der Daten' });
-                    }
-                    console.log(`Anzahl der gelöschten Zeilen: ${this.changes}`);
-                    return this.changes;
-                });
-            });
+            const deletedStudents = await deleteAllStudents();
             res.status(200).json({ message: 'Daten wurden erfolgreich gelöscht', amount: deletedStudents });
         } catch (error) {
-            return res.status(500).json({ error: 'Fehler beim Löschen' });
+            res.status(500).json({ error: 'Fehler beim Löschen der Daten' });
         }
     } else {
         res.setHeader('Allow', ['DELETE']);
-        return res.status(405).end(`Method ${req.method} Not Allowed`);
+        res.status(405).end(`Method ${req.method} Not Allowed`);
     }
 }

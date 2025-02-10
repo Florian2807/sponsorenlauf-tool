@@ -9,23 +9,20 @@ export default function Setup() {
     const [loading, setLoading] = useState({ upload: false, labels: false, replacement: false, downloadResults: false });
     const [replacementAmount, setReplacementAmount] = useState(0);
 
-
     const generateLabelsPopup = useRef(null);
     const confirmDeletePopup = useRef(null);
     const importExcelPopup = useRef(null);
     const exportSpendenPopup = useRef(null);
 
     const updateMessage = (update = {}) => {
-        const tmp = {}
-        Object.keys(message).forEach(event => {
-            if (Object.keys(update).includes(event)) {
-                tmp[event] = update[event]
-            } else {
-                tmp[event] = ''
-            }
-            setMessage(tmp)
-        });
-    }
+        setMessage((prev) => ({
+            ...prev,
+            ...Object.keys(prev).reduce((acc, key) => {
+                acc[key] = update[key] || '';
+                return acc;
+            }, {})
+        }));
+    };
 
     const handleFileChange = (e) => {
         setFile(e.target.files[0]);
@@ -52,7 +49,7 @@ export default function Setup() {
 
             if (!importResponse.ok) {
                 const errorData = await importResponse.json();
-                updateMessage({ upload: `Fehler beim Importieren der Excel-Datei: ${errorData.message}` })
+                updateMessage({ upload: `Fehler beim Importieren der Excel-Datei: ${errorData.message}` });
                 setLoading((prev) => ({ ...prev, upload: false }));
                 return;
             }
@@ -100,51 +97,28 @@ export default function Setup() {
             const response = await axios.delete('/api/deleteAllStudents');
 
             if (response.status === 200) {
-                updateMessage({ delete: 'Alle Schüler wurden erfolgreich gelöscht.' })
+                updateMessage({ delete: 'Alle Schüler wurden erfolgreich gelöscht.' });
             } else {
-                updateMessage({ delete: 'Fehler beim Löschen der Schüler.' })
+                updateMessage({ delete: 'Fehler beim Löschen der Schüler.' });
             }
         } catch (error) {
             console.error('Fehler:', error);
-            updateMessage({ delete: 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.' })
+            updateMessage({ delete: 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.' });
         } finally {
             confirmDeletePopup.current.close();
         }
     };
 
-    const downloadAllResults = async () => {
+    const downloadResults = async (type) => {
         setLoading((prev) => ({ ...prev, downloadResults: true }));
         try {
-            const response = await axios.get('/api/exportSpenden', { responseType: 'blob', params: { requestedType: 'allstudents' } });
+            const response = await axios.get('/api/exportSpenden', { responseType: 'blob', params: { requestedType: type } });
 
             if (response.status === 200) {
                 const url = window.URL.createObjectURL(new Blob([response.data]));
                 const link = document.createElement('a');
                 link.href = url;
-                link.setAttribute('download', 'Auswertung_Gesamt.xlsx');
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            } else {
-                updateMessage({ download: 'Fehler beim Herunterladen der Excel-Datei.' });
-            }
-        } catch (error) {
-            console.error('Fehler:', error);
-            updateMessage({ download: 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.' });
-        }
-        setLoading((prev) => ({ ...prev, downloadResults: false }));
-    };
-
-    const downloadClassResults = async () => {
-        setLoading((prev) => ({ ...prev, downloadResults: true }));
-        try {
-            const response = await axios.get('/api/exportSpenden', { responseType: 'blob', params: { requestedType: 'classes' } });
-
-            if (response.status === 200) {
-                const url = window.URL.createObjectURL(new Blob([response.data]));
-                const link = document.createElement('a');
-                link.href = url;
-                link.setAttribute('download', 'Auswertung_Klassen.xlsx');
+                link.setAttribute('download', type === 'allstudents' ? 'Auswertung_Gesamt.xlsx' : 'Auswertung_Klassen.xlsx');
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
@@ -229,9 +203,7 @@ export default function Setup() {
                 <input
                     type="number"
                     value={replacementAmount}
-                    onChange={(e) =>
-                        setReplacementAmount(e.target.value)
-                    }
+                    onChange={(e) => setReplacementAmount(e.target.value)}
                     className={styles.input}
                 />
 
@@ -279,10 +251,10 @@ export default function Setup() {
                 <button className={styles.closeButtonX} onClick={() => exportSpendenPopup.current.close()}>&times;</button>
                 <h2>Spenden Auswertungen downloaden</h2>
                 <div className={styles.popupButtons}>
-                    <button onClick={downloadAllResults} className={styles.button} disabled={loading.downloadResults}>
+                    <button onClick={() => downloadResults('allstudents')} className={styles.button} disabled={loading.downloadResults}>
                         Gesamtauswertung
                     </button>
-                    <button className={styles.button} onClick={downloadClassResults} disabled={loading.downloadResults}>
+                    <button className={styles.button} onClick={() => downloadResults('classes')} disabled={loading.downloadResults}>
                         Klassenweise Auswertung
                     </button>
                 </div>

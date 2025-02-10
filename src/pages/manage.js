@@ -17,10 +17,8 @@ export default function Manage() {
     timestamps: [],
     replacements: []
   });
-
   const [newReplacement, setNewReplacement] = useState('');
   const [message, setMessage] = useState('');
-
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState('id');
   const [sortDirection, setSortDirection] = useState('asc');
@@ -84,7 +82,6 @@ export default function Manage() {
 
   const addReplacementID = async () => {
     const updatedReplacements = [...selectedStudent.replacements, newReplacement];
-    // check if replacement ID is available
     try {
       const response = await axios.get(`/api/checkReplacement/${newReplacement}`);
       if (response.data.success) {
@@ -241,7 +238,7 @@ export default function Manage() {
           &times;
         </button>
 
-        <div> {/*Schüler bearbeiten*/}
+        <div>
           <h2>Schüler bearbeiten</h2>
           <label>ID:</label>
           <input
@@ -269,7 +266,7 @@ export default function Manage() {
           />
         </div>
 
-        <div> {/*gelaufene Runden*/}
+        <div>
           <h3>Gelaufene Runden: {selectedStudent?.timestamps.length}</h3>
           <h3>Timestamps:</h3>
           <ul className={styles.timestampList}>
@@ -324,8 +321,7 @@ export default function Manage() {
         </div>
       </dialog >
 
-      {/* addReplacement-Popup */}
-      < dialog ref={addReplacementPopup} className={styles.popup} >
+      <dialog ref={addReplacementPopup} className={styles.popup} >
         <button className={styles.closeButtonX} onClick={() => addReplacementPopup.current.close()}>
           &times;
         </button>
@@ -353,8 +349,7 @@ export default function Manage() {
         </div>
       </dialog >
 
-      {/* addStudent-Popup */}
-      < dialog ref={addStudentPopup} className={styles.popup} >
+      <dialog ref={addStudentPopup} className={styles.popup} >
         <button className={styles.closeButtonX} onClick={() => addStudentPopup.current.close()}>
           &times;
         </button>
@@ -398,8 +393,7 @@ export default function Manage() {
         </form>
       </dialog >
 
-      {/* confirm-Popup */}
-      < dialog ref={confirmDeletePopup} className={styles.popup} >
+      <dialog ref={confirmDeletePopup} className={styles.popup} >
         <button className={styles.closeButtonX} onClick={() => confirmDeletePopup.current.close()}>
           &times;
         </button>

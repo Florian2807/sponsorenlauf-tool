@@ -1,8 +1,10 @@
-import fs from 'fs';
+import { promises as fs } from 'fs';
+import path from 'path';
 
-export default function handler(req, res) {
+export default async function handler(req, res) {
     try {
-        const jsonData = fs.readFileSync('data/teacherMails.json', 'utf-8');
+        const filePath = path.join(process.cwd(), 'data', 'teacherMails.json');
+        const jsonData = await fs.readFile(filePath, 'utf-8');
         const teacherEmails = JSON.parse(jsonData);
         res.status(200).json(teacherEmails);
     } catch (error) {

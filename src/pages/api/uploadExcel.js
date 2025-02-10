@@ -6,6 +6,35 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 const uploadMiddleware = upload.single('file');
 
+const getMaxId = (db) => {
+  return new Promise((resolve, reject) => {
+    db.get(`SELECT MAX(id) as maxId FROM students`, [], (err, row) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(row.maxId || 0);
+      }
+    });
+  });
+};
+
+const insertStudent = (db, student, newId) => {
+  return new Promise((resolve, reject) => {
+    const insertQuery = `INSERT INTO students (id, vorname, nachname, klasse, timestamps, spenden, spendenKonto) VALUES (?, ?, ?, ?, ?, ?, ?)`;
+    db.run(
+      insertQuery,
+      [newId, student.vorname, student.nachname, student.klasse, '[]', student.spenden || null, JSON.stringify(student.spendenKonto) || '[]'],
+      (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      }
+    );
+  });
+};
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' });
@@ -31,53 +60,21 @@ export default async function handler(req, res) {
             nachname: row.getCell(2).value,
             klasse: row.getCell(3).value,
             spenden: row.getCell(4).value,
-            spendenKonto: row.getCell(5).value
+            spendenKonto: row.getCell(5).value ? JSON.parse(row.getCell(5).value) : []
           });
         }
       });
 
-      const db = new sqlite3.Database('./data/students.db', (err) => {
-        if (err) {
-          console.error('Fehler beim Öffnen der Datenbank:', err.message);
-          res.status(500).json({ message: 'Database connection error' });
-          return;
-        }
-      });
+      const db = new sqlite3.Database('./data/students.db');
 
-      const getMaxIdPromise = () => {
-        return new Promise((resolve, reject) => {
-          db.get(`SELECT MAX(id) as maxId FROM students`, [], (err, row) => {
-            if (err) {
-              reject(err);
-            } else {
-              resolve(row.maxId || 0);
-            }
-          });
-        });
-      };
-
-      const maxId = await getMaxIdPromise();
+      const maxId = await getMaxId(db);
       let insertedCount = 0;
 
-      db.serialize(() => {
-        const insertQuery = `INSERT INTO students (id, vorname, nachname, klasse, timestamps, spenden, spendenKonto) VALUES (?, ?, ?, ?, ?, ?, ?)`;
-
-        data.forEach((row, index) => {
-          const newId = parseInt(maxId + index + 1);
-          db.run(
-            insertQuery,
-            [newId, row.vorname, row.nachname, row.klasse, '[]', row.spenden || null, row.spendenKonto || []],
-            (err) => {
-              if (err) {
-                console.error('Fehler beim Einfügen:', err.message);
-              } else {
-                console.log(`Datensatz ${newId} erfolgreich eingefügt.`);
-                insertedCount++;
-              }
-            }
-          );
-        });
-      });
+      for (let i = 0; i < data.length; i++) {
+        const newId = maxId + i + 1;
+        await insertStudent(db, data[i], newId);
+        insertedCount++;
+      }
 
       db.close((err) => {
         if (err) {

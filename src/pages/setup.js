@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import styles from '../styles/Setup.module.css';
 import axios from 'axios';
 
@@ -8,11 +8,26 @@ export default function Setup() {
     const [insertedCount, setInsertedCount] = useState(0);
     const [loading, setLoading] = useState({ upload: false, labels: false, replacement: false, downloadResults: false });
     const [replacementAmount, setReplacementAmount] = useState(0);
+    const [classes, setClasses] = useState([]);
+    const [selectedClasses, setSelectedClasses] = useState(['5a', '5b', '5c', '5d', '5e', '5f', '6a', '6b', '6c', '6d', '6e', '6f', '7a', '7b', '7c', '7d', '7e', '7f', '8a', '8b', '8c', '8d', '8e', '8f', '9a', '9b', '9c', '9d', '9e', '9f', '10a', '10b', '10c', '10d', '10e', '10f', 'EF', 'Q1', 'Q2']);
+    const [dropdownOpen, setDropdownOpen] = useState(false);
 
     const generateLabelsPopup = useRef(null);
     const confirmDeletePopup = useRef(null);
     const importExcelPopup = useRef(null);
     const exportSpendenPopup = useRef(null);
+
+    useEffect(() => {
+        const fetchClasses = async () => {
+            try {
+                const response = await axios.get('/api/getClasses');
+                setClasses(response.data);
+            } catch (error) {
+                console.error('Fehler beim Abrufen der Klassen:', error);
+            }
+        };
+        fetchClasses();
+    }, []);
 
     const updateMessage = (update = {}) => {
         setMessage((prev) => ({
@@ -70,7 +85,11 @@ export default function Setup() {
         updateMessage({ download: 'Etiketten werden generiert...' });
 
         try {
-            const response = await axios.get('/api/generate-labels', { responseType: 'blob', params: { replacementAmount } });
+            console.log(selectedClasses);
+            const response = await axios.get('/api/generate-labels', {
+                responseType: 'blob',
+                params: { replacementAmount, selectedClasses: selectedClasses.join(',') }
+            });
             if (response.status === 200) {
                 const url = window.URL.createObjectURL(new Blob([response.data]));
                 const link = document.createElement('a');
@@ -130,6 +149,21 @@ export default function Setup() {
             updateMessage({ download: 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.' });
         }
         setLoading((prev) => ({ ...prev, downloadResults: false }));
+    };
+
+    const handleClassSelection = (e) => {
+        const value = e.target.value;
+        setSelectedClasses((prev) =>
+            prev.includes(value) ? prev.filter((cls) => cls !== value) : [...prev, value]
+        );
+    };
+
+    const handleSelectAll = () => {
+        setSelectedClasses(classes);
+    };
+
+    const handleDeselectAll = () => {
+        setSelectedClasses([]);
     };
 
     return (
@@ -206,10 +240,41 @@ export default function Setup() {
                     onChange={(e) => setReplacementAmount(e.target.value)}
                     className={styles.input}
                 />
+                <label>Klassen auswählen:</label>
+                <div className={styles.selectButtons}>
+                    <button onClick={handleSelectAll} className={styles.selectButton}>Alle auswählen</button>
+                    <button onClick={handleDeselectAll} className={styles.selectButton}>Alle abwählen</button>
+                </div>
+                <div className={styles.classCheckboxes} style={{ color: 'grey' }}
+                >
+                    <label className={styles.classSelectLabel}>
+                        <input
+                            type="checkbox"
+                            value="Erstatz"
+                            checked={replacementAmount > 0}
+                            disabled={true}
+                            onChange={handleClassSelection}
+                        />
+                        Ersatz
+                    </label>
+                    <div className={styles.newLine}></div>
 
+                    {classes.map((klasse, index) => (
+                        <React.Fragment key={klasse}>
+                            <label className={styles.classSelectLabel}>
+                                <input
+                                    type="checkbox"
+                                    value={klasse}
+                                    checked={selectedClasses.includes(klasse)}
+                                    onChange={handleClassSelection}
+                                />
+                                {klasse}
+                            </label>
+                        </React.Fragment>
+                    ))}
+                </div>
                 {message.download && <p className={styles.message}>{message.download}</p>}
                 {loading.labels && <div className={styles.progress} />}
-
                 <div className={styles.popupButtons}>
                     <button
                         onClick={() => generateLabelsPopup.current.close()}
@@ -281,6 +346,9 @@ export default function Setup() {
                     </button>
                 </div>
             </dialog>
+            {dropdownOpen && (
+                <div className={styles.dropdownOverlay} onClick={() => setDropdownOpen(false)} />
+            )}
         </div >
     );
 }

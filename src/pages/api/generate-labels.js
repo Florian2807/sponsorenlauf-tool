@@ -2,8 +2,6 @@ import PDFDocument from 'pdfkit';
 import bwipjs from 'bwip-js';
 import sqlite3 from 'sqlite3';
 
-// TODO select menu in popup, which class to print
-
 const db = new sqlite3.Database('./data/students.db');
 
 const generateBarcode = async (ID) => {
@@ -20,8 +18,19 @@ const generateBarcode = async (ID) => {
 export default function handler(req, res) {
   if (req.method === 'GET') {
     const replacementAmount = parseInt(req.query.replacementAmount, 10) || 0;
+    const selectedClasses = req.query.selectedClasses ? req.query.selectedClasses.split(',') : [];
+    let query = 'SELECT * FROM students';
+    const params = [];
 
-    db.all('SELECT * FROM students', async (err, rows) => {
+    if (selectedClasses.length > 0) {
+      console.log(selectedClasses);
+      const placeholders = selectedClasses.map(() => '?');
+      query += ` WHERE klasse IN (${placeholders})`;
+      params.push(...selectedClasses);
+    }
+    console.log(params)
+
+    db.all(query, params, async (err, rows) => {
       if (err) {
         console.error('Fehler beim Abrufen der Daten:', err);
         return res.status(500).json({ message: 'Fehler beim Abrufen der Daten.' });

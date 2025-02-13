@@ -23,12 +23,10 @@ export default function handler(req, res) {
     const params = [];
 
     if (selectedClasses.length > 0) {
-      console.log(selectedClasses);
       const placeholders = selectedClasses.map(() => '?');
       query += ` WHERE klasse IN (${placeholders})`;
       params.push(...selectedClasses);
     }
-    console.log(params)
 
     db.all(query, params, async (err, rows) => {
       if (err) {

@@ -85,7 +85,6 @@ export default function Setup() {
         updateMessage({ download: 'Etiketten werden generiert...' });
 
         try {
-            console.log(selectedClasses);
             const response = await axios.get('/api/generate-labels', {
                 responseType: 'blob',
                 params: { replacementAmount, selectedClasses: selectedClasses.join(',') }

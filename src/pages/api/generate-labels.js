@@ -21,22 +21,16 @@ export default function handler(req, res) {
     const selectedClasses = req.query.selectedClasses ? req.query.selectedClasses.split(',') : [];
     let query = 'SELECT * FROM students';
     const params = [];
+    console.log(selectedClasses)
+    const placeholders = selectedClasses.map(() => '?');
+    query += ` WHERE klasse IN (${placeholders})`;
+    params.push(...selectedClasses);
 
-    if (selectedClasses.length > 0) {
-      const placeholders = selectedClasses.map(() => '?');
-      query += ` WHERE klasse IN (${placeholders})`;
-      params.push(...selectedClasses);
-    }
 
     db.all(query, params, async (err, rows) => {
       if (err) {
         console.error('Fehler beim Abrufen der Daten:', err);
         return res.status(500).json({ message: 'Fehler beim Abrufen der Daten.' });
-      }
-
-      if (rows.length === 0) {
-        console.error('Keine Daten in der Datenbank gefunden.');
-        return res.status(400).send('Keine Daten in der Datenbank gefunden.');
       }
 
       for (let i = 1; i <= replacementAmount; i++) {
@@ -46,6 +40,11 @@ export default function handler(req, res) {
           nachname: 'Ersatz',
           klasse: 'Ersatz',
         });
+      }
+
+      if (rows.length === 0) {
+        console.error('Keine Daten in der Datenbank gefunden.');
+        return res.status(400).send('Keine Daten in der Datenbank gefunden.');
       }
 
       try {

@@ -65,7 +65,7 @@ export default async function handler(req, res) {
         }
       });
 
-      const db = new sqlite3.Database('./data/students.db');
+      const db = new sqlite3.Database('./data/database.db');
 
       const maxId = await getMaxId(db);
       let insertedCount = 0;

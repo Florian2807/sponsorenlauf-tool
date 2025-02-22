@@ -1,6 +1,6 @@
 import sqlite3 from 'sqlite3';
 
-const db = new sqlite3.Database('./data/students.db');
+const db = new sqlite3.Database('./data/database.db');
 
 export default function handler(req, res) {
     if (req.method === 'GET') {

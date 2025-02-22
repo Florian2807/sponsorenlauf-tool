@@ -2,7 +2,7 @@ import PDFDocument from 'pdfkit';
 import bwipjs from 'bwip-js';
 import sqlite3 from 'sqlite3';
 
-const db = new sqlite3.Database('./data/students.db');
+const db = new sqlite3.Database('./data/database.db');
 
 const generateBarcode = async (ID) => {
   return await bwipjs.toBuffer({

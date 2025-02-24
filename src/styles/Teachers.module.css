@@ -1,0 +1,310 @@
+.container {
+  max-width: 1000px;
+  margin: 2rem auto;
+  padding: 1rem;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.title {
+  font-size: 2rem;
+  color: #4a90e2;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+
+.searchContainer {
+  margin-bottom: 1rem;
+  text-align: center;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+}
+
+.searchContainer button {
+  width: fit-content;
+  height: fit-content;
+  grid-column: 1;
+}
+
+.searchInput {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+  width: 100%;
+  max-width: 300px;
+  margin: 0 auto;
+  grid-column: 2;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+.table th {
+  cursor: pointer;
+  background-color: #f4f4f4;
+}
+
+.table tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.table tr:hover {
+  background-color: #f1f1f1;
+}
+
+.table button {
+  background-color: #4a90e2;
+  color: #fff;
+  border: none;
+  padding: 5px 10px;
+  font-size: 0.9rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.table button:hover {
+  background-color: #357abd;
+}
+
+.sortable {
+  position: relative;
+}
+
+.sortable::after {
+  content: '▼';
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.8rem;
+  color: #999;
+}
+
+.asc::after {
+  content: '▲';
+}
+
+.desc::after {
+  content: '▼';
+}
+
+.popup {
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border: none;
+  width: 90%;
+  max-width: 600px;
+  max-height: 70%;
+  background: #fff;
+  padding: 2rem;
+  overflow-y: auto;
+}
+
+.popup::backdrop {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.popup p {
+  text-align: left;
+}
+
+.popup h2 {
+  margin-bottom: 1rem;
+}
+
+.popupButtons {
+  display: flex;
+  justify-content: space-between;
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: #fff;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+}
+
+.redButton {
+  background-color: #e94e77;
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  font-size: 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.redButton:hover {
+  background-color: #d43f5e;
+}
+
+.closeButtonX {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #333;
+}
+
+.form {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.form label {
+  margin-bottom: 0.5rem;
+}
+
+.form input {
+  padding: 8px;
+  margin-bottom: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.timestampList {
+  list-style-type: none;
+  padding: 0;
+  margin: 1rem 0;
+}
+
+.timestampItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+  background-color: #f9f9f9;
+}
+
+.deleteTimestampButton {
+  background-color: #e94e77;
+  color: #fff;
+  border: none;
+  padding: 5px 10px;
+  font-size: 0.9rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.deleteTimestampButton:hover {
+  background-color: #d43f5e;
+}
+
+.replacementContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.replacementTag {
+  background-color: #f0f0f0;
+  border-radius: 12px;
+  padding: 5px 10px;
+  font-size: 14px;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+.replacementTag:hover {
+  background-color: #e0e0e0;
+  transform: scale(1.05);
+}
+
+.replacementText {
+  display: flex;
+  align-items: center;
+}
+
+.deleteReplacementButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.deleteIcon {
+  color: red;
+  transition: color 0.3s ease;
+}
+
+.deleteReplacementButton:hover .deleteIcon {
+  color: darkred;
+}
+
+.replacementInput {
+  background-color: #f0f0f0;
+  border: none;
+  border-radius: 12px;
+  padding: 5px 10px;
+  font-size: 14px;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+.addReplacementButton {
+  background-color: #f0f0f0;
+  border: none;
+  border-radius: 12px;
+  padding: 5px 10px;
+  font-size: 14px;
+  color: #333;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+.addReplacementButton:hover {
+  background-color: #e0e0e0;
+  transform: scale(1.05);
+}
+
+.errorMessage {
+  color: red;
+  margin-top: 10px;
+}
+
+.select {
+  padding: 8px;
+  margin-bottom: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  width: 100%;
+  font-size: 1rem;
+  background-color: #fff;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url('data:image/svg+xml;utf8,<svg fill="none" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5H7z" fill="%23999"/></svg>');
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px;
+}

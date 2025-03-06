@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import styles from '../styles/Teachers.module.css';
 
@@ -55,31 +55,32 @@ export default function Manage() {
         const direction = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
         setSortField(field);
         setSortDirection(direction);
-
-        setTeachers((prevTeachers) =>
-            [...prevTeachers].sort((a, b) => {
-                const aValue = a[field];
-                const bValue = b[field];
-
-                // sort after classes 
-                if (field === 'klasse') {
-                    const aClass = allPossibleClasses.indexOf(aValue);
-                    const bClass = allPossibleClasses.indexOf(bValue);
-                    return direction === 'asc' ? aClass - bClass : bClass - aClass;
-                }
-
-                if (field === 'id') {
-                    return direction === 'asc'
-                        ? parseInt(aValue) - parseInt(bValue)
-                        : parseInt(bValue) - parseInt(aValue);
-                }
-
-                if (aValue < bValue) return direction === 'asc' ? -1 : 1;
-                if (aValue > bValue) return direction === 'asc' ? 1 : -1;
-                return 0;
-            })
-        );
     };
+
+    const sortedTeachers = useMemo(() => {
+        const sorted = [...teachers];
+        sorted.sort((a, b) => {
+            const aValue = a[sortField];
+            const bValue = b[sortField];
+
+            if (sortField === 'klasse') {
+                const aClass = allPossibleClasses.indexOf(aValue);
+                const bClass = allPossibleClasses.indexOf(bValue);
+                return sortDirection === 'asc' ? aClass - bClass : bClass - aClass;
+            }
+
+            if (sortField === 'id') {
+                return sortDirection === 'asc'
+                    ? parseInt(aValue) - parseInt(bValue)
+                    : parseInt(bValue) - parseInt(aValue);
+            }
+
+            if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+            if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+        return sorted;
+    }, [teachers, sortField, sortDirection]);
 
     const handleTeacherChange = (className, index) => (e) => {
         const newId = parseInt(e.target.value);
@@ -204,14 +205,14 @@ export default function Manage() {
         }
     };
 
-    const filteredTeachers = teachers.filter(teacher => {
+    const filteredTeachers = useMemo(() => {
         const searchLower = searchTerm.toLowerCase();
-        return (
+        return sortedTeachers.filter(teacher => (
             teacher?.vorname?.toLowerCase().includes(searchLower) ||
             teacher?.nachname?.toLowerCase().includes(searchLower) ||
             teacher?.klasse?.toLowerCase().includes(searchLower)
-        );
-    });
+        ));
+    }, [sortedTeachers, searchTerm]);
 
     return (
         <div className={styles.container}>
@@ -411,7 +412,7 @@ export default function Manage() {
                                             <option value="">Wählen Sie einen Lehrer</option>
                                             {teachers.map((teacherOption) => (
                                                 <option key={teacherOption.id} value={teacherOption.id}>
-                                                    {teacherOption.nachname}, {teacherOption.vorname}
+                                                    {teacherOption.vorname} {teacherOption.nachname}
                                                 </option>
                                             ))}
                                         </select>
@@ -430,7 +431,6 @@ export default function Manage() {
                     </button>
                     <button disabled={loading.saveTeacher} onClick={saveClassTeacher}>Speichern</button>
                 </div>
-                {loading.saveTeacher && <div className={styles.progress} />}
             </dialog>
         </div >
     );

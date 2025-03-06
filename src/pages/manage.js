@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import styles from '../styles/Manage.module.css';
 import { formatDate } from '/utils/globalFunctions';
@@ -55,30 +55,32 @@ export default function Manage() {
     const direction = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
     setSortField(field);
     setSortDirection(direction);
-
-    setStudents((prevStudents) =>
-      [...prevStudents].sort((a, b) => {
-        const aValue = a[field];
-        const bValue = b[field];
-
-        if (field === 'klasse') {
-          const aClass = allPossibleClasses.indexOf(aValue);
-          const bClass = allPossibleClasses.indexOf(bValue);
-          return direction === 'asc' ? aClass - bClass : bClass - aClass;
-        }
-
-        if (field === 'id') {
-          return direction === 'asc'
-            ? parseInt(aValue) - parseInt(bValue)
-            : parseInt(bValue) - parseInt(aValue);
-        }
-
-        if (aValue < bValue) return direction === 'asc' ? -1 : 1;
-        if (aValue > bValue) return direction === 'asc' ? 1 : -1;
-        return 0;
-      })
-    );
   };
+
+  const sortedStudents = useMemo(() => {
+    const sorted = [...students];
+    sorted.sort((a, b) => {
+      const aValue = a[sortField];
+      const bValue = b[sortField];
+
+      if (sortField === 'klasse') {
+        const aClass = allPossibleClasses.indexOf(aValue);
+        const bClass = allPossibleClasses.indexOf(bValue);
+        return sortDirection === 'asc' ? aClass - bClass : bClass - aClass;
+      }
+
+      if (sortField === 'id') {
+        return sortDirection === 'asc'
+          ? parseInt(aValue) - parseInt(bValue)
+          : parseInt(bValue) - parseInt(aValue);
+      }
+
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [students, sortField, sortDirection]);
 
   const editStudentClick = (student) => {
     setSelectedStudent(student);
@@ -200,14 +202,14 @@ export default function Manage() {
     }
   };
 
-  const filteredStudents = students.filter(student => {
+  const filteredStudents = useMemo(() => {
     const searchLower = searchTerm.toLowerCase();
-    return (
+    return sortedStudents.filter(student => (
       student?.vorname?.toLowerCase().includes(searchLower) ||
       student?.nachname?.toLowerCase().includes(searchLower) ||
       student?.klasse?.toLowerCase().includes(searchLower)
-    );
-  });
+    ));
+  }, [sortedStudents, searchTerm]);
 
   return (
     <div className={styles.container}>

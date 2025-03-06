@@ -28,6 +28,16 @@ export default function Manage() {
   const confirmDeletePopup = useRef(null);
   const addReplacementPopup = useRef(null);
 
+  const allPossibleClasses = [
+    '5a', '5b', '5c', '5d', '5e', '5f',
+    '6a', '6b', '6c', '6d', '6e', '6f',
+    '7a', '7b', '7c', '7d', '7e', '7f',
+    '8a', '8b', '8c', '8d', '8e', '8f',
+    '9a', '9b', '9c', '9d', '9e', '9f',
+    '10a', '10b', '10c', '10d', '10e', '10f',
+    'EF', 'Q1', 'Q2'
+  ];
+
   useEffect(() => {
     fetchStudents();
   }, []);
@@ -50,6 +60,12 @@ export default function Manage() {
       [...prevStudents].sort((a, b) => {
         const aValue = a[field];
         const bValue = b[field];
+
+        if (field === 'klasse') {
+          const aClass = allPossibleClasses.indexOf(aValue);
+          const bClass = allPossibleClasses.indexOf(bValue);
+          return direction === 'asc' ? aClass - bClass : bClass - aClass;
+        }
 
         if (field === 'id') {
           return direction === 'asc'

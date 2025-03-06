@@ -4,11 +4,11 @@ const db = new sqlite3.Database('./data/database.db');
 
 const loadTeachers = () => {
     return new Promise((resolve, reject) => {
-        db.all('SELECT * FROM teachers', [], (err, rows) => {
+        db.all('SELECT * FROM teachers ORDER BY nachname', [], (err, rows) => {
             if (err) {
                 reject(err);
             } else {
-                resolve(rows)
+                resolve(rows);
             }
         });
     });

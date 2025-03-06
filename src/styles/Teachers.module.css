@@ -101,6 +101,36 @@
   content: '▼';
 }
 
+.progress {
+  width: 100%;
+  max-width: 300px;
+  height: 8px;
+  background-color: #e0e0e0;
+  border-radius: 4px;
+  margin-top: 10px;
+  overflow: hidden;
+  display: inline-block;
+}
+
+.progress::before {
+  content: '';
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #4a90e2, #357abd);
+  animation: loading 1.5s linear infinite;
+}
+
+@keyframes loading {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 .popup {
   border-radius: 8px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -111,18 +141,16 @@
   background: #fff;
   padding: 2rem;
   overflow-y: auto;
+  position: relative;
 }
 
 .popup::backdrop {
   background-color: rgba(0, 0, 0, 0.5);
 }
 
-.popup p {
-  text-align: left;
-}
-
 .popup h2 {
   margin-bottom: 1rem;
+  text-align: center;
 }
 
 .popupButtons {
@@ -164,132 +192,40 @@
   color: #333;
 }
 
-.form {
-  flex-grow: 1;
+.classContainer {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1.5rem 0;
+  background-color: #f9f9f9;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.classTitle {
+  font-size: 1.2rem;
+  color: #333;
+  font-weight: bold;
+  background-color: #e6f7ff;
+  padding: 0.5rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  text-align: left;
+}
+
+.emailFields {
   display: flex;
   flex-direction: column;
+  gap: 10px;
 }
 
-.form label {
-  margin-bottom: 0.5rem;
-}
-
-.form input {
-  padding: 8px;
-  margin-bottom: 1rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-}
-
-.timestampList {
-  list-style-type: none;
-  padding: 0;
-  margin: 1rem 0;
-}
-
-.timestampItem {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  margin-bottom: 0.5rem;
-  background-color: #f9f9f9;
-}
-
-.deleteTimestampButton {
-  background-color: #e94e77;
-  color: #fff;
-  border: none;
-  padding: 5px 10px;
-  font-size: 0.9rem;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-
-.deleteTimestampButton:hover {
-  background-color: #d43f5e;
-}
-
-.replacementContainer {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.replacementTag {
-  background-color: #f0f0f0;
-  border-radius: 12px;
-  padding: 5px 10px;
-  font-size: 14px;
-  color: #333;
+.emailField {
   display: flex;
   align-items: center;
-  gap: 5px;
-  transition: background-color 0.3s ease, transform 0.3s ease;
+  gap: 10px;
 }
 
-.replacementTag:hover {
-  background-color: #e0e0e0;
-  transform: scale(1.05);
-}
-
-.replacementText {
-  display: flex;
-  align-items: center;
-}
-
-.deleteReplacementButton {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-}
-
-.deleteIcon {
-  color: red;
-  transition: color 0.3s ease;
-}
-
-.deleteReplacementButton:hover .deleteIcon {
-  color: darkred;
-}
-
-.replacementInput {
-  background-color: #f0f0f0;
-  border: none;
-  border-radius: 12px;
-  padding: 5px 10px;
-  font-size: 14px;
-  color: #333;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  transition: background-color 0.3s ease, transform 0.3s ease;
-}
-
-.addReplacementButton {
-  background-color: #f0f0f0;
-  border: none;
-  border-radius: 12px;
-  padding: 5px 10px;
-  font-size: 14px;
-  color: #333;
-  cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.3s ease;
-}
-
-.addReplacementButton:hover {
-  background-color: #e0e0e0;
-  transform: scale(1.05);
-}
-
-.errorMessage {
-  color: red;
-  margin-top: 10px;
+.emailIndex {
+  font-weight: bold;
 }
 
 .select {

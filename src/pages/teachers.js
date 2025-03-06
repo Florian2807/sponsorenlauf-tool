@@ -20,12 +20,15 @@ export default function Manage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [sortField, setSortField] = useState('id');
     const [sortDirection, setSortDirection] = useState('asc');
+    const [classTeacher, setClassTeacher] = useState({});
+    const [loading, setLoading] = useState({ saveTeacher: false });
 
     const editTeacherPopup = useRef(null);
     const addTeacherPopup = useRef(null);
     const confirmDeletePopup = useRef(null);
+    const classTeacherPopup = useRef(null);
 
-    const allPossibleClasses = ['',
+    const allPossibleClasses = [
         '5a', '5b', '5c', '5d', '5e', '5f',
         '6a', '6b', '6c', '6d', '6e', '6f',
         '7a', '7b', '7c', '7d', '7e', '7f',
@@ -44,7 +47,7 @@ export default function Manage() {
             const response = await axios.get('/api/getAllTeachers');
             setTeachers(response.data);
         } catch (error) {
-            console.error('Error fetching teaches:', error);
+            console.error('Error fetching teachers:', error);
         }
     };
 
@@ -57,6 +60,13 @@ export default function Manage() {
             [...prevTeachers].sort((a, b) => {
                 const aValue = a[field];
                 const bValue = b[field];
+
+                // sort after classes 
+                if (field === 'klasse') {
+                    const aClass = allPossibleClasses.indexOf(aValue);
+                    const bClass = allPossibleClasses.indexOf(bValue);
+                    return direction === 'asc' ? aClass - bClass : bClass - aClass;
+                }
 
                 if (field === 'id') {
                     return direction === 'asc'
@@ -71,12 +81,47 @@ export default function Manage() {
         );
     };
 
+    const handleTeacherChange = (className, index) => (e) => {
+        const newId = parseInt(e.target.value);
+        const newT = [...classTeacher[className]];
+
+        // Check if the teacher is already selected
+        if (newT.some((teacher, i) => teacher.id === newId && i !== index)) {
+            alert('Dieser Lehrer ist bereits ausgewählt.');
+            return;
+        }
+
+        newT[index] = { ...newT[index], id: newId };
+        if (!newT[index].id) {
+            newT.splice(index, 1);
+        }
+
+        setClassTeacher((prev) => ({
+            ...prev,
+            [className]: newT
+        }));
+    };
+
+    const saveClassTeacher = async () => {
+        setLoading({ saveTeacher: true });
+        try {
+            const response = await axios.post('/api/saveClassTeacher', classTeacher);
+            classTeacherPopup.current.close();
+            setLoading({ saveTeacher: false });
+            setTeachers(response.data.teachers);
+        } catch (error) {
+            console.error('Error saving class teacher:', error);
+        } finally {
+            setLoading({ saveTeacher: false });
+        }
+    };
+
     const editTeacherClick = (teacher) => {
         setSelectedTeacher(teacher);
         setEditVorname(teacher.vorname);
         setEditNachname(teacher.nachname);
         setEditKlasse(teacher.klasse);
-        setEditEmail(teacher.email)
+        setEditEmail(teacher.email);
         editTeacherPopup.current.showModal();
     };
 
@@ -128,6 +173,15 @@ export default function Manage() {
         addTeacherPopup.current.showModal();
     };
 
+    const classTeacherClick = () => {
+        const newClassTeacher = {};
+        for (const className of allPossibleClasses) {
+            newClassTeacher[className] = teachers.filter(teacher => teacher.klasse === className).map(teacher => ({ id: teacher.id }));
+        }
+        setClassTeacher(newClassTeacher);
+        classTeacherPopup.current.showModal();
+    };
+
     const addTeacherChangeField = (e) => {
         setNewTeacher({ ...newTeacher, [e.target.name]: e.target.value });
     };
@@ -171,7 +225,7 @@ export default function Manage() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className={styles.searchInput}
                 />
-                // TODO Bestimme Klassenlehrer
+                <button onClick={classTeacherClick}>Klassenlehrer Konfigurieren</button>
             </div>
             <table className={styles.table}>
                 <thead>
@@ -240,6 +294,7 @@ export default function Manage() {
                     <label>E-Mail Adresse:</label>
                     <input
                         type="email"
+                        placeholder="vorname.nachname@gesamtschule-kerpen.de"
                         value={editEmail}
                         onChange={(e) => setEditEmail(e.target.value)}
                     />
@@ -303,6 +358,7 @@ export default function Manage() {
                     <input
                         type="text"
                         name="email"
+                        placeholder="vorname.nachname@gesamtschule-kerpen.de"
                         value={newTeacher.email}
                         onChange={addTeacherChangeField}
                         required
@@ -334,6 +390,48 @@ export default function Manage() {
                     </button>
                 </div>
             </dialog >
+
+            <dialog ref={classTeacherPopup} className={styles.popup}>
+                <button className={styles.closeButtonX} onClick={() => classTeacherPopup.current.close()}>
+                    &times;
+                </button>
+                <div>
+                    <h2 className={styles.subtitle}>Klassenlehrer Konfigurieren</h2>
+                    {allPossibleClasses.map((className) => (
+                        <div key={className} className={styles.classContainer}>
+                            <div className={styles.classTitle}>{className}</div>
+                            <div className={styles.emailFields}>
+                                {[...Array(2)].map((_, index) => (
+                                    <div key={index} className={styles.emailField}>
+                                        <select
+                                            value={classTeacher[className]?.[index]?.id || ''}
+                                            onChange={handleTeacherChange(className, index)}
+                                            className={styles.select}
+                                        >
+                                            <option value="">Wählen Sie einen Lehrer</option>
+                                            {teachers.map((teacherOption) => (
+                                                <option key={teacherOption.id} value={teacherOption.id}>
+                                                    {teacherOption.nachname}, {teacherOption.vorname}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                <div className={styles.popupButtons}>
+                    <button
+                        className={styles.redButton}
+                        onClick={() => classTeacherPopup.current.close()}
+                    >
+                        Abbrechen
+                    </button>
+                    <button disabled={loading.saveTeacher} onClick={saveClassTeacher}>Speichern</button>
+                </div>
+                {loading.saveTeacher && <div className={styles.progress} />}
+            </dialog>
         </div >
     );
 }

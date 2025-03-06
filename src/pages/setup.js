@@ -175,6 +175,14 @@ export default function Setup() {
                 </div>
 
                 <button
+                    onClick={() => window.open('/teachers', '_self')}
+                    className={styles.button}
+                    title="Konfiguriere die E-Mail-Adressen und Klassen der Lehrer."
+                >
+                   Lehrer Verwaltung
+                </button>
+
+                <button
                     onClick={() => importExcelPopup.current.showModal()}
                     className={styles.button}
                     disabled={loading.upload}

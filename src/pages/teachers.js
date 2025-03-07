@@ -265,27 +265,28 @@ export default function Manage() {
                     <label>ID:</label>
                     <input
                         type="text"
-                        value={selectedTeacher?.id}
+                        value={selectedTeacher?.id || ''}
                         disabled
                     />
                     <label>Vorname:</label>
                     <input
                         type="text"
-                        value={editVorname}
+                        value={editVorname || ''}
                         onChange={(e) => setEditVorname(e.target.value)}
                     />
                     <label>Nachname:</label>
                     <input
                         type="text"
-                        value={editNachname}
+                        value={editNachname || ''}
                         onChange={(e) => setEditNachname(e.target.value)}
                     />
                     <label>Klasse:</label>
                     <select
-                        value={editKlasse}
+                        value={editKlasse || ''}
                         onChange={(e) => setEditKlasse(e.target.value)}
                         className={styles.select}
                     >
+                        <option value="">Wählen Sie eine Klasse</option>
                         {allPossibleClasses.map((klasse) => (
                             <option key={klasse} value={klasse}>
                                 {klasse}
@@ -296,7 +297,7 @@ export default function Manage() {
                     <input
                         type="email"
                         placeholder="vorname.nachname@gesamtschule-kerpen.de"
-                        value={editEmail}
+                        value={editEmail || ''}
                         onChange={(e) => setEditEmail(e.target.value)}
                     />
                 </div>
@@ -344,13 +345,13 @@ export default function Manage() {
                     <label>Klasse:</label>
                     <select
                         name="klasse"
-                        value={newTeacher.klasse}
+                        value={newTeacher.klasse || ''}
                         onChange={addTeacherChangeField}
                         className={styles.select}
-                        required
                     >
+                        <option value="">Wählen Sie eine Klasse</option>
                         {allPossibleClasses.map((klasse) => (
-                            <option key={klasse} value={klasse}>
+                            <option key={klasse} value={klasse || ''}>
                                 {klasse}
                             </option>
                         ))}
@@ -411,7 +412,7 @@ export default function Manage() {
                                         >
                                             <option value="">Wählen Sie einen Lehrer</option>
                                             {teachers.map((teacherOption) => (
-                                                <option key={teacherOption.id} value={teacherOption.id}>
+                                                <option key={teacherOption.id} value={teacherOption.id || ''}>
                                                     {teacherOption.vorname} {teacherOption.nachname}
                                                 </option>
                                             ))}

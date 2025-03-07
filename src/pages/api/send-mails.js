@@ -2,9 +2,10 @@ import nodemailer from 'nodemailer';
 
 export default async function handler(req, res) {
     if (req.method === 'POST') {
-        const { teacherEmails, teacherFiles, senderName, mailText, email, password } = req.body;
+        const { teacherEmails: teacherData, teacherFiles, senderName, mailText, email, password } = req.body;
 
-        if (!teacherEmails || !teacherFiles || !email || !password) {
+        console.log('teacherData', teacherData);
+        if (!teacherData || !teacherFiles || !email || !password) {
             return res.status(400).json({ message: 'Lehrerlisten, Dateien oder Anmeldedaten fehlen' });
         }
 
@@ -17,13 +18,17 @@ export default async function handler(req, res) {
                 },
             });
 
-            const sendMailPromises = Object.entries(teacherEmails).map(async ([className, teacherEmail]) => {
+            const sendMailPromises = Object.entries(teacherData).map(async ([className, data]) => {
                 const classFileBase64 = teacherFiles[className];
 
-                if (!classFileBase64 || !teacherEmail.length) {
+                if (!classFileBase64 || !data.length) {
                     console.warn(`Keine Datei oder Mailadresse für ${className} gefunden.`);
                     return;
                 }
+
+                const teacherEmail = data.map((teacher) => teacher.email);
+
+                console.log(`Sende E-Mail an ${teacherEmail.join(', ')}`);
 
                 const mailOptions = {
                     from: `${senderName} <${email}>`,

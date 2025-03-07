@@ -11,8 +11,9 @@ export default function Home() {
         mailText: `Sehr geehrte Lehrkraft,\n\nanbei finden Sie die Liste der Schülerinnen und Schüler Ihrer Klasse für den Sponsorenlauf ${new Date().getFullYear()}.\n\nSchüler, die mehrmals in dieser Liste stehen, sollten die Runden bitte addiert werden, da diese eine Ersatzkarte erhalten haben.\n\nMit freundlichen Grüßen,\n\nIhr SV-Team\n`
     });
     const [teacherData, setTeacherData] = useState({
-        emails: {},
-        files: {}
+        files: {},
+        allTeachers: [],
+        classTeacher: {}
     });
     const [status, setStatus] = useState({
         message: '',
@@ -25,25 +26,37 @@ export default function Home() {
     const sendMailsPopup = useRef(null);
 
     useEffect(() => {
-        const fetchTeacherEmails = async () => {
+        const fetchAllTeachers = async () => {
             try {
-                const response = await fetch('/api/teachers');
+                const response = await fetch('/api/getAllTeachers');
                 if (response.ok) {
                     const data = await response.json();
-                    const initialEmails = {};
-                    Object.keys(data).forEach((className) => {
-                        initialEmails[className] = data[className].length ? [...data[className], ''] : [''];
+                    const classTeacher = {};
+
+                    data.forEach((teacher) => {
+                        if (!teacher.klasse) return;
+                        if (!classTeacher[teacher.klasse]) {
+                            classTeacher[teacher.klasse] = [];
+                        }
+                        classTeacher[teacher.klasse].push({ id: teacher.id, name: `${teacher.nachname}, ${teacher.vorname}`, email: teacher.email });
                     });
-                    setTeacherData((prev) => ({ ...prev, emails: initialEmails }));
+
+                    Object.keys(classTeacher).forEach((className) => {
+                        if (classTeacher[className].length < 2) {
+                            classTeacher[className].push({ id: null, name: null, email: '' });
+                        }
+                    });
+
+                    setTeacherData((prev) => ({ ...prev, allTeachers: data, classTeacher }));
                 } else {
-                    console.error('Fehler beim Laden der Lehrer E-Mails');
+                    console.error('Fehler beim Laden aller Lehrer');
                 }
             } catch (error) {
-                console.error('Fehler beim Laden der Lehrer E-Mails:', error);
+                console.error('Fehler beim Laden aller Lehrer:', error);
             }
         };
 
-        fetchTeacherEmails();
+        fetchAllTeachers();
     }, []);
 
     const handleLogin = async () => {
@@ -116,26 +129,29 @@ export default function Home() {
         }
     };
 
-    const handleEmailChange = (className, index) => (e) => {
-        const newEmails = [...teacherData.emails[className]];
-        newEmails[index] = e.target.value;
+    const handleTeacherChange = (className, index) => (e) => {
+        const newId = parseInt(e.target.value);
+        const newT = [...teacherData.classTeacher[className]];
 
-        if (index === newEmails.length - 1 && e.target.value !== '') {
-            newEmails.push('');
-        }
-        if (newEmails.filter(email => email === '').length > 1) {
-            while (newEmails[newEmails.length - 1] === '' && newEmails[newEmails.length - 2] === '') {
-                newEmails.pop();
-            }
+        if (!newId) {
+            newT[index] = { id: null, name: null, email: '' };
+            setTeacherData({ ...teacherData, classTeacher: { ...teacherData.classTeacher, [className]: newT } });
+            return;
         }
 
-        setTeacherData((prev) => ({
-            ...prev,
-            emails: {
-                ...prev.emails,
-                [className]: newEmails
-            }
-        }));
+        const foundTeacher = teacherData.allTeachers.find((teacher) => teacher.id === newId);
+        newT[index] = { id: newId, name: `${foundTeacher.nachname}, ${foundTeacher.vorname}`, email: foundTeacher.email };
+
+        if (!newT.some((teacher) => teacher.id === null)) {
+            newT.push({ id: null, name: null, email: '' });
+        }
+
+        while (newT.filter(t => t.id === null).length > 1) {
+            const indexToRemove = newT.findIndex(t => t.id === null);
+            newT.splice(indexToRemove, 1);
+        }
+
+        setTeacherData({ ...teacherData, classTeacher: { ...teacherData.classTeacher, [className]: newT } });
     };
 
     const handleSendEmails = async () => {
@@ -146,15 +162,16 @@ export default function Home() {
 
         setStatus((prev) => ({ ...prev, sendMailLoading: true }));
         try {
-            Object.keys(teacherData.emails).forEach((className) => {
-                teacherData.emails[className] = teacherData.emails[className].filter((email) => email !== '');
+            const filteredClassTeacher = {};
+            Object.keys(teacherData.classTeacher).forEach((className) => {
+                filteredClassTeacher[className] = teacherData.classTeacher[className].filter((teacher) => teacher.id);
             });
 
             const response = await fetch('/api/send-mails', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    teacherEmails: teacherData.emails,
+                    teacherEmails: filteredClassTeacher,
                     teacherFiles: teacherData.files,
                     mailText: fileData.mailText,
                     email: fileData.email,
@@ -237,20 +254,25 @@ export default function Home() {
             {Object.keys(teacherData.files).length > 0 && (
                 <div>
                     <h2 className={styles.subtitle}>Lehrer E-Mails</h2>
-                    {Object.keys(teacherData.files).map((className) => (
+                    {Object.keys(teacherData.classTeacher).map((className) => (
                         <div key={className} className={styles.classContainer}>
                             <div className={styles.classTitle}>{className}</div>
                             <div className={styles.emailFields}>
-                                {teacherData.emails[className]?.map((email, index) => (
+                                {teacherData.classTeacher[className]?.map((teacher, index) => (
                                     <div key={index} style={{ display: 'flex', alignItems: 'center' }}>
                                         <span className={styles.emailIndex}>{index + 1}.</span>
-                                        <input
-                                            type="email"
-                                            value={email}
-                                            onChange={handleEmailChange(className, index)}
-                                            placeholder="E-Mail Adresse"
-                                            className={styles.inputEmail}
-                                        />
+                                        <select
+                                            value={teacher.id || ''}
+                                            onChange={handleTeacherChange(className, index)}
+                                            className={styles.select}
+                                        >
+                                            <option value="">Wählen Sie einen Lehrer</option>
+                                            {teacherData.allTeachers.map((teacherOption) => (
+                                                <option key={teacherOption.id} value={teacherOption.id}>
+                                                    {teacherOption.vorname} {teacherOption.nachname}
+                                                </option>
+                                            ))}
+                                        </select>
                                     </div>
                                 ))}
                             </div>

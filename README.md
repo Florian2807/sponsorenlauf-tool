@@ -87,6 +87,11 @@ Schau dir die [Anleitung](/raspberrySetup.md) an, wie du den Raspberry Pi instal
     npm install
     ```
 
+4. **Initialisiere die Datenbank**:
+    ```bash
+    node initDB.js
+    ```
+
 ---
 
 ## ⏩ PM2 - Prozessmanagement

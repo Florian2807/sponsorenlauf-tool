@@ -15,6 +15,24 @@ db.serialize(() => {
       spendenKonto TEXT
     )
   `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS replacements (
+      id INTEGER PRIMARY KEY,
+      studentID INTEGER REFERENCES students(id)
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS teachers (
+      id INTEGER PRIMARY KEY,
+      vorname TEXT NOT NULL,
+      nachname TEXT NOT NULL,
+      klasse TEXT,
+      email TEXT,
+      timestamps TEXT
+    )
+  `)
 });
 
 db.close();

@@ -189,7 +189,6 @@ export default function Manage() {
 
   const addStudentSubmit = async (e) => {
     e.preventDefault();
-    console.log(newStudent)
     try {
       await axios.post(`/api/students/${newStudent.id}`, newStudent);
       fetchStudents();

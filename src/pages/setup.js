@@ -179,7 +179,7 @@ export default function Setup() {
                     className={styles.button}
                     title="Konfiguriere die E-Mail-Adressen und Klassen der Lehrer."
                 >
-                   Lehrer Verwaltung
+                    Lehrer Verwaltung
                 </button>
 
                 <button
@@ -300,6 +300,8 @@ export default function Setup() {
             <dialog ref={importExcelPopup} className={styles.popup}>
                 <button className={styles.closeButtonX} onClick={() => importExcelPopup.current.close()}>&times;</button>
                 <h2>Excel-Datei hochladen</h2>
+                <p>Die ersten drei Spalten der Excel-Tabelle sind Vorname, Nachname und Klasse</p>
+                <p>Die erste Zeile ist für Überschriften reserviert</p>
                 <form onSubmit={handleUploadExcel} className={styles.uploadForm}>
                     <input
                         type="file"

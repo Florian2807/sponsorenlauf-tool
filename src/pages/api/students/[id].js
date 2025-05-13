@@ -7,7 +7,7 @@ const saveStudent = (id, vorname, nachname, klasse, timestamps, spenden, spenden
     db.run(
       `INSERT INTO students (id, vorname, nachname, klasse, timestamps, spenden, spendenKonto) 
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [id, vorname, nachname, klasse, JSON.stringify(timestamps), spenden, JSON.stringify(spendenKonto)],
+      [id, vorname, nachname, klasse, JSON.stringify(timestamps), spenden, spendenKonto ? JSON.stringify(spendenKonto) : null],
       function (err) {
         if (err) reject(err);
         resolve();
@@ -127,6 +127,9 @@ export default async function handler(req, res) {
     }
 
     try {
+      console.log(typeof spendenKonto ?? null)
+      console.log('null')
+      console.log(null)
       await saveStudent(id, vorname, nachname, klasse, timestamps, spenden ?? null, spendenKonto ?? null);
       await updateReplacement(id, replacements);
       res.status(201).json({

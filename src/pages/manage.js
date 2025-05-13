@@ -16,7 +16,7 @@ export default function Manage() {
     klasse: '',
     timestamps: [],
     replacements: [],
-    spenden: "asd",
+    spenden: null,
     spendenKonto: null
   });
   const [newReplacement, setNewReplacement] = useState('');

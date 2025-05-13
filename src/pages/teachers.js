@@ -296,7 +296,7 @@ export default function Manage() {
                     <label>E-Mail Adresse:</label>
                     <input
                         type="email"
-                        placeholder="vorname.nachname@gesamtschule-kerpen.de"
+                        placeholder="vorname.nachname@schuladresse.de"
                         value={editEmail || ''}
                         onChange={(e) => setEditEmail(e.target.value)}
                     />
@@ -360,7 +360,7 @@ export default function Manage() {
                     <input
                         type="text"
                         name="email"
-                        placeholder="vorname.nachname@gesamtschule-kerpen.de"
+                        placeholder="vorname.nachname@schuladresse.de"
                         value={newTeacher.email}
                         onChange={addTeacherChangeField}
                         required

@@ -59,8 +59,8 @@ export default async function handler(req, res) {
             vorname: row.getCell(1).value,
             nachname: row.getCell(2).value,
             klasse: row.getCell(3).value,
-            spenden: row.getCell(4).value,
-            spendenKonto: row.getCell(5).value ? JSON.parse(row.getCell(5).value) : []
+            spenden: row.getCell(4).value ? parseFloat(row.getCell(4).value) : null,
+            spendenKonto: row.getCell(5).value ? JSON.parse(row.getCell(5).value) : null
           });
         }
       });

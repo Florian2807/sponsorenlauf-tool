@@ -15,7 +15,9 @@ export default function Manage() {
     nachname: '',
     klasse: '',
     timestamps: [],
-    replacements: []
+    replacements: [],
+    spenden: "asd",
+    spendenKonto: null
   });
   const [newReplacement, setNewReplacement] = useState('');
   const [message, setMessage] = useState('');
@@ -174,7 +176,9 @@ export default function Manage() {
       nachname: '',
       klasse: '',
       timestamps: [],
-      replacements: []
+      replacements: [],
+      spenden: null,
+      spendenKonto: null
     });
     addStudentPopup.current.showModal();
   };
@@ -185,6 +189,7 @@ export default function Manage() {
 
   const addStudentSubmit = async (e) => {
     e.preventDefault();
+    console.log(newStudent)
     try {
       await axios.post(`/api/students/${newStudent.id}`, newStudent);
       fetchStudents();
@@ -195,7 +200,9 @@ export default function Manage() {
         nachname: '',
         klasse: '',
         timestamps: [],
-        replacements: []
+        replacements: [],
+        spenden: null,
+        spendenKonto: null
       });
     } catch (error) {
       console.error('Error adding student:', error);

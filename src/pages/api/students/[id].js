@@ -118,17 +118,20 @@ export default async function handler(req, res) {
     } catch (error) {
       res.status(500).json({ error: 'Fehler beim Abrufen der Daten' });
     }
+
   } else if (req.method === 'POST') {
     const { vorname, nachname, klasse, timestamps, spenden, spendenKonto, replacements } = req.body;
 
-    if (!id || !vorname || !nachname || !klasse || !Array.isArray(timestamps) || !spenden || !Array.isArray(spendenKonto)) {
+    if (!id || !vorname || !nachname || !klasse || !Array.isArray(timestamps)) {
       return res.status(400).json({ error: 'Alle Felder sind erforderlich und Timestamps müssen ein Array sein' });
     }
 
     try {
-      await saveStudent(id, vorname, nachname, klasse, timestamps, spenden, spendenKonto);
+      await saveStudent(id, vorname, nachname, klasse, timestamps, spenden ?? null, spendenKonto ?? null);
       await updateReplacement(id, replacements);
-      res.status(201).json({ id, vorname, nachname, klasse, timestamps, spenden, spendenKonto });
+      res.status(201).json({
+        id, vorname, nachname, klasse, timestamps, spenden: spenden ?? null, spendenKonto: spendenKonto ?? null
+      });
     } catch (error) {
       res.status(500).json({ error: 'Fehler beim Speichern des Schülers' });
     }

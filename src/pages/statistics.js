@@ -147,7 +147,7 @@ export default function Statistics() {
                 <tr key={stat.klasse}>
                   <td className={styles.tableCell}>{stat.klasse}</td>
                   <td className={styles.tableCell}>{stat.totalRounds ?? 0}</td>
-                  <td className={styles.tableCell}>{stat.averageRounds.toFixed(2) ?? 0}</td>
+                  <td className={styles.tableCell}>{stat.averageRounds?.toFixed(2) ?? 0}</td>
                   <td className={styles.tableCell}>{formatCurrency(stat.totalMoney ?? 0)}</td>
                   <td className={styles.tableCell}>{formatCurrency(stat.averageMoney ?? 0)}</td>
                 </tr>
@@ -295,7 +295,7 @@ export default function Statistics() {
         {showSections.overallStats && (
           <div>
             <p className={styles.stats}>
-              Durchschnittliche Runden pro Schüler: {stats.averageRounds.toFixed(2)}
+              Durchschnittliche Runden pro Schüler: {stats.averageRounds?.toFixed(2) ?? 0}
             </p>
             <p className={styles.stats}>Gesamtanzahl der Runden: {stats.totalRounds}</p>
           </div>

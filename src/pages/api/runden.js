@@ -1,6 +1,7 @@
 import sqlite3 from 'sqlite3';
+import { updateCountJSON } from '../../../utils/globalServerFunctions';
+
 const db = new sqlite3.Database('./data/database.db');
-import fs from 'fs';
 
 const getStudentById = (id) => {
   return new Promise((resolve, reject) => {
@@ -68,17 +69,11 @@ export default async function handler(req, res) {
         return res.status(404).json({ error: 'Schüler nicht gefunden' });
       }
 
-      // count rounds of students as backup plan
-      const countJSON = require('../../../../data/countRounds.json');
-      if (countJSON[id]) {
-        countJSON[id] += 1;
-      } else {
-        countJSON[id] = 1;
-      }
-      fs.writeFileSync('./data/countRounds.json', JSON.stringify(countJSON, null, 2));
-
       const newTimestamp = new Date(date).toISOString();
       const timestamps = student.timestamps ? JSON.parse(student.timestamps) : [];
+
+      updateCountJSON(id, timestamps.length + 1);
+
       timestamps.unshift(newTimestamp);
 
       const storedTimestamps = await updateStudentTimestamps(id, timestamps);

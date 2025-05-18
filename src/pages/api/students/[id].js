@@ -1,5 +1,5 @@
 import sqlite3 from 'sqlite3';
-import fs from 'fs';
+import { updateCountJSON } from '../../../../utils/globalServerFunctions';
 
 const db = new sqlite3.Database('./data/database.db');
 
@@ -42,11 +42,7 @@ const getReplacementByStudentId = (studentId) => {
 
 const updateStudent = (id, vorname, nachname, klasse, timestamps, spenden, spendenKonto) => {
 
-  // count rounds of students as backup plan
-  const countJSON = require('../../../../../data/countRounds.json');
-  console.log(timestamps.length)
-  countJSON[id] = timestamps.length;
-  fs.writeFileSync('./data/countRounds.json', JSON.stringify(countJSON, null, 2));
+  updateCountJSON(id, timestamps.length);
 
   return new Promise((resolve, reject) => {
     db.run(

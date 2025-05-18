@@ -1,4 +1,5 @@
 import sqlite3 from 'sqlite3';
+import fs from 'fs';
 
 const db = new sqlite3.Database('./data/database.db');
 
@@ -40,6 +41,13 @@ const getReplacementByStudentId = (studentId) => {
 };
 
 const updateStudent = (id, vorname, nachname, klasse, timestamps, spenden, spendenKonto) => {
+
+  // count rounds of students as backup plan
+  const countJSON = require('../../../../../data/countRounds.json');
+  console.log(timestamps.length)
+  countJSON[id] = timestamps.length;
+  fs.writeFileSync('./data/countRounds.json', JSON.stringify(countJSON, null, 2));
+
   return new Promise((resolve, reject) => {
     db.run(
       `UPDATE students 
@@ -161,6 +169,7 @@ export default async function handler(req, res) {
 
       res.status(200).json({ success: true });
     } catch (error) {
+      console.log(error);
       res.status(500).json({ error: 'Fehler beim Aktualisieren des Schülers' });
     }
   } else if (req.method === 'DELETE') {

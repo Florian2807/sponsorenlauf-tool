@@ -52,6 +52,16 @@ const calculateStatistics = (students) => {
     return acc;
   }, {});
 
+  // top 6 students of every grade
+    const topStudentsOfGrades = Object.entries(grades).reduce((acc, [grade, classes]) => {
+    acc[grade] = classes
+      .flatMap(klasse => students.filter(student => student.klasse === klasse))
+      .sort((a, b) => b.rounds - a.rounds)
+      .slice(0, 6)
+    return acc;
+  }, {});
+
+
   const sortedClassStats = Object.entries(classStats)
     .map(([klasse, stats]) => ({
       klasse,
@@ -79,6 +89,7 @@ const calculateStatistics = (students) => {
     topStudentsByRounds,
     topStudentsByMoney,
     topClassesOfGrades,
+    topStudentsOfGrades,
     averageRounds,
     totalRounds
   };

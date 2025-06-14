@@ -18,6 +18,7 @@ export default function Statistics() {
     topStudentsByRounds: [],
     topStudentsByMoney: [],
     topClassesOfGrades: {},
+    topStudentsOfGrades: {},
     averageRounds: 0,
     totalRounds: 0,
   });
@@ -27,6 +28,7 @@ export default function Statistics() {
     topStudentsByRounds: false,
     topStudentsByMoney: false,
     topClassesOfGrades: false,
+    topStudentsOfGrades: false,
     overallStats: false,
   });
 
@@ -35,6 +37,7 @@ export default function Statistics() {
     topStudentsByRounds: { key: 'timestamps', direction: 'descending' },
     topStudentsByMoney: { key: 'spenden', direction: 'descending' },
     topClassesOfGrades: { key: 'totalRounds', direction: 'descending' },
+    topStudentsOfGrades: { key: 'rounds', direction: 'descending' },
   });
 
   useEffect(() => {
@@ -105,6 +108,12 @@ export default function Statistics() {
       return acc;
     }, {});
   }, [stats.topClassesOfGrades, sortConfig.topClassesOfGrades, sortedData]);
+  const sortedTopStudentsOfGrades = useMemo(() => {
+    return Object.keys(stats.topStudentsOfGrades).reduce((acc, grade) => {
+      acc[grade] = sortedData(stats.topStudentsOfGrades[grade], sortConfig.topStudentsOfGrades);
+      return acc;
+    }, {});
+  }, [stats.topStudentsOfGrades, sortConfig.topStudentsOfGrades, sortedData]);
 
   return (
     <div className={styles.container}>
@@ -275,6 +284,60 @@ export default function Statistics() {
                         <td className={styles.tableCell}>{stat.averageRounds.toFixed(2) ?? 0}</td>
                         <td className={styles.tableCell}>{formatCurrency(stat.totalMoney)}</td>
                         <td className={styles.tableCell}>{formatCurrency(stat.averageMoney)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+
+      <div className={styles.section}>
+        <h2
+          className={styles.toggleHeader}
+          onClick={() => setShowSections((prev) => ({ ...prev, topStudentsOfGrades: !prev.topStudentsOfGrades }))}
+        >
+          Top Schüler jeder Stufe {showSections.topStudentsOfGrades ? '▲' : '▼'}
+        </h2>
+        {showSections.topStudentsOfGrades && (
+          <>
+            {Object.keys(sortedTopStudentsOfGrades).map((grade) => (
+              <div key={grade}>
+                <h2>Stufe {grade}:</h2>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th className={styles.tableHeader} onClick={() => handleSort('topStudentsOfGrades', 'id')}>
+                        ID {getSortIndicator('topStudentsOfGrades', 'id')}
+                      </th>
+                      <th className={styles.tableHeader} onClick={() => handleSort('topStudentsOfGrades', 'vorname')}>
+                        Vorname {getSortIndicator('topStudentsOfGrades', 'vorname')}
+                      </th>
+                      <th className={styles.tableHeader} onClick={() => handleSort('topStudentsOfGrades', 'nachname')}>
+                        Nachname {getSortIndicator('topStudentsOfGrades', 'nachname')}
+                      </th>
+                      <th className={styles.tableHeader} onClick={() => handleSort('topStudentsOfGrades', 'klasse')}>
+                        Klasse {getSortIndicator('topStudentsOfGrades', 'klasse')}
+                      </th>
+                      <th className={styles.tableHeader} onClick={() => handleSort('topStudentsOfGrades', 'rounds')}>
+                        Runden {getSortIndicator('topStudentsOfGrades', 'rounds')}
+                      </th>
+                      <th className={styles.tableHeader} onClick={() => handleSort('topStudentsOfGrades', 'spenden')}>
+                        Spenden {getSortIndicator('topStudentsOfGrades', 'spenden')}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedTopStudentsOfGrades[grade].map((student, idx) => (
+                      <tr key={student.name + student.klasse + idx}>
+                        <td className={styles.tableCell}>{student.id}</td>
+                        <td className={styles.tableCell}>{student.vorname}</td>
+                        <td className={styles.tableCell}>{student.nachname}</td>
+                        <td className={styles.tableCell}>{student.klasse}</td>
+                        <td className={styles.tableCell}>{student.rounds}</td>
+                        <td className={styles.tableCell}>{formatCurrency(student.spenden)}</td>
                       </tr>
                     ))}
                   </tbody>

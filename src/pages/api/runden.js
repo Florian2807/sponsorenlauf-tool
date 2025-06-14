@@ -1,4 +1,6 @@
 import sqlite3 from 'sqlite3';
+import { updateCountJSON } from '../../../utils/globalServerFunctions';
+
 const db = new sqlite3.Database('./data/database.db');
 
 const getStudentById = (id) => {
@@ -69,6 +71,9 @@ export default async function handler(req, res) {
 
       const newTimestamp = new Date(date).toISOString();
       const timestamps = student.timestamps ? JSON.parse(student.timestamps) : [];
+
+      updateCountJSON(id, timestamps.length + 1);
+
       timestamps.unshift(newTimestamp);
 
       const storedTimestamps = await updateStudentTimestamps(id, timestamps);

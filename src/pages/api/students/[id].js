@@ -1,4 +1,5 @@
 import sqlite3 from 'sqlite3';
+import { updateCountJSON } from '../../../../utils/globalServerFunctions';
 
 const db = new sqlite3.Database('./data/database.db');
 
@@ -40,6 +41,9 @@ const getReplacementByStudentId = (studentId) => {
 };
 
 const updateStudent = (id, vorname, nachname, klasse, timestamps, spenden, spendenKonto) => {
+
+  updateCountJSON(id, timestamps.length);
+
   return new Promise((resolve, reject) => {
     db.run(
       `UPDATE students 
@@ -161,6 +165,7 @@ export default async function handler(req, res) {
 
       res.status(200).json({ success: true });
     } catch (error) {
+      console.log(error);
       res.status(500).json({ error: 'Fehler beim Aktualisieren des Schülers' });
     }
   } else if (req.method === 'DELETE') {

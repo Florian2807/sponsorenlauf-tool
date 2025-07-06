@@ -101,48 +101,47 @@ Schau dir die [Anleitung](/raspberrySetup.md) an, wie du den Raspberry Pi instal
 
 ---
 
-## ⏩ PM2 - Prozessmanagement
-Verwende **PM2**, um das Tool dauerhaft im Hintergrund laufen zu lassen.
+## ⏩ Systemd - Prozessmanagement
+Verwende **systemd**, um das Tool dauerhaft im Hintergrund laufen zu lassen.
 
-1. **Installiere PM2**:
+1. **Erstelle eine systemd Service-Datei**:
     ```bash
-    sudo npm install pm2 -g
+    sudo nano /etc/systemd/system/sponsorenlauf.service
+    ```
+    Füge folgenden Inhalt ein (passe ggf. den Pfad und Benutzer an):
+    ```ini
+    [Unit]
+    Description=Sponsorenlauf Tool
+    After=network.target
+
+    [Service]
+    Type=simple
+    User=pi
+    WorkingDirectory=/home/pi/sponsorenlauf-tool
+    ExecStart=/usr/bin/npm start
+    Restart=always
+    Environment=NODE_ENV=production
+
+    [Install]
+    WantedBy=multi-user.target
     ```
 
-2. **Aktiviere den PM2 Autostart**:
+2. **Service neu laden und aktivieren**:
     ```bash
-    pm2 startup
-    ```
-    Führe den angezeigten Befehl aus.
-
-3. **Erstelle den Build**:
-    ```bash
-    npm run build
+    sudo systemctl daemon-reload
+    sudo systemctl enable sponsorenlauf
+    sudo systemctl start sponsorenlauf
     ```
 
-4. **Starte das Tool mit PM2**:
+3. **Status prüfen**:
     ```bash
-    pm2 start "npm start" --name Sponsorenlauf
+    sudo systemctl status sponsorenlauf
     ```
 
-<details>
-  <summary><b>Weitere wichtige PM2 Befehle</b></summary>
-  
-  - Liste aller PM2 Services anzeigen:
+4. **Logs anzeigen**:
     ```bash
-    pm2 ls
+    journalctl -u sponsorenlauf -f
     ```
-  
-  - Logs anzeigen:
-    ```bash
-    pm2 logs [id|name|namespace]
-    ```
-  
-  - Service neustarten:
-    ```bash
-    pm2 restart [id|name|namespace]
-    ```
-</details>
 
 ---
 

@@ -82,12 +82,19 @@ Schau dir die [Anleitung](/raspberrySetup.md) an, wie du den Raspberry Pi instal
     cp exampleData/* data/
     ```
 
-3. **Installiere alle benötigten Pakete**:
+3. **Config Datei anpassen**:
+    
+    Bearbeite die Config so, dass es auf eure Schule passt.
+    ```bash
+    nano data/config.json
+    ```
+
+4. **Installiere alle benötigten Pakete**:
     ```bash
     npm install
     ```
 
-4. **Initialisiere die Datenbank**:
+5. **Initialisiere die Datenbank**:
     ```bash
     node initDB.js
     ```

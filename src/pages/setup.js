@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import styles from '../styles/Setup.module.css';
 import axios from 'axios';
-import config from '../data/config.json';
+import config from '../../data/config.json';
 
 export default function Setup() {
     const [file, setFile] = useState(null);

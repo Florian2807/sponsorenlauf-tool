@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import styles from '../styles/Teachers.module.css';
-import config from '../data/config.json';
+import config from '../../data/config.json';
 
 export default function Manage() {
     const [teachers, setTeachers] = useState([]);

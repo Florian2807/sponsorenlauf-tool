@@ -5,16 +5,52 @@ const db = new sqlite3.Database('./data/database.db');
 
 const loadStudentsFromDB = () => {
   return new Promise((resolve, reject) => {
-    db.all('SELECT * FROM students', (err, rows) => {
+    // Lade Studenten und ihre Runden aus der separaten rounds Tabelle
+    db.all(`
+      SELECT 
+        s.*,
+        COUNT(r.id) as rounds
+      FROM students s
+      LEFT JOIN rounds r ON s.id = r.student_id
+      GROUP BY s.id
+    `, (err, rows) => {
       if (err) {
         reject(err);
       } else {
-        const students = rows.map(row => ({
-          ...row,
-          timestamps: row.timestamps ? JSON.parse(row.timestamps) : [],
-          rounds: row.timestamps ? JSON.parse(row.timestamps).length : 0
-        }));
-        resolve(students);
+        // Lade alle Timestamps für jeden Studenten
+        const studentIds = rows.map(row => row.id);
+
+        if (studentIds.length === 0) {
+          resolve([]);
+          return;
+        }
+
+        db.all(`
+          SELECT student_id, timestamp 
+          FROM rounds 
+          WHERE student_id IN (${studentIds.map(() => '?').join(',')})
+          ORDER BY student_id, timestamp DESC
+        `, studentIds, (err, roundsData) => {
+          if (err) {
+            reject(err);
+          } else {
+            const roundsMap = roundsData.reduce((acc, { student_id, timestamp }) => {
+              if (!acc[student_id]) {
+                acc[student_id] = [];
+              }
+              acc[student_id].push(timestamp);
+              return acc;
+            }, {});
+
+            const students = rows.map(row => ({
+              ...row,
+              timestamps: roundsMap[row.id] || [],
+              rounds: (roundsMap[row.id] || []).length
+            }));
+
+            resolve(students);
+          }
+        });
       }
     });
   });

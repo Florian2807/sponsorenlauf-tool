@@ -2,12 +2,12 @@ import sqlite3 from 'sqlite3';
 
 const db = new sqlite3.Database('./data/database.db');
 
-const saveStudent = (id, vorname, nachname, klasse, timestamps, spenden, spendenKonto) => {
+const saveStudent = (id, vorname, nachname, klasse, spenden, spendenKonto) => {
   return new Promise((resolve, reject) => {
     db.run(
-      `INSERT INTO students (id, vorname, nachname, klasse, timestamps, spenden, spendenKonto) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [id, vorname, nachname, klasse, JSON.stringify(timestamps), spenden, spendenKonto ? JSON.stringify(spendenKonto) : null],
+      `INSERT INTO students (id, vorname, nachname, klasse, spenden, spendenKonto) 
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [id, vorname, nachname, klasse, spenden, spendenKonto ? JSON.stringify(spendenKonto) : null],
       function (err) {
         if (err) reject(err);
         resolve();
@@ -22,6 +22,7 @@ const getStudentById = (id) => {
       if (err) reject(err);
       if (row) {
         row.replacements = await getReplacementByStudentId(id);
+        row.timestamps = await getRoundsForStudent(id);
         resolve(row);
       } else {
         resolve(null);
@@ -39,13 +40,71 @@ const getReplacementByStudentId = (studentId) => {
   });
 };
 
-const updateStudent = (id, vorname, nachname, klasse, timestamps, spenden, spendenKonto) => {
+const getRoundsForStudent = (studentId) => {
+  return new Promise((resolve, reject) => {
+    db.all(
+      'SELECT timestamp FROM rounds WHERE student_id = ? ORDER BY timestamp DESC',
+      [studentId],
+      (err, rows) => {
+        if (err) reject(err);
+        resolve(rows.map(row => row.timestamp));
+      }
+    );
+  });
+};
+
+const updateStudent = (id, vorname, nachname, klasse, spenden, spendenKonto) => {
   return new Promise((resolve, reject) => {
     db.run(
       `UPDATE students 
-       SET vorname = ?, nachname = ?, klasse = ?, timestamps = ?, spenden = ?, spendenKonto = ?
+       SET vorname = ?, nachname = ?, klasse = ?, spenden = ?, spendenKonto = ?
        WHERE id = ?`,
-      [vorname, nachname, klasse, JSON.stringify(timestamps), spenden, JSON.stringify(spendenKonto), id],
+      [vorname, nachname, klasse, spenden, JSON.stringify(spendenKonto), id],
+      function (err) {
+        if (err) reject(err);
+        resolve();
+      }
+    );
+  });
+};
+
+const updateRoundsForStudent = (studentId, timestamps) => {
+  return new Promise((resolve, reject) => {
+    db.serialize(() => {
+      // Lösche alle bestehenden Runden für diesen Studenten
+      db.run('DELETE FROM rounds WHERE student_id = ?', [studentId], (err) => {
+        if (err) reject(err);
+      });
+
+      // Füge die neuen Runden hinzu
+      if (timestamps && timestamps.length > 0) {
+        const stmt = db.prepare('INSERT INTO rounds (timestamp, student_id) VALUES (?, ?)');
+        timestamps.forEach(timestamp => {
+          stmt.run(timestamp, studentId);
+        });
+        stmt.finalize((err) => {
+          if (err) reject(err);
+          resolve();
+        });
+      } else {
+        resolve();
+      }
+    });
+  });
+};
+
+const deleteRoundByIndex = (studentId, timestamps, indexToRemove) => {
+  return new Promise((resolve, reject) => {
+    if (indexToRemove < 0 || indexToRemove >= timestamps.length) {
+      reject(new Error('Invalid index'));
+      return;
+    }
+
+    const timestampToRemove = timestamps[indexToRemove];
+
+    db.run(
+      'DELETE FROM rounds WHERE student_id = ? AND timestamp = ? LIMIT 1',
+      [studentId, timestampToRemove],
       function (err) {
         if (err) reject(err);
         resolve();
@@ -83,6 +142,11 @@ const deleteStudent = (id) => {
         if (err) reject(err);
       });
 
+      // Lösche auch alle Runden für diesen Studenten
+      db.run(`DELETE FROM rounds WHERE student_id = ?`, [id], (err) => {
+        if (err) reject(err);
+      });
+
       resolve();
     });
   });
@@ -109,8 +173,12 @@ export default async function handler(req, res) {
     try {
       const student = await getStudentById(id);
       if (student) {
-        student.timestamps = JSON.parse(student.timestamps);
-        student.spendenKonto = JSON.parse(student.spendenKonto);
+        // timestamps werden bereits von getStudentById geladen
+        if (student.spendenKonto) {
+          student.spendenKonto = JSON.parse(student.spendenKonto);
+        } else {
+          student.spendenKonto = [];
+        }
         res.status(200).json(student);
       } else {
         res.status(404).json({ error: 'Schüler nicht gefunden' });
@@ -122,18 +190,24 @@ export default async function handler(req, res) {
   } else if (req.method === 'POST') {
     const { vorname, nachname, klasse, timestamps, spenden, spendenKonto, replacements } = req.body;
 
-    if (!id || !vorname || !nachname || !klasse || !Array.isArray(timestamps)) {
-      return res.status(400).json({ error: 'Alle Felder sind erforderlich und Timestamps müssen ein Array sein' });
+    if (!id || !vorname || !nachname || !klasse) {
+      return res.status(400).json({ error: 'ID, Vorname, Nachname und Klasse sind erforderlich' });
     }
 
     try {
-      console.log(typeof spendenKonto ?? null)
-      console.log('null')
-      console.log(null)
-      await saveStudent(id, vorname, nachname, klasse, timestamps, spenden ?? null, spendenKonto ?? null);
-      await updateReplacement(id, replacements);
+      await saveStudent(id, vorname, nachname, klasse, spenden ?? null, spendenKonto ?? null);
+
+      // Speichere die Runden in der separaten Tabelle
+      if (timestamps && timestamps.length > 0) {
+        await updateRoundsForStudent(id, timestamps);
+      }
+
+      if (replacements) {
+        await updateReplacement(id, replacements);
+      }
+
       res.status(201).json({
-        id, vorname, nachname, klasse, timestamps, spenden: spenden ?? null, spendenKonto: spendenKonto ?? null
+        id, vorname, nachname, klasse, timestamps: timestamps || [], spenden: spenden ?? null, spendenKonto: spendenKonto ?? null
       });
     } catch (error) {
       res.status(500).json({ error: 'Fehler beim Speichern des Schülers' });
@@ -152,10 +226,14 @@ export default async function handler(req, res) {
         vorname !== undefined ? vorname : student.vorname,
         nachname !== undefined ? nachname : student.nachname,
         klasse !== undefined ? klasse : student.klasse,
-        timestamps !== undefined ? timestamps : JSON.parse(student.timestamps),
         spenden !== undefined ? spenden : student.spenden,
-        spendenKonto !== undefined ? spendenKonto : JSON.parse(student.spendenKonto)
+        spendenKonto !== undefined ? spendenKonto : (student.spendenKonto ? JSON.parse(student.spendenKonto) : [])
       );
+
+      // Aktualisiere Runden wenn sie übermittelt wurden
+      if (timestamps !== undefined) {
+        await updateRoundsForStudent(id, timestamps);
+      }
 
       if (replacements) await updateReplacement(id, replacements);
 
@@ -164,16 +242,30 @@ export default async function handler(req, res) {
       res.status(500).json({ error: 'Fehler beim Aktualisieren des Schülers' });
     }
   } else if (req.method === 'DELETE') {
+    const { deleteRoundIndex } = req.body;
+
     try {
       const student = await getStudentById(id);
       if (!student) {
         return res.status(404).json({ error: 'Schüler nicht gefunden' });
       }
 
-      await deleteStudent(id);
-      res.status(200).json({ success: true });
+      // Wenn deleteRoundIndex angegeben ist, lösche nur diese eine Runde
+      if (deleteRoundIndex !== undefined) {
+        const timestamps = student.timestamps;
+        if (deleteRoundIndex >= 0 && deleteRoundIndex < timestamps.length) {
+          await deleteRoundByIndex(id, timestamps, deleteRoundIndex);
+          res.status(200).json({ success: true, message: 'Runde gelöscht' });
+        } else {
+          res.status(400).json({ error: 'Ungültiger Index' });
+        }
+      } else {
+        // Lösche den gesamten Studenten
+        await deleteStudent(id);
+        res.status(200).json({ success: true });
+      }
     } catch (error) {
-      res.status(500).json({ error: 'Fehler beim Löschen des Schülers' });
+      res.status(500).json({ error: 'Fehler beim Löschen' });
     }
   } else {
     res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE']);

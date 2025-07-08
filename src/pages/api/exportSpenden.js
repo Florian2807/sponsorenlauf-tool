@@ -6,15 +6,22 @@ const db = new sqlite3.Database('./data/database.db');
 const getClassData = () => {
   return new Promise((resolve, reject) => {
     db.all(`
-      SELECT klasse, vorname, nachname, spenden, spendenKonto, timestamps
-      FROM students
-      ORDER BY klasse, nachname
+      SELECT 
+        s.klasse, 
+        s.vorname, 
+        s.nachname, 
+        s.spenden, 
+        s.spendenKonto,
+        COUNT(r.id) as rounds
+      FROM students s
+      LEFT JOIN rounds r ON s.id = r.student_id
+      GROUP BY s.id, s.klasse, s.vorname, s.nachname, s.spenden, s.spendenKonto
+      ORDER BY s.klasse, s.nachname
     `, (err, rows) => {
       if (err) {
         reject(err);
       } else {
         const groupedByClass = rows.reduce((acc, row) => {
-          const timestampsArray = row.timestamps ? JSON.parse(row.timestamps) : [];
           const spendenKontoArray = row.spendenKonto ? JSON.parse(row.spendenKonto) : [];
 
           if (!acc[row.klasse]) {
@@ -23,7 +30,7 @@ const getClassData = () => {
           acc[row.klasse].push({
             vorname: row.vorname,
             nachname: row.nachname,
-            rounds: timestampsArray.length,
+            rounds: row.rounds,
             spenden: row.spenden !== null ? row.spenden : 0.00,
             spendenKonto: spendenKontoArray.reduce((a, b) => a + b, 0),
             differenz: spendenKontoArray.reduce((a, b) => a + b, 0) - (row.spenden !== null ? row.spenden : 0.00)
@@ -40,11 +47,28 @@ const getClassData = () => {
 
 const getAllStudentsData = () => {
   return new Promise((resolve, reject) => {
-    db.all('SELECT id, klasse, vorname, nachname, spenden, spendenKonto, timestamps FROM students', (err, rows) => {
+    db.all(`
+      SELECT 
+        s.id, 
+        s.klasse, 
+        s.vorname, 
+        s.nachname, 
+        s.spenden, 
+        s.spendenKonto,
+        COUNT(r.id) as rounds
+      FROM students s
+      LEFT JOIN rounds r ON s.id = r.student_id
+      GROUP BY s.id, s.klasse, s.vorname, s.nachname, s.spenden, s.spendenKonto
+    `, (err, rows) => {
       if (err) {
         reject(err);
       } else {
-        resolve(rows);
+        // Füge timestamps Array hinzu für Kompatibilität
+        const studentsWithTimestamps = rows.map(row => ({
+          ...row,
+          timestamps: { length: row.rounds } // Mock für bestehende Code-Kompatibilität
+        }));
+        resolve(studentsWithTimestamps);
       }
     });
   });
@@ -89,7 +113,6 @@ const createWorkbook = (students) => {
   ];
 
   students.forEach(student => {
-    const timestampsArray = student.timestamps ? JSON.parse(student.timestamps) : [];
     const spendenKontoArray = student.spendenKonto ? JSON.parse(student.spendenKonto) : [];
     const differenz = spendenKontoArray.reduce((a, b) => a + b, 0) - (student.spenden !== null ? student.spenden : 0.00);
 
@@ -98,7 +121,7 @@ const createWorkbook = (students) => {
       klasse: student.klasse,
       vorname: student.vorname,
       nachname: student.nachname,
-      runden: timestampsArray.length,
+      runden: student.rounds || 0,
       spenden: student.spenden !== null ? student.spenden : 0.00,
       spendenKonto: spendenKontoArray.reduce((a, b) => a + b, 0),
       differenz: differenz

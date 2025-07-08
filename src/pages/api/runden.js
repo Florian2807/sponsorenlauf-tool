@@ -13,22 +13,32 @@ const getStudentById = (id) => {
   });
 };
 
-const updateStudentTimestamps = (id, timestamps) => {
+const addRoundForStudent = (studentId, timestamp) => {
   return new Promise((resolve, reject) => {
     db.run(
-      'UPDATE students SET timestamps = ? WHERE id = ?',
-      [JSON.stringify(timestamps), id],
+      'INSERT INTO rounds (timestamp, student_id) VALUES (?, ?)',
+      [timestamp, studentId],
       function (err) {
         if (err) {
           reject(err);
         } else {
-          db.get('SELECT timestamps FROM students WHERE id = ?', [id], (err, row) => {
-            if (err) {
-              reject(err);
-            } else {
-              resolve(JSON.parse(row.timestamps));
-            }
-          });
+          resolve(this.lastID);
+        }
+      }
+    );
+  });
+};
+
+const getRoundsForStudent = (studentId) => {
+  return new Promise((resolve, reject) => {
+    db.all(
+      'SELECT timestamp FROM rounds WHERE student_id = ? ORDER BY timestamp DESC',
+      [studentId],
+      (err, rows) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(rows.map(row => row.timestamp));
         }
       }
     );
@@ -68,14 +78,12 @@ export default async function handler(req, res) {
       }
 
       const newTimestamp = new Date(date).toISOString();
-      const timestamps = student.timestamps ? JSON.parse(student.timestamps) : [];
-      timestamps.unshift(newTimestamp);
 
-      const storedTimestamps = await updateStudentTimestamps(id, timestamps);
+      // Füge die neue Runde in die rounds Tabelle ein
+      await addRoundForStudent(id, newTimestamp);
 
-      if (storedTimestamps.length !== timestamps.length || storedTimestamps[0] !== timestamps[0]) {
-        return res.status(500).json({ error: 'Fehler beim Aktualisieren der Timestamps' });
-      }
+      // Lade alle Runden für diesen Studenten
+      const timestamps = await getRoundsForStudent(id);
 
       return res.status(200).json({
         success: true,
@@ -84,7 +92,7 @@ export default async function handler(req, res) {
       });
     } catch (error) {
       console.error(error);
-      return res.status(500).json({ error: 'Fehler beim Aktualisieren der Timestamps' });
+      return res.status(500).json({ error: 'Fehler beim Hinzufügen der Runde' });
     }
   } else {
     res.setHeader('Allow', ['POST']);

@@ -7,23 +7,27 @@ const getClassData = () => {
 
   return new Promise((resolve, reject) => {
     db.all(`
-      SELECT klasse, vorname, nachname, timestamps
-      FROM students
-      ORDER BY klasse, nachname
+      SELECT 
+        s.klasse, 
+        s.vorname, 
+        s.nachname,
+        COUNT(r.id) as rounds
+      FROM students s
+      LEFT JOIN rounds r ON s.id = r.student_id
+      GROUP BY s.id, s.klasse, s.vorname, s.nachname
+      ORDER BY s.klasse, s.nachname
     `, (err, rows) => {
       if (err) {
         reject(err);
       } else {
         const groupedByClass = rows.reduce((acc, row) => {
-          const timestampsArray = row.timestamps ? JSON.parse(row.timestamps) : [];
-
           if (!acc[row.klasse]) {
             acc[row.klasse] = [];
           }
           acc[row.klasse].push({
             vorname: row.vorname,
             nachname: row.nachname,
-            rounds: timestampsArray.length,
+            rounds: row.rounds,
           });
 
           return acc;

@@ -10,12 +10,16 @@ const loadStudents = () => {
       } else {
         const parsedRows = rows.map(student => ({
           ...student,
-          timestamps: student.timestamps ? JSON.parse(student.timestamps) : [],
           spendenKonto: student.spendenKonto ? JSON.parse(student.spendenKonto) : [],
         }));
-
         const studentIds = parsedRows.map(student => student.id);
 
+        if (studentIds.length === 0) {
+          resolve(parsedRows);
+          return;
+        }
+
+        // Lade Replacements
         db.all(`SELECT studentID, id FROM replacements WHERE studentID IN (${studentIds.map(() => '?').join(',')})`, studentIds, (err, replacements) => {
           if (err) {
             reject(err);
@@ -28,12 +32,28 @@ const loadStudents = () => {
               return acc;
             }, {});
 
-            const studentsWithReplacements = parsedRows.map(student => ({
-              ...student,
-              replacements: replacementsMap[student.id] || [],
-            }));
+            // Lade Runden aus der separaten Tabelle
+            db.all(`SELECT student_id, timestamp FROM rounds WHERE student_id IN (${studentIds.map(() => '?').join(',')}) ORDER BY student_id, timestamp DESC`, studentIds, (err, rounds) => {
+              if (err) {
+                reject(err);
+              } else {
+                const roundsMap = rounds.reduce((acc, { student_id, timestamp }) => {
+                  if (!acc[student_id]) {
+                    acc[student_id] = [];
+                  }
+                  acc[student_id].push(timestamp);
+                  return acc;
+                }, {});
 
-            resolve(studentsWithReplacements);
+                const studentsWithData = parsedRows.map(student => ({
+                  ...student,
+                  replacements: replacementsMap[student.id] || [],
+                  timestamps: roundsMap[student.id] || [],
+                }));
+
+                resolve(studentsWithData);
+              }
+            });
           }
         });
       }

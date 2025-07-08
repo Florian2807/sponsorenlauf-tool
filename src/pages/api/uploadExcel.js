@@ -20,10 +20,10 @@ const getMaxId = (db) => {
 
 const insertStudent = (db, student, newId) => {
   return new Promise((resolve, reject) => {
-    const insertQuery = `INSERT INTO students (id, vorname, nachname, klasse, timestamps, spenden, spendenKonto) VALUES (?, ?, ?, ?, ?, ?, ?)`;
+    const insertQuery = `INSERT INTO students (id, vorname, nachname, klasse, spenden, spendenKonto) VALUES (?, ?, ?, ?, ?, ?)`;
     db.run(
       insertQuery,
-      [newId, student.vorname, student.nachname, student.klasse, '[]', student.spenden || null, JSON.stringify(student.spendenKonto) || '[]'],
+      [newId, student.vorname, student.nachname, student.klasse, student.spenden || null, JSON.stringify(student.spendenKonto) || '[]'],
       (err) => {
         if (err) {
           reject(err);

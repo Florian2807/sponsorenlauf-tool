@@ -28,8 +28,8 @@ const getMaxReplacementID = () => {
 const insertReplacement = (newId, newRID) => {
 	return new Promise((resolve, reject) => {
 		db.run(
-			`INSERT INTO students (id, vorname, nachname, klasse, timestamps, spenden, spendenKonto) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			[newId, newRID, '', 'Ersatz', '[]', null, '[]'],
+			`INSERT INTO students (id, vorname, nachname, klasse, spenden, spendenKonto) VALUES (?, ?, ?, ?, ?, ?)`,
+			[newId, newRID, '', 'Ersatz', null, '[]'],
 			(err) => {
 				if (err) {
 					reject(err);

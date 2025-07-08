@@ -10,7 +10,6 @@ db.serialize(() => {
       vorname TEXT NOT NULL,
       nachname TEXT NOT NULL,
       klasse TEXT NOT NULL,
-      timestamps TEXT,
       spenden REAL,
       spendenKonto TEXT
     )
@@ -32,7 +31,16 @@ db.serialize(() => {
       email TEXT,
       timestamps TEXT
     )
-  `)
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS rounds (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      timestamp TEXT NOT NULL,
+      student_id INTEGER NOT NULL,
+      FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+    )
+  `);
 });
 
 db.close();

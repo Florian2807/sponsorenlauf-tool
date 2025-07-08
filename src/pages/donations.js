@@ -72,8 +72,12 @@ export default function AddDonations() {
             return;
         }
         try {
-            await axios.post('/api/donations', { studentId: student.id, amount, isSpendenMode });
-            setMessage('Spende erfolgreich hinzugefügt.');
+            await axios.post('/api/donations', {
+                studentId: student.id,
+                amount,
+                isSpendenMode
+            });
+            setMessage(isSpendenMode ? 'Erwartete Spende erfolgreich aktualisiert.' : 'Erhaltene Spende erfolgreich hinzugefügt.');
             setSelectedStudent('');
             setAmount('0,00€');
             fetchStudentInfo(student.id);
@@ -99,14 +103,13 @@ export default function AddDonations() {
         }
     };
 
-    const handleDeleteDonation = async (indexToRemove) => {
-        const updatedDonations = studentInfo.spendenKonto.filter((_, index) => index !== indexToRemove);
+    const handleDeleteDonation = async (donationId, type) => {
         try {
-            await axios.put(`/api/students/${studentInfo.id}`, { spendenKonto: updatedDonations });
-            setStudentInfo((prevStudentInfo) => ({
-                ...prevStudentInfo,
-                spendenKonto: updatedDonations,
-            }));
+            await axios.delete('/api/donations', {
+                data: { donationId, type }
+            });
+            setMessage('Spende erfolgreich gelöscht.');
+            fetchStudentInfo(studentInfo.id);
         } catch (error) {
             console.log(error);
             setMessage('Fehler beim Löschen der Spende');
@@ -194,26 +197,53 @@ export default function AddDonations() {
                     <p><strong>Klasse:</strong> {studentInfo.klasse}</p>
                     <p><strong>Name:</strong> {studentInfo.vorname} {studentInfo.nachname}</p>
                     <p><strong>Runden:</strong> {studentInfo.timestamps.length}</p>
-                    <p><strong>erwartete Spenden:</strong> {formatCurrency(studentInfo.spenden ?? "0,00€")}</p>
-                    <p><strong>erhaltene Spenden:</strong> {formatCurrency(studentInfo.spendenKonto.length ? studentInfo.spendenKonto.reduce((a, b) => a + b) : [0]) ?? "0,00€"}</p>
-                    <p><strong>Differenz:</strong> <u>{formatCurrency((studentInfo.spendenKonto.length ? studentInfo.spendenKonto.reduce((a, b) => a + b) : [0]) - studentInfo.spenden) ?? "-"}</u></p>
-                    <p><strong>erhaltene Spenden:</strong></p>
-                    <div className={styles.timestamps}>
-                        <ul className={styles.timestampList}>
-                            {studentInfo.spendenKonto.map((donation, index) => (
-                                <li key={index} className={styles.timestampItem}>
-                                    <p>{formatCurrency(donation)}</p>
-                                    <button
-                                        type="button"
-                                        className={styles.deleteTimestampButton}
-                                        onClick={() => handleDeleteDonation(index)}
-                                    >
-                                        Löschen
-                                    </button>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
+                    <p><strong>erwartete Spenden:</strong> {formatCurrency(studentInfo.spenden ?? 0)}</p>
+                    <p><strong>erhaltene Spenden:</strong> {formatCurrency(studentInfo.spendenKonto.reduce((a, b) => a + b, 0))}</p>
+                    <p><strong>Differenz:</strong> <u>{formatCurrency(studentInfo.spendenKonto.reduce((a, b) => a + b, 0) - (studentInfo.spenden ?? 0))}</u></p>
+
+                    {studentInfo.expectedDonations && studentInfo.expectedDonations.length > 0 && (
+                        <div>
+                            <p><strong>Erwartete Spenden (Details):</strong></p>
+                            <div className={styles.timestamps}>
+                                <ul className={styles.timestampList}>
+                                    {studentInfo.expectedDonations.map((donation) => (
+                                        <li key={donation.id} className={styles.timestampItem}>
+                                            <p>{formatCurrency(donation.amount)} - {new Date(donation.created_at).toLocaleDateString()}</p>
+                                            <button
+                                                type="button"
+                                                className={styles.deleteTimestampButton}
+                                                onClick={() => handleDeleteDonation(donation.id, 'expected')}
+                                            >
+                                                Löschen
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
+                    )}
+
+                    {studentInfo.receivedDonations && studentInfo.receivedDonations.length > 0 && (
+                        <div>
+                            <p><strong>Erhaltene Spenden (Details):</strong></p>
+                            <div className={styles.timestamps}>
+                                <ul className={styles.timestampList}>
+                                    {studentInfo.receivedDonations.map((donation) => (
+                                        <li key={donation.id} className={styles.timestampItem}>
+                                            <p>{formatCurrency(donation.amount)} - {new Date(donation.created_at).toLocaleDateString()}</p>
+                                            <button
+                                                type="button"
+                                                className={styles.deleteTimestampButton}
+                                                onClick={() => handleDeleteDonation(donation.id, 'received')}
+                                            >
+                                                Löschen
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

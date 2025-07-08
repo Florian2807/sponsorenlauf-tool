@@ -13,29 +13,36 @@ const getStudentById = (studentId) => {
     });
 };
 
-const updateStudentAmounts = (student, amount) => {
+const updateExpectedDonation = (studentId, amount) => {
     return new Promise((resolve, reject) => {
-        db.run('UPDATE students SET spenden = ? WHERE id = ?', [amount, student.id], (err) => {
-            if (err) {
-                reject(err);
-            } else {
-                resolve();
-            }
+        // Lösche alte erwartete Spende und füge neue hinzu
+        db.serialize(() => {
+            db.run('DELETE FROM expected_donations WHERE student_id = ?', [studentId], (err) => {
+                if (err) reject(err);
+            });
+
+            db.run(
+                'INSERT INTO expected_donations (student_id, amount) VALUES (?, ?)',
+                [studentId, amount],
+                function (err) {
+                    if (err) reject(err);
+                    resolve(this.lastID);
+                }
+            );
         });
     });
 };
 
-const updateStudentKontoAmounts = (student, amount) => {
-    const amounts = student.spendenKonto ? JSON.parse(student.spendenKonto) : [];
-    amounts.push(Number(amount));
+const addReceivedDonation = (studentId, amount) => {
     return new Promise((resolve, reject) => {
-        db.run('UPDATE students SET spendenKonto = ? WHERE id = ?', [JSON.stringify(amounts), student.id], (err) => {
-            if (err) {
-                reject(err);
-            } else {
-                resolve();
+        db.run(
+            'INSERT INTO received_donations (student_id, amount) VALUES (?, ?)',
+            [studentId, amount],
+            function (err) {
+                if (err) reject(err);
+                resolve(this.lastID);
             }
-        });
+        );
     });
 };
 
@@ -48,11 +55,11 @@ export default async function handler(req, res) {
         try {
             const student = await getStudentById(studentId);
             if (student) {
-                const formattedAmount = parseFloat(amount.replace(',', '.').replace('€', '')).toFixed(2);
+                const formattedAmount = parseFloat(amount.replace(',', '.').replace('€', ''));
                 if (isSpendenMode) {
-                    await updateStudentAmounts(student, formattedAmount);
+                    await updateExpectedDonation(studentId, formattedAmount);
                 } else {
-                    await updateStudentKontoAmounts(student, formattedAmount);
+                    await addReceivedDonation(studentId, formattedAmount);
                 }
                 res.status(201).json({ success: true });
             } else {
@@ -62,8 +69,26 @@ export default async function handler(req, res) {
             console.error('Fehler beim Speichern der Spende:', error);
             res.status(500).json({ error: 'Fehler beim Speichern der Spende' });
         }
+    } else if (req.method === 'DELETE') {
+        const { donationId, type } = req.body;
+        if (!donationId || !type) {
+            return res.status(400).json({ error: 'Spenden-ID und Typ sind erforderlich' });
+        }
+        try {
+            const table = type === 'expected' ? 'expected_donations' : 'received_donations';
+            await new Promise((resolve, reject) => {
+                db.run(`DELETE FROM ${table} WHERE id = ?`, [donationId], function (err) {
+                    if (err) reject(err);
+                    resolve();
+                });
+            });
+            res.status(200).json({ success: true });
+        } catch (error) {
+            console.error('Fehler beim Löschen der Spende:', error);
+            res.status(500).json({ error: 'Fehler beim Löschen der Spende' });
+        }
     } else {
-        res.setHeader('Allow', ['POST']);
+        res.setHeader('Allow', ['POST', 'DELETE']);
         res.status(405).json({ error: 'Methode nicht erlaubt' });
     }
 }

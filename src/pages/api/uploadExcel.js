@@ -20,10 +20,10 @@ const getMaxId = (db) => {
 
 const insertStudent = (db, student, newId) => {
   return new Promise((resolve, reject) => {
-    const insertQuery = `INSERT INTO students (id, vorname, nachname, klasse, spenden, spendenKonto) VALUES (?, ?, ?, ?, ?, ?)`;
+    const insertQuery = `INSERT INTO students (id, vorname, nachname, klasse) VALUES (?, ?, ?, ?)`;
     db.run(
       insertQuery,
-      [newId, student.vorname, student.nachname, student.klasse, student.spenden || null, JSON.stringify(student.spendenKonto) || '[]'],
+      [newId, student.vorname, student.nachname, student.klasse],
       (err) => {
         if (err) {
           reject(err);
@@ -58,9 +58,7 @@ export default async function handler(req, res) {
           data.push({
             vorname: row.getCell(1).value,
             nachname: row.getCell(2).value,
-            klasse: row.getCell(3).value,
-            spenden: row.getCell(4).value ? parseFloat(row.getCell(4).value) : null,
-            spendenKonto: row.getCell(5).value ? JSON.parse(row.getCell(5).value) : null
+            klasse: row.getCell(3).value
           });
         }
       });

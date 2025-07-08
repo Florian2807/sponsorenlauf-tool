@@ -8,14 +8,10 @@ const loadStudents = () => {
       if (err) {
         reject(err);
       } else {
-        const parsedRows = rows.map(student => ({
-          ...student,
-          spendenKonto: student.spendenKonto ? JSON.parse(student.spendenKonto) : [],
-        }));
-        const studentIds = parsedRows.map(student => student.id);
+        const studentIds = rows.map(student => student.id);
 
         if (studentIds.length === 0) {
-          resolve(parsedRows);
+          resolve(rows);
           return;
         }
 
@@ -45,13 +41,42 @@ const loadStudents = () => {
                   return acc;
                 }, {});
 
-                const studentsWithData = parsedRows.map(student => ({
-                  ...student,
-                  replacements: replacementsMap[student.id] || [],
-                  timestamps: roundsMap[student.id] || [],
-                }));
+                // Lade erwartete Spenden
+                db.all(`SELECT student_id, SUM(amount) as total_expected FROM expected_donations WHERE student_id IN (${studentIds.map(() => '?').join(',')}) GROUP BY student_id`, studentIds, (err, expectedDonations) => {
+                  if (err) {
+                    reject(err);
+                  } else {
+                    const expectedMap = expectedDonations.reduce((acc, { student_id, total_expected }) => {
+                      acc[student_id] = total_expected;
+                      return acc;
+                    }, {});
 
-                resolve(studentsWithData);
+                    // Lade erhaltene Spenden
+                    db.all(`SELECT student_id, amount FROM received_donations WHERE student_id IN (${studentIds.map(() => '?').join(',')}) ORDER BY student_id, created_at DESC`, studentIds, (err, receivedDonations) => {
+                      if (err) {
+                        reject(err);
+                      } else {
+                        const receivedMap = receivedDonations.reduce((acc, { student_id, amount }) => {
+                          if (!acc[student_id]) {
+                            acc[student_id] = [];
+                          }
+                          acc[student_id].push(amount);
+                          return acc;
+                        }, {});
+
+                        const studentsWithData = rows.map(student => ({
+                          ...student,
+                          replacements: replacementsMap[student.id] || [],
+                          timestamps: roundsMap[student.id] || [],
+                          spenden: expectedMap[student.id] || 0,
+                          spendenKonto: receivedMap[student.id] || [],
+                        }));
+
+                        resolve(studentsWithData);
+                      }
+                    });
+                  }
+                });
               }
             });
           }

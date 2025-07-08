@@ -9,21 +9,29 @@ const getClassData = () => {
       SELECT 
         s.klasse, 
         s.vorname, 
-        s.nachname, 
-        s.spenden, 
-        s.spendenKonto,
-        COUNT(r.id) as rounds
+        s.nachname,
+        COUNT(r.id) as rounds,
+        COALESCE(ed.total_expected, 0) as expected_amount,
+        COALESCE(rd.total_received, 0) as received_amount
       FROM students s
       LEFT JOIN rounds r ON s.id = r.student_id
-      GROUP BY s.id, s.klasse, s.vorname, s.nachname, s.spenden, s.spendenKonto
+      LEFT JOIN (
+        SELECT student_id, SUM(amount) as total_expected 
+        FROM expected_donations 
+        GROUP BY student_id
+      ) ed ON s.id = ed.student_id
+      LEFT JOIN (
+        SELECT student_id, SUM(amount) as total_received 
+        FROM received_donations 
+        GROUP BY student_id
+      ) rd ON s.id = rd.student_id
+      GROUP BY s.id, s.klasse, s.vorname, s.nachname, ed.total_expected, rd.total_received
       ORDER BY s.klasse, s.nachname
     `, (err, rows) => {
       if (err) {
         reject(err);
       } else {
         const groupedByClass = rows.reduce((acc, row) => {
-          const spendenKontoArray = row.spendenKonto ? JSON.parse(row.spendenKonto) : [];
-
           if (!acc[row.klasse]) {
             acc[row.klasse] = [];
           }
@@ -31,9 +39,9 @@ const getClassData = () => {
             vorname: row.vorname,
             nachname: row.nachname,
             rounds: row.rounds,
-            spenden: row.spenden !== null ? row.spenden : 0.00,
-            spendenKonto: spendenKontoArray.reduce((a, b) => a + b, 0),
-            differenz: spendenKontoArray.reduce((a, b) => a + b, 0) - (row.spenden !== null ? row.spenden : 0.00)
+            spenden: row.expected_amount,
+            spendenKonto: row.received_amount,
+            differenz: row.received_amount - row.expected_amount
           });
 
           return acc;
@@ -52,23 +60,35 @@ const getAllStudentsData = () => {
         s.id, 
         s.klasse, 
         s.vorname, 
-        s.nachname, 
-        s.spenden, 
-        s.spendenKonto,
-        COUNT(r.id) as rounds
+        s.nachname,
+        COUNT(r.id) as rounds,
+        COALESCE(ed.total_expected, 0) as expected_amount,
+        COALESCE(rd.total_received, 0) as received_amount
       FROM students s
       LEFT JOIN rounds r ON s.id = r.student_id
-      GROUP BY s.id, s.klasse, s.vorname, s.nachname, s.spenden, s.spendenKonto
+      LEFT JOIN (
+        SELECT student_id, SUM(amount) as total_expected 
+        FROM expected_donations 
+        GROUP BY student_id
+      ) ed ON s.id = ed.student_id
+      LEFT JOIN (
+        SELECT student_id, SUM(amount) as total_received 
+        FROM received_donations 
+        GROUP BY student_id
+      ) rd ON s.id = rd.student_id
+      GROUP BY s.id, s.klasse, s.vorname, s.nachname, ed.total_expected, rd.total_received
     `, (err, rows) => {
       if (err) {
         reject(err);
       } else {
-        // Füge timestamps Array hinzu für Kompatibilität
-        const studentsWithTimestamps = rows.map(row => ({
+        // Füge kompatible Struktur hinzu
+        const studentsWithCompatibility = rows.map(row => ({
           ...row,
-          timestamps: { length: row.rounds } // Mock für bestehende Code-Kompatibilität
+          spenden: row.expected_amount,
+          spendenKonto: row.received_amount,
+          timestamps: { length: row.rounds }
         }));
-        resolve(studentsWithTimestamps);
+        resolve(studentsWithCompatibility);
       }
     });
   });
@@ -113,8 +133,7 @@ const createWorkbook = (students) => {
   ];
 
   students.forEach(student => {
-    const spendenKontoArray = student.spendenKonto ? JSON.parse(student.spendenKonto) : [];
-    const differenz = spendenKontoArray.reduce((a, b) => a + b, 0) - (student.spenden !== null ? student.spenden : 0.00);
+    const differenz = student.received_amount - student.expected_amount;
 
     const row = worksheet.addRow({
       id: student.id,
@@ -122,8 +141,8 @@ const createWorkbook = (students) => {
       vorname: student.vorname,
       nachname: student.nachname,
       runden: student.rounds || 0,
-      spenden: student.spenden !== null ? student.spenden : 0.00,
-      spendenKonto: spendenKontoArray.reduce((a, b) => a + b, 0),
+      spenden: student.expected_amount || 0,
+      spendenKonto: student.received_amount || 0,
       differenz: differenz
     });
 

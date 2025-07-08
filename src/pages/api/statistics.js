@@ -5,13 +5,25 @@ const db = new sqlite3.Database('./data/database.db');
 
 const loadStudentsFromDB = () => {
   return new Promise((resolve, reject) => {
-    // Lade Studenten und ihre Runden aus der separaten rounds Tabelle
+    // Lade Studenten und ihre Daten aus den separaten Tabellen
     db.all(`
       SELECT 
         s.*,
-        COUNT(r.id) as rounds
+        COUNT(r.id) as rounds,
+        COALESCE(ed.total_expected, 0) as expected_donations,
+        COALESCE(rd.total_received, 0) as received_donations
       FROM students s
       LEFT JOIN rounds r ON s.id = r.student_id
+      LEFT JOIN (
+        SELECT student_id, SUM(amount) as total_expected 
+        FROM expected_donations 
+        GROUP BY student_id
+      ) ed ON s.id = ed.student_id
+      LEFT JOIN (
+        SELECT student_id, SUM(amount) as total_received 
+        FROM received_donations 
+        GROUP BY student_id
+      ) rd ON s.id = rd.student_id
       GROUP BY s.id
     `, (err, rows) => {
       if (err) {
@@ -45,7 +57,8 @@ const loadStudentsFromDB = () => {
             const students = rows.map(row => ({
               ...row,
               timestamps: roundsMap[row.id] || [],
-              rounds: (roundsMap[row.id] || []).length
+              rounds: (roundsMap[row.id] || []).length,
+              spenden: row.expected_donations // Kompatibilität
             }));
 
             resolve(students);

@@ -9,9 +9,7 @@ db.serialize(() => {
       id INTEGER PRIMARY KEY,
       vorname TEXT NOT NULL,
       nachname TEXT NOT NULL,
-      klasse TEXT NOT NULL,
-      spenden REAL,
-      spendenKonto TEXT
+      klasse TEXT NOT NULL
     )
   `);
 
@@ -38,6 +36,26 @@ db.serialize(() => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       timestamp TEXT NOT NULL,
       student_id INTEGER NOT NULL,
+      FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS expected_donations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id INTEGER NOT NULL,
+      amount REAL NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS received_donations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id INTEGER NOT NULL,
+      amount REAL NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
     )
   `);

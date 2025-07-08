@@ -2,12 +2,12 @@ import sqlite3 from 'sqlite3';
 
 const db = new sqlite3.Database('./data/database.db');
 
-const saveStudent = (id, vorname, nachname, klasse, spenden, spendenKonto) => {
+const saveStudent = (id, vorname, nachname, klasse) => {
   return new Promise((resolve, reject) => {
     db.run(
-      `INSERT INTO students (id, vorname, nachname, klasse, spenden, spendenKonto) 
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [id, vorname, nachname, klasse, spenden, spendenKonto ? JSON.stringify(spendenKonto) : null],
+      `INSERT INTO students (id, vorname, nachname, klasse) 
+       VALUES (?, ?, ?, ?)`,
+      [id, vorname, nachname, klasse],
       function (err) {
         if (err) reject(err);
         resolve();
@@ -23,6 +23,13 @@ const getStudentById = (id) => {
       if (row) {
         row.replacements = await getReplacementByStudentId(id);
         row.timestamps = await getRoundsForStudent(id);
+        row.expectedDonations = await getExpectedDonationsForStudent(id);
+        row.receivedDonations = await getReceivedDonationsForStudent(id);
+
+        // Für Backward-Kompatibilität
+        row.spenden = row.expectedDonations.reduce((sum, donation) => sum + donation.amount, 0);
+        row.spendenKonto = row.receivedDonations.map(donation => donation.amount);
+
         resolve(row);
       } else {
         resolve(null);
@@ -53,13 +60,39 @@ const getRoundsForStudent = (studentId) => {
   });
 };
 
-const updateStudent = (id, vorname, nachname, klasse, spenden, spendenKonto) => {
+const getExpectedDonationsForStudent = (studentId) => {
+  return new Promise((resolve, reject) => {
+    db.all(
+      'SELECT id, amount, created_at FROM expected_donations WHERE student_id = ? ORDER BY created_at DESC',
+      [studentId],
+      (err, rows) => {
+        if (err) reject(err);
+        resolve(rows);
+      }
+    );
+  });
+};
+
+const getReceivedDonationsForStudent = (studentId) => {
+  return new Promise((resolve, reject) => {
+    db.all(
+      'SELECT id, amount, created_at FROM received_donations WHERE student_id = ? ORDER BY created_at DESC',
+      [studentId],
+      (err, rows) => {
+        if (err) reject(err);
+        resolve(rows);
+      }
+    );
+  });
+};
+
+const updateStudent = (id, vorname, nachname, klasse) => {
   return new Promise((resolve, reject) => {
     db.run(
       `UPDATE students 
-       SET vorname = ?, nachname = ?, klasse = ?, spenden = ?, spendenKonto = ?
+       SET vorname = ?, nachname = ?, klasse = ?
        WHERE id = ?`,
-      [vorname, nachname, klasse, spenden, JSON.stringify(spendenKonto), id],
+      [vorname, nachname, klasse, id],
       function (err) {
         if (err) reject(err);
         resolve();
@@ -147,6 +180,15 @@ const deleteStudent = (id) => {
         if (err) reject(err);
       });
 
+      // Lösche auch alle Spenden für diesen Studenten
+      db.run(`DELETE FROM expected_donations WHERE student_id = ?`, [id], (err) => {
+        if (err) reject(err);
+      });
+
+      db.run(`DELETE FROM received_donations WHERE student_id = ?`, [id], (err) => {
+        if (err) reject(err);
+      });
+
       resolve();
     });
   });
@@ -167,18 +209,11 @@ export default async function handler(req, res) {
     } catch (error) {
       return res.status(500).json({ error: 'Fehler beim Abrufen der Ersatz-ID' });
     }
-  }
-
-  if (req.method === 'GET') {
+  } if (req.method === 'GET') {
     try {
       const student = await getStudentById(id);
       if (student) {
-        // timestamps werden bereits von getStudentById geladen
-        if (student.spendenKonto) {
-          student.spendenKonto = JSON.parse(student.spendenKonto);
-        } else {
-          student.spendenKonto = [];
-        }
+        // timestamps, expectedDonations, receivedDonations und Kompatibilitätsdaten werden bereits von getStudentById geladen
         res.status(200).json(student);
       } else {
         res.status(404).json({ error: 'Schüler nicht gefunden' });
@@ -195,7 +230,7 @@ export default async function handler(req, res) {
     }
 
     try {
-      await saveStudent(id, vorname, nachname, klasse, spenden ?? null, spendenKonto ?? null);
+      await saveStudent(id, vorname, nachname, klasse);
 
       // Speichere die Runden in der separaten Tabelle
       if (timestamps && timestamps.length > 0) {
@@ -207,7 +242,7 @@ export default async function handler(req, res) {
       }
 
       res.status(201).json({
-        id, vorname, nachname, klasse, timestamps: timestamps || [], spenden: spenden ?? null, spendenKonto: spendenKonto ?? null
+        id, vorname, nachname, klasse, timestamps: timestamps || []
       });
     } catch (error) {
       res.status(500).json({ error: 'Fehler beim Speichern des Schülers' });
@@ -225,9 +260,7 @@ export default async function handler(req, res) {
         id,
         vorname !== undefined ? vorname : student.vorname,
         nachname !== undefined ? nachname : student.nachname,
-        klasse !== undefined ? klasse : student.klasse,
-        spenden !== undefined ? spenden : student.spenden,
-        spendenKonto !== undefined ? spendenKonto : (student.spendenKonto ? JSON.parse(student.spendenKonto) : [])
+        klasse !== undefined ? klasse : student.klasse
       );
 
       // Aktualisiere Runden wenn sie übermittelt wurden

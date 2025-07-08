@@ -4,12 +4,23 @@ const db = new sqlite3.Database('./data/database.db');
 
 // Create a new table if it does not exist
 db.serialize(() => {
+  // Create classes table first
+  db.run(`
+    CREATE TABLE IF NOT EXISTS classes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      grade TEXT NOT NULL,
+      class_name TEXT NOT NULL UNIQUE,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   db.run(`
     CREATE TABLE IF NOT EXISTS students (
       id INTEGER PRIMARY KEY,
       vorname TEXT NOT NULL,
       nachname TEXT NOT NULL,
-      klasse TEXT NOT NULL
+      klasse TEXT NOT NULL,
+      FOREIGN KEY (klasse) REFERENCES classes(class_name) ON DELETE RESTRICT
     )
   `);
 
@@ -27,7 +38,8 @@ db.serialize(() => {
       nachname TEXT NOT NULL,
       klasse TEXT,
       email TEXT,
-      timestamps TEXT
+      timestamps TEXT,
+      FOREIGN KEY (klasse) REFERENCES classes(class_name) ON DELETE SET NULL
     )
   `);
 

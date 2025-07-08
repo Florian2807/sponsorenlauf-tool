@@ -2,6 +2,10 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import styles from '../styles/Teachers.module.css';
 import config from '../../data/config.json';
+import EditTeacherDialog from '../components/dialogs/teachers/EditTeacherDialog';
+import AddTeacherDialog from '../components/dialogs/teachers/AddTeacherDialog';
+import ConfirmDeleteTeacherDialog from '../components/dialogs/teachers/ConfirmDeleteTeacherDialog';
+import ClassTeacherDialog from '../components/dialogs/teachers/ClassTeacherDialog';
 
 export default function Manage() {
     const [teachers, setTeachers] = useState([]);
@@ -248,184 +252,45 @@ export default function Manage() {
                 </tbody>
             </table>
 
-            <dialog ref={editTeacherPopup} className={styles.popup}>
-                <button className={styles.closeButtonX} onClick={() => editTeacherPopup.current.close()}>
-                    &times;
-                </button>
+            <EditTeacherDialog
+                dialogRef={editTeacherPopup}
+                selectedTeacher={selectedTeacher}
+                editVorname={editVorname}
+                setEditVorname={setEditVorname}
+                editNachname={editNachname}
+                setEditNachname={setEditNachname}
+                editKlasse={editKlasse}
+                setEditKlasse={setEditKlasse}
+                editEmail={editEmail}
+                setEditEmail={setEditEmail}
+                allPossibleClasses={allPossibleClasses}
+                confirmDeletePopup={confirmDeletePopup}
+                editTeacher={editTeacher}
+            />
 
-                <div>
-                    <h2>Lehrer bearbeiten</h2>
-                    <label>ID:</label>
-                    <input
-                        type="text"
-                        value={selectedTeacher?.id || ''}
-                        disabled
-                    />
-                    <label>Vorname:</label>
-                    <input
-                        type="text"
-                        value={editVorname || ''}
-                        onChange={(e) => setEditVorname(e.target.value)}
-                    />
-                    <label>Nachname:</label>
-                    <input
-                        type="text"
-                        value={editNachname || ''}
-                        onChange={(e) => setEditNachname(e.target.value)}
-                    />
-                    <label>Klasse:</label>
-                    <select
-                        value={editKlasse || ''}
-                        onChange={(e) => setEditKlasse(e.target.value)}
-                        className={styles.select}
-                    >
-                        <option value="">Wählen Sie eine Klasse</option>
-                        {allPossibleClasses.map((klasse) => (
-                            <option key={klasse} value={klasse}>
-                                {klasse}
-                            </option>
-                        ))}
-                    </select>
-                    <label>E-Mail Adresse:</label>
-                    <input
-                        type="email"
-                        placeholder="vorname.nachname@schuladresse.de"
-                        value={editEmail || ''}
-                        onChange={(e) => setEditEmail(e.target.value)}
-                    />
-                </div>
+            <AddTeacherDialog
+                dialogRef={addTeacherPopup}
+                newTeacher={newTeacher}
+                addTeacherChangeField={addTeacherChangeField}
+                allPossibleClasses={allPossibleClasses}
+                addTeacherSubmit={addTeacherSubmit}
+            />
 
-                <div className={styles.popupButtons}>
-                    <button
-                        className={styles.redButton}
-                        onClick={() => confirmDeletePopup.current.showModal()}
-                    >
-                        Lehrer löschen
-                    </button>
-                    <button onClick={editTeacher}>Speichern</button>
-                </div>
-            </dialog >
+            <ConfirmDeleteTeacherDialog
+                dialogRef={confirmDeletePopup}
+                deleteTeacher={deleteTeacher}
+                editTeacherPopup={editTeacherPopup}
+            />
 
-            <dialog ref={addTeacherPopup} className={styles.popup} >
-                <button className={styles.closeButtonX} onClick={() => addTeacherPopup.current.close()}>
-                    &times;
-                </button>
-                <h2>Neuen Lehrer hinzufügen</h2>
-                <form onSubmit={addTeacherSubmit}>
-                    <label>ID:</label>
-                    <input
-                        type="text"
-                        name="id"
-                        value={newTeacher.id}
-                        readOnly
-                    />
-                    <label>Vorname:</label>
-                    <input
-                        type="text"
-                        name="vorname"
-                        value={newTeacher.vorname}
-                        onChange={addTeacherChangeField}
-                        required
-                    />
-                    <label>Nachname:</label>
-                    <input
-                        type="text"
-                        name="nachname"
-                        value={newTeacher.nachname}
-                        onChange={addTeacherChangeField}
-                        required
-                    />
-                    <label>Klasse:</label>
-                    <select
-                        name="klasse"
-                        value={newTeacher.klasse || ''}
-                        onChange={addTeacherChangeField}
-                        className={styles.select}
-                    >
-                        <option value="">Wählen Sie eine Klasse</option>
-                        {allPossibleClasses.map((klasse) => (
-                            <option key={klasse} value={klasse || ''}>
-                                {klasse}
-                            </option>
-                        ))}
-                    </select>
-                    <label>E-Mail Adresse:</label>
-                    <input
-                        type="text"
-                        name="email"
-                        placeholder="vorname.nachname@schuladresse.de"
-                        value={newTeacher.email}
-                        onChange={addTeacherChangeField}
-                        required
-                    />
-                    <div className={styles.popupButtons}>
-                        <button className={styles.redButton} onClick={() => addTeacherPopup.current.close()}>Abbrechen</button>
-                        <button type="submit">Hinzufügen</button>
-                    </div>
-                </form>
-            </dialog >
-
-            <dialog ref={confirmDeletePopup} className={styles.popup} >
-                <button className={styles.closeButtonX} onClick={() => confirmDeletePopup.current.close()}>
-                    &times;
-                </button>
-                <h2>Bestätigen Sie das Löschen</h2>
-                <p>Möchten Sie diesen Lehrer wirklich löschen?</p>
-                <div className={styles.popupButtons}>
-                    <button
-                        onClick={() => confirmDeletePopup.current.close()}
-                    >
-                        Abbrechen
-                    </button>
-                    <button
-                        onClick={() => { deleteTeacher(); confirmDeletePopup.current.close(); editTeacherPopup.current.close(); }}
-                        className={styles.redButton}
-                    >
-                        Lehrer löschen
-                    </button>
-                </div>
-            </dialog >
-
-            <dialog ref={classTeacherPopup} className={styles.popup}>
-                <button className={styles.closeButtonX} onClick={() => classTeacherPopup.current.close()}>
-                    &times;
-                </button>
-                <div>
-                    <h2 className={styles.subtitle}>Klassenlehrer Konfigurieren</h2>
-                    {allPossibleClasses.map((className) => (
-                        <div key={className} className={styles.classContainer}>
-                            <div className={styles.classTitle}>{className}</div>
-                            <div className={styles.emailFields}>
-                                {[...Array(2)].map((_, index) => (
-                                    <div key={index} className={styles.emailField}>
-                                        <select
-                                            value={classTeacher[className]?.[index]?.id || ''}
-                                            onChange={handleTeacherChange(className, index)}
-                                            className={styles.select}
-                                        >
-                                            <option value="">Wählen Sie einen Lehrer</option>
-                                            {teachers.map((teacherOption) => (
-                                                <option key={teacherOption.id} value={teacherOption.id || ''}>
-                                                    {teacherOption.vorname} {teacherOption.nachname}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-                <div className={styles.popupButtons}>
-                    <button
-                        className={styles.redButton}
-                        onClick={() => classTeacherPopup.current.close()}
-                    >
-                        Abbrechen
-                    </button>
-                    <button disabled={loading.saveTeacher} onClick={saveClassTeacher}>Speichern</button>
-                </div>
-            </dialog>
+            <ClassTeacherDialog
+                dialogRef={classTeacherPopup}
+                allPossibleClasses={allPossibleClasses}
+                classTeacher={classTeacher}
+                handleTeacherChange={handleTeacherChange}
+                teachers={teachers}
+                loading={loading}
+                saveClassTeacher={saveClassTeacher}
+            />
         </div >
     );
 }

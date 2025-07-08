@@ -2,7 +2,10 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import axios, { all } from 'axios';
 import styles from '../styles/Manage.module.css';
 import { formatDate } from '/utils/globalFunctions';
-import config from '/data/config.json';
+import EditStudentDialog from '../components/dialogs/manage/EditStudentDialog';
+import AddReplacementDialog from '../components/dialogs/manage/AddReplacementDialog';
+import AddStudentDialog from '../components/dialogs/manage/AddStudentDialog';
+import ConfirmDeleteDialog from '../components/dialogs/manage/ConfirmDeleteDialog';
 
 export default function Manage() {
   const [students, setStudents] = useState([]);
@@ -25,13 +28,26 @@ export default function Manage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState('id');
   const [sortDirection, setSortDirection] = useState('asc');
+  const [availableClasses, setAvailableClasses] = useState([]);
 
   const editStudentPopup = useRef(null);
   const addStudentPopup = useRef(null);
   const confirmDeletePopup = useRef(null);
   const addReplacementPopup = useRef(null);
 
-  const allPossibleClasses = Object.values(config.availableClasses).flat();
+  useEffect(() => {
+    fetchStudents();
+    fetchAvailableClasses();
+  }, []);
+
+  const fetchAvailableClasses = async () => {
+    try {
+      const response = await axios.get('/api/getAvailableClasses');
+      setAvailableClasses(response.data);
+    } catch (error) {
+      console.error('Error fetching available classes:', error);
+    }
+  };
 
   useEffect(() => {
     fetchStudents();
@@ -250,186 +266,46 @@ export default function Manage() {
         </tbody>
       </table>
 
-      <dialog ref={editStudentPopup} className={styles.popup}>
-        <button className={styles.closeButtonX} onClick={() => editStudentPopup.current.close()}>
-          &times;
-        </button>
+      <EditStudentDialog
+        dialogRef={editStudentPopup}
+        selectedStudent={selectedStudent}
+        editVorname={editVorname}
+        setEditVorname={setEditVorname}
+        editNachname={editNachname}
+        setEditNachname={setEditNachname}
+        editKlasse={editKlasse}
+        setEditKlasse={setEditKlasse}
+        availableClasses={availableClasses}
+        deleteTimestamp={deleteTimestamp}
+        deleteReplacement={deleteReplacement}
+        setMessage={setMessage}
+        setNewReplacement={setNewReplacement}
+        addReplacementPopup={addReplacementPopup}
+        confirmDeletePopup={confirmDeletePopup}
+        editStudent={editStudent}
+      />
 
-        <div>
-          <h2>Schüler bearbeiten</h2>
-          <label>ID:</label>
-          <input
-            type="text"
-            value={selectedStudent?.id}
-            disabled
-          />
-          <label>Vorname:</label>
-          <input
-            type="text"
-            value={editVorname}
-            onChange={(e) => setEditVorname(e.target.value)}
-          />
-          <label>Nachname:</label>
-          <input
-            type="text"
-            value={editNachname}
-            onChange={(e) => setEditNachname(e.target.value)}
-          />
-          <label>Klasse:</label>
-          <input
-            type="text"
-            value={editKlasse}
-            onChange={(e) => setEditKlasse(e.target.value)}
-          />
-        </div>
+      <AddReplacementDialog
+        dialogRef={addReplacementPopup}
+        newReplacement={newReplacement}
+        setNewReplacement={setNewReplacement}
+        message={message}
+        addReplacementID={addReplacementID}
+      />
 
-        <div>
-          <h3>Gelaufene Runden: {selectedStudent?.timestamps.length}</h3>
-          <h3>Timestamps:</h3>
-          <ul className={styles.timestampList}>
-            {selectedStudent?.timestamps.map((timestamp, index) => (
-              <li key={index} className={styles.timestampItem}>
-                <span>{formatDate(new Date(timestamp))}</span>
-                <button
-                  className={styles.deleteTimestampButton}
-                  onClick={() => deleteTimestamp(index)}
-                >
-                  Löschen
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
+      <AddStudentDialog
+        dialogRef={addStudentPopup}
+        newStudent={newStudent}
+        addStudentChangeField={addStudentChangeField}
+        availableClasses={availableClasses}
+        addStudentSubmit={addStudentSubmit}
+      />
 
-        <h3>Ersatz-IDs:</h3>
-        <div className={styles.replacementContainer}>
-          {selectedStudent?.replacements.map((replacement, index) => (
-            <div key={index} className={styles.replacementTag}>
-              <span className={styles.replacementText}>{replacement}</span>
-              <button
-                className={styles.deleteReplacementButton}
-                onClick={() => deleteReplacement(index)}
-              >
-                <span className={styles.deleteIcon}>&times;</span>
-              </button>
-            </div>
-          ))}
-          <button
-            type="button"
-            className={styles.replacementTag}
-            onClick={() => {
-              setMessage('');
-              setNewReplacement('');
-              addReplacementPopup.current.showModal()
-            }}
-          >
-            ➕
-          </button>
-        </div>
-
-        <div className={styles.popupButtons}>
-          <button
-            className={styles.redButton}
-            onClick={() => confirmDeletePopup.current.showModal()}
-          >
-            Schüler löschen
-          </button>
-          <button onClick={editStudent}>Speichern</button>
-        </div>
-      </dialog >
-
-      <dialog ref={addReplacementPopup} className={styles.popup} >
-        <button className={styles.closeButtonX} onClick={() => addReplacementPopup.current.close()}>
-          &times;
-        </button>
-        <h2>Ersatz-ID hinzufügen</h2>
-        <p>Füge eine Ersatz-ID zum Schüler hinzu</p>
-        <input
-          type="number"
-          name="replacement"
-          value={newReplacement}
-          onChange={(e) => setNewReplacement(e.target.value)}
-          required
-        />
-        {message && <p className={styles.errorMessage}>{message}</p>}
-        <div className={styles.popupButtons}>
-          <button
-            onClick={() => addReplacementPopup.current.close()}
-          >
-            Abbrechen
-          </button>
-          <button
-            onClick={addReplacementID}
-          >
-            Hinzufügen
-          </button>
-        </div>
-      </dialog >
-
-      <dialog ref={addStudentPopup} className={styles.popup} >
-        <button className={styles.closeButtonX} onClick={() => addStudentPopup.current.close()}>
-          &times;
-        </button>
-        <h2>Neuen Schüler hinzufügen</h2>
-        <form onSubmit={addStudentSubmit}>
-          <label>ID:</label>
-          <input
-            type="text"
-            name="id"
-            value={newStudent.id}
-            readOnly
-          />
-          <label>Vorname:</label>
-          <input
-            type="text"
-            name="vorname"
-            value={newStudent.vorname}
-            onChange={addStudentChangeField}
-            required
-          />
-          <label>Nachname:</label>
-          <input
-            type="text"
-            name="nachname"
-            value={newStudent.nachname}
-            onChange={addStudentChangeField}
-            required
-          />
-          <label>Klasse:</label>
-          <input
-            type="text"
-            name="klasse"
-            value={newStudent.klasse}
-            onChange={addStudentChangeField}
-            required
-          />
-          <div className={styles.popupButtons}>
-            <button className={styles.redButton} onClick={() => addStudentPopup.current.close()}>Abbrechen</button>
-            <button type="submit">Hinzufügen</button>
-          </div>
-        </form>
-      </dialog >
-
-      <dialog ref={confirmDeletePopup} className={styles.popup} >
-        <button className={styles.closeButtonX} onClick={() => confirmDeletePopup.current.close()}>
-          &times;
-        </button>
-        <h2>Bestätigen Sie das Löschen</h2>
-        <p>Möchten Sie diesen Schüler wirklich löschen?</p>
-        <div className={styles.popupButtons}>
-          <button
-            onClick={() => confirmDeletePopup.current.close()}
-          >
-            Abbrechen
-          </button>
-          <button
-            onClick={() => { deleteStudent(); confirmDeletePopup.current.close(); editStudentPopup.current.close(); }}
-            className={styles.redButton}
-          >
-            Schüler löschen
-          </button>
-        </div>
-      </dialog >
+      <ConfirmDeleteDialog
+        dialogRef={confirmDeletePopup}
+        deleteStudent={deleteStudent}
+        editStudentPopup={editStudentPopup}
+      />
     </div >
   );
 }

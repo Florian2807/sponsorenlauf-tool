@@ -1,7 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import styles from '../styles/Setup.module.css';
 import axios from 'axios';
-import config from '../../data/config.json';
+import GenerateLabelsDialog from '../components/dialogs/setup/GenerateLabelsDialog';
+import ImportExcelDialog from '../components/dialogs/setup/ImportExcelDialog';
+import ExportSpendenDialog from '../components/dialogs/setup/ExportSpendenDialog';
+import ConfirmDeleteAllDialog from '../components/dialogs/setup/ConfirmDeleteAllDialog';
+import ClassStructureDialog from '../components/dialogs/setup/ClassStructureDialog';
 
 export default function Setup() {
     const [file, setFile] = useState(null);
@@ -10,13 +14,15 @@ export default function Setup() {
     const [loading, setLoading] = useState({ upload: false, labels: false, replacement: false, downloadResults: false });
     const [replacementAmount, setReplacementAmount] = useState(0);
     const [classes, setClasses] = useState([]);
-    const allPossibleClasses = config.availableClasses;
-    const [selectedClasses, setSelectedClasses] = useState(Object.values(allPossibleClasses).flat());
+    const [selectedClasses, setSelectedClasses] = useState([]);
+    const [classStructure, setClassStructure] = useState({});
+    const [tempClassStructure, setTempClassStructure] = useState({});
 
     const generateLabelsPopup = useRef(null);
     const confirmDeletePopup = useRef(null);
     const importExcelPopup = useRef(null);
     const exportSpendenPopup = useRef(null);
+    const classStructurePopup = useRef(null);
 
     useEffect(() => {
         const fetchClasses = async () => {
@@ -27,7 +33,19 @@ export default function Setup() {
                 console.error('Fehler beim Abrufen der Klassen:', error);
             }
         };
+
+        const fetchClassStructure = async () => {
+            try {
+                const response = await axios.get('/api/classStructure');
+                setClassStructure(response.data);
+                setSelectedClasses(Object.values(response.data).flat());
+            } catch (error) {
+                console.error('Fehler beim Abrufen der Klassenstruktur:', error);
+            }
+        };
+
         fetchClasses();
+        fetchClassStructure();
     }, []);
 
     const updateMessage = (update = {}) => {
@@ -166,6 +184,81 @@ export default function Setup() {
         setSelectedClasses([]);
     };
 
+    const openClassStructurePopup = () => {
+        setTempClassStructure(JSON.parse(JSON.stringify(classStructure)));
+        classStructurePopup.current.showModal();
+    };
+
+    const handleGradeNameChange = (oldGrade, newGrade) => {
+        if (oldGrade === newGrade || !newGrade.trim()) return;
+
+        // Erstelle neue Struktur und ersetze den Grade-Namen
+        const newStructure = {};
+        Object.keys(tempClassStructure).forEach(grade => {
+            if (grade === oldGrade) {
+                newStructure[newGrade] = tempClassStructure[oldGrade];
+            } else {
+                newStructure[grade] = tempClassStructure[grade];
+            }
+        });
+
+        setTempClassStructure(newStructure);
+    };
+
+    const addGrade = () => {
+        const newGrade = `Jahrgang ${Object.keys(tempClassStructure).length + 1}`;
+        setTempClassStructure({
+            ...tempClassStructure,
+            [newGrade]: []
+        });
+    };
+
+    const removeGrade = (grade) => {
+        const newStructure = { ...tempClassStructure };
+        delete newStructure[grade];
+        setTempClassStructure(newStructure);
+    };
+
+    const addClassToGrade = (grade) => {
+        setTempClassStructure({
+            ...tempClassStructure,
+            [grade]: [...(tempClassStructure[grade] || []), `${grade}${String.fromCharCode(97 + tempClassStructure[grade].length)}`]
+        });
+    };
+
+    const removeClassFromGrade = (grade, classIndex) => {
+        const newClasses = tempClassStructure[grade].filter((_, index) => index !== classIndex);
+        setTempClassStructure({
+            ...tempClassStructure,
+            [grade]: newClasses
+        });
+    };
+
+    const handleClassNameChange = (grade, classIndex, newName) => {
+        const newClasses = [...tempClassStructure[grade]];
+        newClasses[classIndex] = newName;
+        setTempClassStructure({
+            ...tempClassStructure,
+            [grade]: newClasses
+        });
+    }; const saveClassStructure = async () => {
+        try {
+            const response = await axios.put('/api/classStructure', {
+                availableClasses: tempClassStructure
+            });
+
+            if (response.data.success) {
+                setClassStructure(tempClassStructure);
+                setSelectedClasses(Object.values(tempClassStructure).flat());
+                updateMessage({ upload: 'Klassenstruktur erfolgreich gespeichert.' });
+                classStructurePopup.current.close();
+            }
+        } catch (error) {
+            console.error('Fehler beim Speichern der Klassenstruktur:', error);
+            updateMessage({ upload: 'Fehler beim Speichern der Klassenstruktur.' });
+        }
+    };
+
     return (
         <div className={styles.container}>
             <h1 className={styles.title}>Setup</h1>
@@ -182,6 +275,14 @@ export default function Setup() {
                     title="Konfiguriere die E-Mail-Adressen und Klassen der Lehrer."
                 >
                     Lehrer Verwaltung
+                </button>
+
+                <button
+                    onClick={openClassStructurePopup}
+                    className={styles.button}
+                    title="Konfiguriere die Struktur der Jahrgänge und Klassen."
+                >
+                    Klassenstruktur verwalten
                 </button>
 
                 <button
@@ -235,127 +336,52 @@ export default function Setup() {
                 </button>
             </div>
 
-            <dialog ref={generateLabelsPopup} className={styles.popup}>
-                <button className={styles.closeButtonX} onClick={() => generateLabelsPopup.current.close()}>
-                    &times;
-                </button>
-                <h2>Etiketten generieren</h2>
-                <p>Füge Ersatz-IDs hinzu, welche später Schülern zugeordnet werden, welche ihren Zettel verloren haben</p>
-                <label>Ersatz-IDs hinzufügen:</label>
-                <input
-                    type="number"
-                    value={replacementAmount}
-                    onChange={(e) => setReplacementAmount(e.target.value)}
-                    className={styles.input}
-                />
-                <label>Klassen auswählen:</label>
-                <div className={styles.selectButtons}>
-                    <button onClick={handleSelectAll} className={styles.selectButton}>Alle auswählen</button>
-                    <button onClick={handleDeselectAll} className={styles.selectButton}>Alle abwählen</button>
-                </div>
-                <div className={styles.classCheckboxes} style={{ color: 'grey' }}
-                >
-                    <label className={styles.classSelectLabel}>
-                        <input
-                            type="checkbox"
-                            value="Erstatz"
-                            checked={replacementAmount > 0}
-                            disabled={true}
-                            onChange={handleClassSelection}
-                        />
-                        Ersatz
-                    </label>
-                    <div className={styles.newLine}></div>
+            <GenerateLabelsDialog
+                dialogRef={generateLabelsPopup}
+                replacementAmount={replacementAmount}
+                setReplacementAmount={setReplacementAmount}
+                handleSelectAll={handleSelectAll}
+                handleDeselectAll={handleDeselectAll}
+                classes={classes}
+                selectedClasses={selectedClasses}
+                handleClassSelection={handleClassSelection}
+                message={message}
+                loading={loading}
+                handleGenerateLabels={handleGenerateLabels}
+            />
 
-                    {classes.map((klasse, index) => (
-                        <React.Fragment key={klasse}>
-                            <label className={styles.classSelectLabel}>
-                                <input
-                                    type="checkbox"
-                                    value={klasse}
-                                    checked={selectedClasses.includes(klasse)}
-                                    onChange={handleClassSelection}
-                                />
-                                {klasse}
-                            </label>
-                        </React.Fragment>
-                    ))}
-                </div>
-                {message.download && <p className={styles.message}>{message.download}</p>}
-                {loading.labels && <div className={styles.progress} />}
-                <div className={styles.popupButtons}>
-                    <button
-                        onClick={() => generateLabelsPopup.current.close()}
-                        className={styles.redButton}
-                    >
-                        Abbrechen
-                    </button>
-                    <button
-                        onClick={handleGenerateLabels}
-                        disabled={loading.labels}
-                    >
-                        Generieren
-                    </button>
-                </div>
-            </dialog>
+            <ImportExcelDialog
+                dialogRef={importExcelPopup}
+                handleUploadExcel={handleUploadExcel}
+                handleFileChange={handleFileChange}
+                loading={loading}
+                message={message}
+                insertedCount={insertedCount}
+            />
 
-            <dialog ref={importExcelPopup} className={styles.popup}>
-                <button className={styles.closeButtonX} onClick={() => importExcelPopup.current.close()}>&times;</button>
-                <h2>Excel-Datei hochladen</h2>
-                <p>Die ersten drei Spalten der Excel-Tabelle sind Vorname, Nachname und Klasse</p>
-                <p>Die erste Zeile ist für Überschriften reserviert</p>
-                <form onSubmit={handleUploadExcel} className={styles.uploadForm}>
-                    <input
-                        type="file"
-                        onChange={handleFileChange}
-                        accept=".xlsx"
-                        required
-                        className={styles.fileInput}
-                    />
-                    <button type="submit" className={styles.button} disabled={loading.upload}>
-                        Hochladen
-                    </button>
-                    <br />
-                    {loading.upload && <div className={styles.progress} />}
-                </form>
-                {message.upload && <p className={styles.message}>{message.upload}</p>}
-                {insertedCount > 0 && <p className={styles.message}>Eingefügte Datensätze: {insertedCount}</p>}
-            </dialog>
+            <ExportSpendenDialog
+                dialogRef={exportSpendenPopup}
+                downloadResults={downloadResults}
+                loading={loading}
+            />
 
-            <dialog ref={exportSpendenPopup} className={styles.popup}>
-                <button className={styles.closeButtonX} onClick={() => exportSpendenPopup.current.close()}>&times;</button>
-                <h2>Spenden Auswertungen downloaden</h2>
-                <div className={styles.popupButtons}>
-                    <button onClick={() => downloadResults('allstudents')} className={styles.button} disabled={loading.downloadResults}>
-                        Gesamtauswertung
-                    </button>
-                    <button className={styles.button} onClick={() => downloadResults('classes')} disabled={loading.downloadResults}>
-                        Klassenweise Auswertung
-                    </button>
-                </div>
-                {loading.downloadResults && <div className={styles.progress} />}
-            </dialog >
+            <ConfirmDeleteAllDialog
+                dialogRef={confirmDeletePopup}
+                handleDeleteAllStudents={handleDeleteAllStudents}
+            />
 
-            <dialog ref={confirmDeletePopup} className={styles.popup}>
-                <button className={styles.closeButtonX} onClick={() => confirmDeletePopup.current.close()}>
-                    &times;
-                </button>
-                <h2>Bestätigen Sie das Löschen</h2>
-                <p>Möchten Sie wirklich alle Schüler löschen?</p>
-                <div className={styles.popupButtons}>
-                    <button
-                        onClick={() => confirmDeletePopup.current.close()}
-                    >
-                        Abbrechen
-                    </button>
-                    <button
-                        onClick={handleDeleteAllStudents}
-                        className={styles.redButton}
-                    >
-                        Alle löschen
-                    </button>
-                </div>
-            </dialog>
+            <ClassStructureDialog
+                dialogRef={classStructurePopup}
+                tempClassStructure={tempClassStructure}
+                handleGradeNameChange={handleGradeNameChange}
+                removeGrade={removeGrade}
+                handleClassNameChange={handleClassNameChange}
+                removeClassFromGrade={removeClassFromGrade}
+                addClassToGrade={addClassToGrade}
+                addGrade={addGrade}
+                message={message}
+                saveClassStructure={saveClassStructure}
+            />
         </div >
     );
 }

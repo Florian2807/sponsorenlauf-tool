@@ -181,6 +181,23 @@
   border-radius: 4px;
 }
 
+.form select, .select {
+  padding: 8px;
+  margin-bottom: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
+  font-size: 1rem;
+  cursor: pointer;
+  min-width: 200px;
+}
+
+.form select:focus, .select:focus {
+  outline: none;
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.1);
+}
+
 .timestampList {
   list-style-type: none;
   padding: 0;

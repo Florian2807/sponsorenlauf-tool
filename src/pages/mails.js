@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import JSZip from 'jszip';
 import styles from '../styles/Mails.module.css';
+import SendMailsDialog from '../components/dialogs/mails/SendMailsDialog';
 
 export default function Home() {
     const [fileData, setFileData] = useState({
@@ -200,56 +201,15 @@ export default function Home() {
                 </button>
             )}
 
-            <dialog ref={sendMailsPopup} className={styles.popup}>
-                <button className={styles.closeButtonX} onClick={() => sendMailsPopup.current.close()}>&times;</button>
-                <h2>Mails mit Tabellen versenden</h2>
-
-                <h2>Microsoft Login</h2>
-                <label>E-Mail Adresse:</label>
-                <input
-                    type="email"
-                    name="email"
-                    placeholder="E-Mail Adresse"
-                    value={fileData.email}
-                    onChange={(e) => setFileData((prev) => ({ ...prev, email: e.target.value }))}
-                    disabled={credentialsCorrect}
-                    required
-                />
-                <label>Passwort:</label>
-                <input
-                    type="password"
-                    name="password"
-                    placeholder="Microsoft Passwort"
-                    value={fileData.password}
-                    onChange={(e) => setFileData((prev) => ({ ...prev, password: e.target.value }))}
-                    disabled={credentialsCorrect}
-                    required
-                />
-                <label>Sender-Name:</label>
-                <input
-                    type="text"
-                    name="senderName"
-                    placeholder="Mail Absender-Name"
-                    value={fileData.senderName}
-                    onChange={(e) => setFileData((prev) => ({ ...prev, senderName: e.target.value }))}
-                    required
-                />
-
-                <button onClick={handleLogin}>Login</button>
-                <br />
-                {status.loginLoading && <div className={styles.progress} />}
-                {status.loginMessage && <p>{status.loginMessage}</p>}
-
-                <div className={styles.popupButtons}>
-                    <button onClick={() => sendMailsPopup.current.close()} className={`${styles.button} ${styles.redButton}`}>
-                        Abbrechen
-                    </button>
-                    <button className={styles.button} onClick={handleUpload} disabled={!credentialsCorrect}>
-                        Weiter
-                    </button>
-                </div>
-                {status.uploadLoading && <div className={styles.progress} />}
-            </dialog>
+            <SendMailsDialog
+                dialogRef={sendMailsPopup}
+                fileData={fileData}
+                setFileData={setFileData}
+                credentialsCorrect={credentialsCorrect}
+                handleLogin={handleLogin}
+                status={status}
+                handleUpload={handleUpload}
+            />
 
             {Object.keys(teacherData.files).length > 0 && (
                 <div>

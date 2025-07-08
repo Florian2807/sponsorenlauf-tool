@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import styles from '../styles/Scan.module.css';
 import { formatDate, timeAgo } from '/utils/globalFunctions';
+import ErrorDialog from '../components/dialogs/scan/ErrorDialog';
 
 export default function Scan() {
   const [id, setID] = useState('');
@@ -102,17 +103,7 @@ export default function Scan() {
         <button type="submit">Runde zählen</button>
       </form>
 
-      {/* Enter-Popup */}
-      <dialog ref={popupRef} className={styles.popup}>
-        <button className={styles.closeButtonX} onClick={() => popupRef.current.close()}>
-          &times;
-        </button>
-        <h2>Fehler</h2>
-        <p>Klicke auf das Eingabefeld, damit die Daten in die Datenbank aufgenommen werden können!</p>
-        <div className={styles.popupButtons}>
-          <button onClick={() => popupRef.current.close()}>Schließen</button>
-        </div>
-      </dialog>
+      <ErrorDialog dialogRef={popupRef} />
 
       {message && (
         <p className={`${styles.message} ${styles[messageType]}`}>{message}</p>

@@ -1,4 +1,5 @@
 import React from 'react';
+import BaseDialog from '../../BaseDialog';
 import styles from '../../../styles/Manage.module.css';
 
 const AddStudentDialog = ({
@@ -52,6 +53,19 @@ const AddStudentDialog = ({
                             {className}
                         </option>
                     ))}
+                </select>
+
+                <label>Geschlecht:</label>
+                <select
+                    name="geschlecht"
+                    value={newStudent.geschlecht}
+                    onChange={addStudentChangeField}
+                    className={styles.select}
+                    required
+                >
+                    <option value="männlich">Männlich</option>
+                    <option value="weiblich">Weiblich</option>
+                    <option value="divers">Divers</option>
                 </select>
                 <div className={styles.popupButtons}>
                     <button className={styles.redButton} onClick={() => dialogRef.current.close()}>Abbrechen</button>

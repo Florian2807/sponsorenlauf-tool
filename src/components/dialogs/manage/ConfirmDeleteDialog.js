@@ -1,36 +1,36 @@
 import React from 'react';
-import styles from '../../../styles/Manage.module.css';
+import BaseDialog from '../../BaseDialog';
 
 const ConfirmDeleteDialog = ({
     dialogRef,
     deleteStudent,
     editStudentPopup
 }) => {
+    const actions = [
+        {
+            label: 'Abbrechen',
+            onClick: () => dialogRef.current.close()
+        },
+        {
+            label: 'Schüler löschen',
+            variant: 'danger',
+            onClick: () => {
+                deleteStudent();
+                dialogRef.current.close();
+                editStudentPopup.current.close();
+            }
+        }
+    ];
+
     return (
-        <dialog ref={dialogRef} className={styles.popup}>
-            <button className={styles.closeButtonX} onClick={() => dialogRef.current.close()}>
-                &times;
-            </button>
-            <h2>Bestätigen Sie das Löschen</h2>
+        <BaseDialog
+            dialogRef={dialogRef}
+            title="Bestätigen Sie das Löschen"
+            actions={actions}
+            showDefaultClose={false}
+        >
             <p>Möchten Sie diesen Schüler wirklich löschen?</p>
-            <div className={styles.popupButtons}>
-                <button
-                    onClick={() => dialogRef.current.close()}
-                >
-                    Abbrechen
-                </button>
-                <button
-                    onClick={() => {
-                        deleteStudent();
-                        dialogRef.current.close();
-                        editStudentPopup.current.close();
-                    }}
-                    className={styles.redButton}
-                >
-                    Schüler löschen
-                </button>
-            </div>
-        </dialog>
+        </BaseDialog>
     );
 };
 

@@ -19,6 +19,7 @@ db.serialize(() => {
       id INTEGER PRIMARY KEY,
       vorname TEXT NOT NULL,
       nachname TEXT NOT NULL,
+      geschlecht TEXT CHECK (geschlecht IN ('männlich', 'weiblich', 'divers') OR geschlecht IS NULL),
       klasse TEXT NOT NULL,
       FOREIGN KEY (klasse) REFERENCES classes(class_name) ON DELETE RESTRICT
     )

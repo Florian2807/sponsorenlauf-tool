@@ -1,13 +1,16 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
-import axios from 'axios';
+import { useState, useEffect, useRef } from 'react';
 import styles from '../styles/Teachers.module.css';
 import config from '../../data/config.json';
+import { getNextId, API_ENDPOINTS } from '../utils/constants';
+import { useApi } from '../hooks/useApi';
+import { useSortableTable } from '../hooks/useSortableTable';
+import { useSearch } from '../hooks/useSearch';
 import EditTeacherDialog from '../components/dialogs/teachers/EditTeacherDialog';
 import AddTeacherDialog from '../components/dialogs/teachers/AddTeacherDialog';
 import ConfirmDeleteTeacherDialog from '../components/dialogs/teachers/ConfirmDeleteTeacherDialog';
 import ClassTeacherDialog from '../components/dialogs/teachers/ClassTeacherDialog';
 
-export default function Manage() {
+export default function Teachers() {
     const [teachers, setTeachers] = useState([]);
     const [selectedTeacher, setSelectedTeacher] = useState(null);
     const [editVorname, setEditVorname] = useState('');
@@ -22,18 +25,18 @@ export default function Manage() {
         email: ''
     });
     const [message, setMessage] = useState('');
-    const [searchTerm, setSearchTerm] = useState('');
-    const [sortField, setSortField] = useState('id');
-    const [sortDirection, setSortDirection] = useState('asc');
     const [classTeacher, setClassTeacher] = useState({});
-    const [loading, setLoading] = useState({ saveTeacher: false });
+
+    const { request, loading, error } = useApi();
+
+    const allPossibleClasses = Object.values(config.availableClasses).flat();
+    const { sortField, sortDirection, sortData, sortedData } = useSortableTable(teachers, allPossibleClasses);
+    const { searchTerm, setSearchTerm, filteredData } = useSearch(sortedData);
 
     const editTeacherPopup = useRef(null);
     const addTeacherPopup = useRef(null);
     const confirmDeletePopup = useRef(null);
     const classTeacherPopup = useRef(null);
-
-    const allPossibleClasses = Object.values(config.availableClasses).flat();
 
     useEffect(() => {
         fetchTeachers();
@@ -41,43 +44,16 @@ export default function Manage() {
 
     const fetchTeachers = async () => {
         try {
-            const response = await axios.get('/api/getAllTeachers');
-            setTeachers(response.data);
+            const data = await request(API_ENDPOINTS.TEACHERS);
+            setTeachers(data);
         } catch (error) {
             console.error('Error fetching teachers:', error);
         }
     };
 
     const sortTeachersFunc = (field) => {
-        const direction = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
-        setSortField(field);
-        setSortDirection(direction);
+        sortData(field);
     };
-
-    const sortedTeachers = useMemo(() => {
-        const sorted = [...teachers];
-        sorted.sort((a, b) => {
-            const aValue = a[sortField];
-            const bValue = b[sortField];
-
-            if (sortField === 'klasse') {
-                const aClass = allPossibleClasses.indexOf(aValue);
-                const bClass = allPossibleClasses.indexOf(bValue);
-                return sortDirection === 'asc' ? aClass - bClass : bClass - aClass;
-            }
-
-            if (sortField === 'id') {
-                return sortDirection === 'asc'
-                    ? parseInt(aValue) - parseInt(bValue)
-                    : parseInt(bValue) - parseInt(aValue);
-            }
-
-            if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
-            if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
-            return 0;
-        });
-        return sorted;
-    }, [teachers, sortField, sortDirection]);
 
     const handleTeacherChange = (className, index) => (e) => {
         const newId = parseInt(e.target.value);
@@ -101,16 +77,15 @@ export default function Manage() {
     };
 
     const saveClassTeacher = async () => {
-        setLoading({ saveTeacher: true });
         try {
-            const response = await axios.post('/api/saveClassTeacher', classTeacher);
+            const data = await request('/api/saveClassTeacher', {
+                method: 'POST',
+                data: classTeacher
+            });
             classTeacherPopup.current.close();
-            setLoading({ saveTeacher: false });
-            setTeachers(response.data.teachers);
+            setTeachers(data.teachers);
         } catch (error) {
             console.error('Error saving class teacher:', error);
-        } finally {
-            setLoading({ saveTeacher: false });
         }
     };
 
@@ -134,12 +109,14 @@ export default function Manage() {
         };
 
         try {
-            const response = await axios.put(`/api/teachers/${selectedTeacher.id}`, updatedTeacher);
-            if (response.data.success) {
-                const updatedTeachers = teachers.map((teacher) =>
+            const data = await request(`/api/teachers/${selectedTeacher.id}`, {
+                method: 'PUT',
+                data: updatedTeacher
+            });
+            if (data.success) {
+                setTeachers(prev => prev.map(teacher =>
                     teacher.id === selectedTeacher.id ? updatedTeacher : teacher
-                );
-                setTeachers(updatedTeachers);
+                ));
                 setSelectedTeacher(null);
                 editTeacherPopup.current.close();
             }
@@ -150,8 +127,8 @@ export default function Manage() {
 
     const deleteTeacher = async () => {
         try {
-            await axios.delete(`/api/teachers/${selectedTeacher.id}`);
-            setTeachers(teachers.filter(teacher => teacher.id !== selectedTeacher.id));
+            await request(`/api/teachers/${selectedTeacher.id}`, { method: 'DELETE' });
+            setTeachers(prev => prev.filter(teacher => teacher.id !== selectedTeacher.id));
             setSelectedTeacher(null);
             editTeacherPopup.current.close();
         } catch (error) {
@@ -160,9 +137,8 @@ export default function Manage() {
     };
 
     const addTeacherClick = () => {
-        const highestId = Math.max(...teachers.map(s => parseInt(s.id, 10)), 0);
         setNewTeacher({
-            id: highestId + 1,
+            id: getNextId(teachers),
             vorname: '',
             nachname: '',
             klasse: '',
@@ -187,7 +163,10 @@ export default function Manage() {
     const addTeacherSubmit = async (e) => {
         e.preventDefault();
         try {
-            await axios.post(`/api/teachers/${newTeacher.id}`, newTeacher);
+            await request(`/api/teachers/${newTeacher.id}`, {
+                method: 'POST',
+                data: newTeacher
+            });
             fetchTeachers();
             addTeacherPopup.current.close();
             setNewTeacher({
@@ -202,14 +181,7 @@ export default function Manage() {
         }
     };
 
-    const filteredTeachers = useMemo(() => {
-        const searchLower = searchTerm.toLowerCase();
-        return sortedTeachers.filter(teacher => (
-            teacher?.vorname?.toLowerCase().includes(searchLower) ||
-            teacher?.nachname?.toLowerCase().includes(searchLower) ||
-            teacher?.klasse?.toLowerCase().includes(searchLower)
-        ));
-    }, [sortedTeachers, searchTerm]);
+    const filteredTeachers = filteredData;
 
     return (
         <div className={styles.container}>

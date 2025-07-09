@@ -20,10 +20,10 @@ const getMaxId = (db) => {
 
 const insertStudent = (db, student, newId) => {
   return new Promise((resolve, reject) => {
-    const insertQuery = `INSERT INTO students (id, vorname, nachname, klasse) VALUES (?, ?, ?, ?)`;
+    const insertQuery = `INSERT INTO students (id, vorname, nachname, geschlecht, klasse) VALUES (?, ?, ?, ?, ?)`;
     db.run(
       insertQuery,
-      [newId, student.vorname, student.nachname, student.klasse],
+      [newId, student.vorname, student.nachname, student.geschlecht, student.klasse],
       (err) => {
         if (err) {
           reject(err);
@@ -53,15 +53,55 @@ export default async function handler(req, res) {
       const worksheet = workbook.worksheets[0];
 
       const data = [];
+      const errors = [];
+
       worksheet.eachRow((row, rowNumber) => {
         if (rowNumber > 1) {
-          data.push({
-            vorname: row.getCell(1).value,
-            nachname: row.getCell(2).value,
-            klasse: row.getCell(3).value
-          });
+          // Expected Excel column order: Vorname, Nachname, Geschlecht, Klasse
+          const vorname = row.getCell(1).value?.toString()?.trim();
+          const nachname = row.getCell(2).value?.toString()?.trim();
+          const geschlecht = row.getCell(3).value?.toString()?.trim();
+          const klasse = row.getCell(4).value?.toString()?.trim();
+
+          // Validate all required fields are present
+          const rowErrors = [];
+          if (!vorname) rowErrors.push('Vorname fehlt');
+          if (!nachname) rowErrors.push('Nachname fehlt');
+          if (!geschlecht) rowErrors.push('Geschlecht fehlt');
+          if (!klasse) rowErrors.push('Klasse fehlt');
+
+          // Validate geschlecht value
+          if (geschlecht && !['männlich', 'weiblich', 'divers'].includes(geschlecht.toLowerCase())) {
+            rowErrors.push(`Ungültiges Geschlecht: "${geschlecht}". Erlaubt: männlich, weiblich, divers`);
+          }
+
+          if (rowErrors.length > 0) {
+            errors.push(`Zeile ${rowNumber}: ${rowErrors.join(', ')}`);
+          } else {
+            data.push({
+              vorname,
+              nachname,
+              geschlecht: geschlecht.toLowerCase(),
+              klasse
+            });
+          }
         }
       });
+
+      // If there are validation errors, return them
+      if (errors.length > 0) {
+        return res.status(400).json({
+          message: 'Validierungsfehler in Excel-Datei',
+          errors: errors
+        });
+      }
+
+      // If no data rows found
+      if (data.length === 0) {
+        return res.status(400).json({
+          message: 'Keine gültigen Datenzeilen in Excel-Datei gefunden'
+        });
+      }
 
       const db = new sqlite3.Database('./data/database.db');
 

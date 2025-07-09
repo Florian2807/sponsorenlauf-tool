@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import styles from '../styles/Show.module.css';
-import { formatDate, timeAgo } from '/utils/globalFunctions';
+import { formatDate, timeAgo, API_ENDPOINTS } from '../utils/constants';
+import { useApi } from '../hooks/useApi';
 
 export default function Show() {
   const [id, setID] = useState('');
@@ -11,41 +11,46 @@ export default function Show() {
   const [messageType, setMessageType] = useState('');
   const [studentInfo, setStudentInfo] = useState(null);
 
+  const { request, loading, error } = useApi();
   const inputRef = useRef(null);
 
   useEffect(() => {
     inputRef.current.focus();
   }, []);
 
-  const handleSubmit = async (event) => {
+  const cleanId = useCallback((rawId) => {
+    return rawId.replace(new RegExp(`${new Date().getFullYear()}[ß/\\-]`, 'gm'), '');
+  }, []);
+
+  const handleSubmit = useCallback(async (event) => {
     event.preventDefault();
+    const cleanedId = cleanId(id);
 
     try {
-      const response = await axios.get(`/api/students/${id.replace(new RegExp(`${new Date().getFullYear()}[ß/\\-]`, 'gm'), '')}`);
-      if (response.status === 200) {
-        setStudentInfo(response.data);
-        setCurrentTimestamp(new Date());
-        setID('');
-        setMessage('');
-      } else {
-        setID('');
-        setStudentInfo(null);
-        setMessage('Schüler nicht gefunden');
-        setMessageType('error');
-      }
+      const data = await request(`/api/students/${cleanedId}`);
+      setStudentInfo(data);
+      setCurrentTimestamp(new Date());
+      setID('');
+      setMessage('');
+      setMessageType('');
     } catch (error) {
       setID('');
       setStudentInfo(null);
       setMessage('Schüler nicht gefunden');
       setMessageType('error');
     }
-  };
+  }, [id, cleanId, request]);
 
-  const handleDeleteTimestamp = async (selectedStudent, indexToRemove) => {
+  const handleDeleteTimestamp = useCallback(async (selectedStudent, indexToRemove) => {
     const updatedTimestamps = selectedStudent.timestamps.filter((_, index) => index !== indexToRemove);
+    const cleanedId = cleanId(savedID);
+
     try {
-      await axios.put(`/api/students/${savedID.replace(new RegExp(`${new Date().getFullYear()}[ß/\\-]`, 'gm'), '')}`, { timestamps: updatedTimestamps });
-      setStudentInfo((prevStudentInfo) => ({
+      await request(`/api/students/${cleanedId}`, {
+        method: 'PUT',
+        data: { timestamps: updatedTimestamps }
+      });
+      setStudentInfo(prevStudentInfo => ({
         ...prevStudentInfo,
         timestamps: updatedTimestamps,
       }));
@@ -53,7 +58,7 @@ export default function Show() {
       setMessage('Fehler beim Löschen des Zeitstempels');
       setMessageType('error');
     }
-  };
+  }, [cleanId, savedID, request]);
 
   return (
     <div className={styles.container}>
@@ -79,6 +84,7 @@ export default function Show() {
           <h2>Schüler-Informationen</h2>
           <p><strong>Klasse:</strong> {studentInfo.klasse}</p>
           <p><strong>Name:</strong> {studentInfo.vorname} {studentInfo.nachname}</p>
+          <p><strong>Geschlecht:</strong> {studentInfo.geschlecht || 'Nicht angegeben'}</p>
           <p><strong>Gelaufene Runden:</strong> {studentInfo.timestamps.length}</p>
 
           {studentInfo.timestamps && studentInfo.timestamps.length > 0 && (

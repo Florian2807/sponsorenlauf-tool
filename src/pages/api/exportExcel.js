@@ -11,10 +11,11 @@ const getClassData = () => {
         s.klasse, 
         s.vorname, 
         s.nachname,
+        s.geschlecht,
         COUNT(r.id) as rounds
       FROM students s
       LEFT JOIN rounds r ON s.id = r.student_id
-      GROUP BY s.id, s.klasse, s.vorname, s.nachname
+      GROUP BY s.id, s.klasse, s.vorname, s.nachname, s.geschlecht
       ORDER BY s.klasse, s.nachname
     `, (err, rows) => {
       if (err) {
@@ -27,6 +28,8 @@ const getClassData = () => {
           acc[row.klasse].push({
             vorname: row.vorname,
             nachname: row.nachname,
+            geschlecht: row.geschlecht || 'Nicht angegeben',
+            klasse: row.klasse,
             rounds: row.rounds,
           });
 
@@ -54,6 +57,8 @@ export default async function handler(req, res) {
         worksheet.columns = [
           { header: 'Vorname', key: 'vorname', width: 20 },
           { header: 'Nachname', key: 'nachname', width: 20 },
+          { header: 'Geschlecht', key: 'geschlecht', width: 15 },
+          { header: 'Klasse', key: 'klasse', width: 15 },
           { header: 'Runden', key: 'rounds', width: 10 },
         ];
 
@@ -61,6 +66,8 @@ export default async function handler(req, res) {
           worksheet.addRow({
             vorname: student.vorname,
             nachname: student.nachname,
+            geschlecht: student.geschlecht,
+            klasse: student.klasse,
             rounds: student.rounds,
           });
         });

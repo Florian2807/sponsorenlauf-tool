@@ -1,7 +1,9 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
-import axios, { all } from 'axios';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import styles from '../styles/Manage.module.css';
-import { formatDate } from '/utils/globalFunctions';
+import { getNextId, API_ENDPOINTS } from '../utils/constants';
+import { useApi } from '../hooks/useApi';
+import { useSortableTable } from '../hooks/useSortableTable';
+import { useSearch } from '../hooks/useSearch';
 import EditStudentDialog from '../components/dialogs/manage/EditStudentDialog';
 import AddReplacementDialog from '../components/dialogs/manage/AddReplacementDialog';
 import AddStudentDialog from '../components/dialogs/manage/AddStudentDialog';
@@ -10,14 +12,13 @@ import ConfirmDeleteDialog from '../components/dialogs/manage/ConfirmDeleteDialo
 export default function Manage() {
   const [students, setStudents] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState(null);
-  const [editVorname, setEditVorname] = useState('');
-  const [editNachname, setEditNachname] = useState('');
-  const [editKlasse, setEditKlasse] = useState('');
+  const [editForm, setEditForm] = useState({ vorname: '', nachname: '', klasse: '', geschlecht: 'männlich' });
   const [newStudent, setNewStudent] = useState({
     id: '',
     vorname: '',
     nachname: '',
     klasse: '',
+    geschlecht: 'männlich',
     timestamps: [],
     replacements: [],
     spenden: null,
@@ -25,10 +26,11 @@ export default function Manage() {
   });
   const [newReplacement, setNewReplacement] = useState('');
   const [message, setMessage] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState('id');
-  const [sortDirection, setSortDirection] = useState('asc');
   const [availableClasses, setAvailableClasses] = useState([]);
+
+  const { request, loading, error } = useApi();
+  const { sortData, sortedData } = useSortableTable(students, availableClasses);
+  const { searchTerm, setSearchTerm, filteredData } = useSearch(sortedData);
 
   const editStudentPopup = useRef(null);
   const addStudentPopup = useRef(null);
@@ -40,150 +42,123 @@ export default function Manage() {
     fetchAvailableClasses();
   }, []);
 
-  const fetchAvailableClasses = async () => {
+  const fetchAvailableClasses = useCallback(async () => {
     try {
-      const response = await axios.get('/api/getAvailableClasses');
-      setAvailableClasses(response.data);
+      const data = await request(API_ENDPOINTS.CLASSES);
+      setAvailableClasses(data);
     } catch (error) {
       console.error('Error fetching available classes:', error);
     }
-  };
+  }, [request]);
 
-  useEffect(() => {
-    fetchStudents();
-  }, []);
-
-  const fetchStudents = async () => {
+  const fetchStudents = useCallback(async () => {
     try {
-      const response = await axios.get('/api/getAllStudents');
-      setStudents(response.data);
+      const data = await request(API_ENDPOINTS.STUDENTS);
+      setStudents(data);
     } catch (error) {
       console.error('Error fetching students:', error);
     }
-  };
+  }, [request]);
 
-  const sortStudentsFunc = (field) => {
-    const direction = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
-    setSortField(field);
-    setSortDirection(direction);
-  };
-
-  const sortedStudents = useMemo(() => {
-    const sorted = [...students];
-    sorted.sort((a, b) => {
-      const aValue = a[sortField];
-      const bValue = b[sortField];
-
-      if (sortField === 'klasse') {
-        const aClass = allPossibleClasses.indexOf(aValue);
-        const bClass = allPossibleClasses.indexOf(bValue);
-        return sortDirection === 'asc' ? aClass - bClass : bClass - aClass;
-      }
-
-      if (sortField === 'id') {
-        return sortDirection === 'asc'
-          ? parseInt(aValue) - parseInt(bValue)
-          : parseInt(bValue) - parseInt(aValue);
-      }
-
-      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
-      return 0;
-    });
-    return sorted;
-  }, [students, sortField, sortDirection]);
-
-  const editStudentClick = (student) => {
+  const editStudentClick = useCallback((student) => {
     setSelectedStudent(student);
-    setEditVorname(student.vorname);
-    setEditNachname(student.nachname);
-    setEditKlasse(student.klasse);
+    setEditForm({
+      vorname: student.vorname,
+      nachname: student.nachname,
+      klasse: student.klasse,
+      geschlecht: student.geschlecht || 'männlich'
+    });
     editStudentPopup.current.showModal();
-  };
+  }, []);
 
-  const deleteTimestamp = (indexToRemove) => {
-    const updatedTimestamps = selectedStudent.timestamps.filter((_, index) => index !== indexToRemove);
-    setSelectedStudent((prev) => ({
+  const deleteTimestamp = useCallback((indexToRemove) => {
+    if (!selectedStudent) return;
+
+    setSelectedStudent(prev => ({
       ...prev,
-      timestamps: updatedTimestamps
+      timestamps: prev.timestamps.filter((_, index) => index !== indexToRemove)
     }));
-  };
+  }, [selectedStudent]);
 
-  const addReplacementID = async () => {
-    const updatedReplacements = [...selectedStudent.replacements, newReplacement];
+  const addReplacementID = useCallback(async () => {
+    if (!selectedStudent || selectedStudent.replacements.includes(newReplacement)) {
+      setMessage('Ersatz-ID ist bereits vergeben');
+      return;
+    }
+
     try {
-      const response = await axios.get(`/api/checkReplacement/${newReplacement}`);
-      if (response.data.success) {
-        if (selectedStudent.replacements.includes(newReplacement)) {
-          setMessage('Ersatz-ID ist bereits vergeben');
-          return;
-        }
-        setMessage('');
-        setSelectedStudent((prev) => ({
+      const data = await request(`/api/checkReplacement/${newReplacement}`);
+      if (data.success) {
+        setSelectedStudent(prev => ({
           ...prev,
-          replacements: updatedReplacements
+          replacements: [...prev.replacements, newReplacement]
         }));
         addReplacementPopup.current.close();
+        setMessage('');
       } else {
-        setMessage(response.data.message);
+        setMessage(data.message);
       }
     } catch (error) {
       console.error('Error adding replacement:', error);
     }
-  };
+  }, [request, selectedStudent, newReplacement]);
 
-  const deleteReplacement = (indexToRemove) => {
-    const updatedReplacements = selectedStudent.replacements.filter((_, index) => index !== indexToRemove);
-    setSelectedStudent((prev) => ({
+  const deleteReplacement = useCallback((indexToRemove) => {
+    if (!selectedStudent) return;
+
+    setSelectedStudent(prev => ({
       ...prev,
-      replacements: updatedReplacements
+      replacements: prev.replacements.filter((_, index) => index !== indexToRemove)
     }));
-  };
+  }, [selectedStudent]);
 
-  const editStudent = async (e) => {
+  const editStudent = useCallback(async (e) => {
     e.preventDefault();
+    if (!selectedStudent) return;
+
     const updatedStudent = {
-      id: selectedStudent.id,
-      vorname: editVorname,
-      nachname: editNachname,
-      klasse: editKlasse,
-      timestamps: selectedStudent.timestamps,
-      replacements: selectedStudent.replacements
+      ...selectedStudent,
+      ...editForm
     };
 
     try {
-      const response = await axios.put(`/api/students/${selectedStudent.id}`, updatedStudent);
-      if (response.data.success) {
-        const updatedStudents = students.map((student) =>
+      const data = await request(`/api/students/${selectedStudent.id}`, {
+        method: 'PUT',
+        data: updatedStudent
+      });
+
+      if (data.success) {
+        setStudents(prev => prev.map(student =>
           student.id === selectedStudent.id ? updatedStudent : student
-        );
-        setStudents(updatedStudents);
+        ));
         setSelectedStudent(null);
         editStudentPopup.current.close();
       }
     } catch (error) {
       console.error('Error saving changes:', error);
     }
-  };
+  }, [request, selectedStudent, editForm]);
 
-  const deleteStudent = async () => {
+  const deleteStudent = useCallback(async () => {
+    if (!selectedStudent) return;
+
     try {
-      await axios.delete(`/api/students/${selectedStudent.id}`);
-      setStudents(students.filter(student => student.id !== selectedStudent.id));
+      await request(`/api/students/${selectedStudent.id}`, { method: 'DELETE' });
+      setStudents(prev => prev.filter(student => student.id !== selectedStudent.id));
       setSelectedStudent(null);
       editStudentPopup.current.close();
     } catch (error) {
       console.error('Error deleting student:', error);
     }
-  };
+  }, [request, selectedStudent]);
 
   const addStudentClick = () => {
-    const highestId = Math.max(...students.map(s => parseInt(s.id, 10)), 0);
     setNewStudent({
-      id: (highestId + 1).toString(),
+      id: getNextId(students).toString(),
       vorname: '',
       nachname: '',
       klasse: '',
+      geschlecht: 'männlich',
       timestamps: [],
       replacements: [],
       spenden: null,
@@ -192,14 +167,18 @@ export default function Manage() {
     addStudentPopup.current.showModal();
   };
 
-  const addStudentChangeField = (e) => {
-    setNewStudent({ ...newStudent, [e.target.name]: e.target.value });
-  };
+  const addStudentChangeField = useCallback((e) => {
+    const { name, value } = e.target;
+    setNewStudent(prev => ({ ...prev, [name]: value }));
+  }, []);
 
-  const addStudentSubmit = async (e) => {
+  const addStudentSubmit = useCallback(async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`/api/students/${newStudent.id}`, newStudent);
+      await request(`/api/students/${newStudent.id}`, {
+        method: 'POST',
+        data: newStudent
+      });
       fetchStudents();
       addStudentPopup.current.close();
       setNewStudent({
@@ -207,6 +186,7 @@ export default function Manage() {
         vorname: '',
         nachname: '',
         klasse: '',
+        geschlecht: 'männlich',
         timestamps: [],
         replacements: [],
         spenden: null,
@@ -215,16 +195,9 @@ export default function Manage() {
     } catch (error) {
       console.error('Error adding student:', error);
     }
-  };
+  }, [request, newStudent, fetchStudents]);
 
-  const filteredStudents = useMemo(() => {
-    const searchLower = searchTerm.toLowerCase();
-    return sortedStudents.filter(student => (
-      student?.vorname?.toLowerCase().includes(searchLower) ||
-      student?.nachname?.toLowerCase().includes(searchLower) ||
-      student?.klasse?.toLowerCase().includes(searchLower)
-    ));
-  }, [sortedStudents, searchTerm]);
+  const filteredStudents = filteredData;
 
   return (
     <div className={styles.container}>
@@ -242,11 +215,12 @@ export default function Manage() {
       <table className={styles.table}>
         <thead>
           <tr>
-            <th className={`${styles.sortable} ${sortField === 'id' ? styles[sortDirection] : ''}`} onClick={() => sortStudentsFunc('id')}>ID</th>
-            <th className={`${styles.sortable} ${sortField === 'klasse' ? styles[sortDirection] : ''}`} onClick={() => sortStudentsFunc('klasse')}>Klasse</th>
-            <th className={`${styles.sortable} ${sortField === 'vorname' ? styles[sortDirection] : ''}`} onClick={() => sortStudentsFunc('vorname')}>Vorname</th>
-            <th className={`${styles.sortable} ${sortField === 'nachname' ? styles[sortDirection] : ''}`} onClick={() => sortStudentsFunc('nachname')}>Nachname</th>
-            <th className={`${styles.sortable} ${sortField === 'timestamps' ? styles[sortDirection] : ''}`} onClick={() => sortStudentsFunc('timestamps')}>Runden</th>
+            <th className={`${styles.sortable}`} onClick={() => sortData('id')}>ID</th>
+            <th className={`${styles.sortable}`} onClick={() => sortData('klasse')}>Klasse</th>
+            <th className={`${styles.sortable}`} onClick={() => sortData('vorname')}>Vorname</th>
+            <th className={`${styles.sortable}`} onClick={() => sortData('nachname')}>Nachname</th>
+            <th className={`${styles.sortable}`} onClick={() => sortData('geschlecht')}>Geschlecht</th>
+            <th className={`${styles.sortable}`} onClick={() => sortData('timestamps')}>Runden</th>
             <th>Aktion</th>
           </tr>
         </thead>
@@ -257,6 +231,7 @@ export default function Manage() {
               <td>{student.klasse}</td>
               <td>{student.vorname}</td>
               <td>{student.nachname}</td>
+              <td>{student.geschlecht || 'Nicht angegeben'}</td>
               <td>{student.timestamps.length}</td>
               <td>
                 <button onClick={() => editStudentClick(student)}>Bearbeiten</button>
@@ -269,12 +244,8 @@ export default function Manage() {
       <EditStudentDialog
         dialogRef={editStudentPopup}
         selectedStudent={selectedStudent}
-        editVorname={editVorname}
-        setEditVorname={setEditVorname}
-        editNachname={editNachname}
-        setEditNachname={setEditNachname}
-        editKlasse={editKlasse}
-        setEditKlasse={setEditKlasse}
+        editForm={editForm}
+        setEditForm={setEditForm}
         availableClasses={availableClasses}
         deleteTimestamp={deleteTimestamp}
         deleteReplacement={deleteReplacement}

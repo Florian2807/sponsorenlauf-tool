@@ -1,6 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import styles from '../styles/Setup.module.css';
-import axios from 'axios';
+import { API_ENDPOINTS, downloadFile } from '../utils/constants';
+import { useApi } from '../hooks/useApi';
+import { useAsyncOperation } from '../hooks/useAsyncOperation';
 import GenerateLabelsDialog from '../components/dialogs/setup/GenerateLabelsDialog';
 import ImportExcelDialog from '../components/dialogs/setup/ImportExcelDialog';
 import ExportSpendenDialog from '../components/dialogs/setup/ExportSpendenDialog';
@@ -11,12 +13,19 @@ export default function Setup() {
     const [file, setFile] = useState(null);
     const [message, setMessage] = useState({ download: '', upload: '', replacement: '', delete: '' });
     const [insertedCount, setInsertedCount] = useState(0);
-    const [loading, setLoading] = useState({ upload: false, labels: false, replacement: false, downloadResults: false });
     const [replacementAmount, setReplacementAmount] = useState(0);
     const [classes, setClasses] = useState([]);
     const [selectedClasses, setSelectedClasses] = useState([]);
     const [classStructure, setClassStructure] = useState({});
     const [tempClassStructure, setTempClassStructure] = useState({});
+
+    const { request } = useApi();
+    const { loading, executeAsync, setLoadingState } = useAsyncOperation({
+        upload: false,
+        labels: false,
+        replacement: false,
+        downloadResults: false
+    });
 
     const generateLabelsPopup = useRef(null);
     const confirmDeletePopup = useRef(null);
@@ -24,38 +33,32 @@ export default function Setup() {
     const exportSpendenPopup = useRef(null);
     const classStructurePopup = useRef(null);
 
+    const fetchClasses = useCallback(async () => {
+        try {
+            const data = await request('/api/getClasses');
+            setClasses(data);
+        } catch (error) {
+            console.error('Fehler beim Abrufen der Klassen:', error);
+        }
+    }, [request]);
+
+    const fetchClassStructure = useCallback(async () => {
+        try {
+            const data = await request(API_ENDPOINTS.CLASS_STRUCTURE);
+            setClassStructure(data);
+            setSelectedClasses(Object.values(data).flat());
+        } catch (error) {
+            console.error('Fehler beim Abrufen der Klassenstruktur:', error);
+        }
+    }, [request]);
+
     useEffect(() => {
-        const fetchClasses = async () => {
-            try {
-                const response = await axios.get('/api/getClasses');
-                setClasses(response.data);
-            } catch (error) {
-                console.error('Fehler beim Abrufen der Klassen:', error);
-            }
-        };
-
-        const fetchClassStructure = async () => {
-            try {
-                const response = await axios.get('/api/classStructure');
-                setClassStructure(response.data);
-                setSelectedClasses(Object.values(response.data).flat());
-            } catch (error) {
-                console.error('Fehler beim Abrufen der Klassenstruktur:', error);
-            }
-        };
-
         fetchClasses();
         fetchClassStructure();
-    }, []);
+    }, [fetchClasses, fetchClassStructure]);
 
-    const updateMessage = (update = {}) => {
-        setMessage((prev) => ({
-            ...prev,
-            ...Object.keys(prev).reduce((acc, key) => {
-                acc[key] = update[key] || '';
-                return acc;
-            }, {})
-        }));
+    const updateMessage = (updates = {}) => {
+        setMessage(prev => ({ ...prev, ...updates }));
     };
 
     const handleFileChange = (e) => {
@@ -64,110 +67,94 @@ export default function Setup() {
         updateMessage();
     };
 
-    const handleUploadExcel = async (e) => {
+    const handleUploadExcel = useCallback(async (e) => {
         e.preventDefault();
         if (!file) {
             updateMessage({ upload: 'Bitte wählen Sie eine Excel-Datei aus.' });
             return;
         }
 
-        setLoading((prev) => ({ ...prev, upload: true }));
-        const formData = new FormData();
-        formData.append('file', file);
+        const uploadOperation = async () => {
+            const formData = new FormData();
+            formData.append('file', file);
 
-        try {
-            const importResponse = await fetch('/api/uploadExcel', {
+            const response = await fetch(API_ENDPOINTS.UPLOAD_EXCEL, {
                 method: 'POST',
                 body: formData,
             });
 
-            if (!importResponse.ok) {
-                const errorData = await importResponse.json();
-                updateMessage({ upload: `Fehler beim Importieren der Excel-Datei: ${errorData.message}` });
-                setLoading((prev) => ({ ...prev, upload: false }));
-                return;
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`Fehler beim Importieren der Excel-Datei: ${errorData.message}`);
             }
 
-            const responseData = await importResponse.json();
+            return response.json();
+        };
+
+        try {
+            const responseData = await executeAsync(uploadOperation, 'upload');
             setInsertedCount(responseData.count);
             updateMessage({ upload: `Excel-Datei erfolgreich hochgeladen und ${responseData.count} Datensätze in die Datenbank eingefügt.` });
         } catch (error) {
             console.error('Fehler:', error);
-            updateMessage({ upload: 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.' });
-        } finally {
-            setLoading((prev) => ({ ...prev, upload: false }));
+            updateMessage({ upload: error.message || 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.' });
         }
-    };
+    }, [file, executeAsync]);
 
-    const handleGenerateLabels = async () => {
-        setLoading((prev) => ({ ...prev, labels: true }));
+    const handleGenerateLabels = useCallback(async () => {
         updateMessage({ download: 'Etiketten werden generiert...' });
 
-        try {
-            const response = await axios.get('/api/generate-labels', {
+        const generateOperation = async () => {
+            const response = await request(API_ENDPOINTS.GENERATE_LABELS, {
                 responseType: 'blob',
-                params: { replacementAmount, selectedClasses: selectedClasses.join(',') }
+                params: {
+                    replacementAmount,
+                    selectedClasses: selectedClasses.join(',')
+                }
             });
-            if (response.status === 200) {
-                const url = window.URL.createObjectURL(new Blob([response.data]));
-                const link = document.createElement('a');
-                link.href = url;
-                link.setAttribute('download', 'labels.pdf');
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+            return response;
+        };
 
-                updateMessage({ download: 'Etiketten erfolgreich generiert und heruntergeladen.' });
-            } else {
-                updateMessage({ download: 'Fehler beim Generieren der Etiketten.' });
-            }
+        try {
+            const response = await executeAsync(generateOperation, 'labels');
+            downloadFile(response, 'labels.pdf');
+            updateMessage({ download: 'Etiketten erfolgreich generiert und heruntergeladen.' });
         } catch (error) {
             console.error('Fehler:', error);
             updateMessage({ download: 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.' });
-        } finally {
-            setLoading((prev) => ({ ...prev, labels: false }));
         }
-    };
+    }, [replacementAmount, selectedClasses, request, executeAsync]);
 
-    const handleDeleteAllStudents = async () => {
+    const handleDeleteAllStudents = useCallback(async () => {
         try {
-            const response = await axios.delete('/api/deleteAllStudents');
-
-            if (response.status === 200) {
-                updateMessage({ delete: 'Alle Schüler wurden erfolgreich gelöscht.' });
-            } else {
-                updateMessage({ delete: 'Fehler beim Löschen der Schüler.' });
-            }
+            const data = await request(API_ENDPOINTS.DELETE_ALL_STUDENTS, { method: 'DELETE' });
+            updateMessage({ delete: 'Alle Schüler wurden erfolgreich gelöscht.' });
         } catch (error) {
             console.error('Fehler:', error);
             updateMessage({ delete: 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.' });
         } finally {
             confirmDeletePopup.current.close();
         }
-    };
+    }, [request]);
 
-    const downloadResults = async (type) => {
-        setLoading((prev) => ({ ...prev, downloadResults: true }));
+    const downloadResults = useCallback(async (type) => {
+        const downloadOperation = async () => {
+            const response = await request(API_ENDPOINTS.EXPORT_SPENDEN, {
+                responseType: 'blob',
+                params: { requestedType: type }
+            });
+            return response;
+        };
+
         try {
-            const response = await axios.get('/api/exportSpenden', { responseType: 'blob', params: { requestedType: type } });
-
-            if (response.status === 200) {
-                const url = window.URL.createObjectURL(new Blob([response.data]));
-                const link = document.createElement('a');
-                link.href = url;
-                link.setAttribute('download', type === 'allstudents' ? 'Auswertung_Gesamt.xlsx' : 'Auswertung_Klassen.xlsx');
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            } else {
-                updateMessage({ download: 'Fehler beim Herunterladen der Excel-Datei.' });
-            }
+            const response = await executeAsync(downloadOperation, 'downloadResults');
+            const filename = type === 'allstudents' ? 'Auswertung_Gesamt.xlsx' : 'Auswertung_Klassen.xlsx';
+            downloadFile(response, filename);
         } catch (error) {
             console.error('Fehler:', error);
-            updateMessage({ download: 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.' });
+            updateMessage({ download: 'Fehler beim Herunterladen der Excel-Datei.' });
         }
-        setLoading((prev) => ({ ...prev, downloadResults: false }));
-    };
+    }, [request, executeAsync]);
 
     const handleClassSelection = (e) => {
         const value = e.target.value;
@@ -241,13 +228,16 @@ export default function Setup() {
             ...tempClassStructure,
             [grade]: newClasses
         });
-    }; const saveClassStructure = async () => {
+    };
+
+    const saveClassStructure = useCallback(async () => {
         try {
-            const response = await axios.put('/api/classStructure', {
-                availableClasses: tempClassStructure
+            const data = await request(API_ENDPOINTS.CLASS_STRUCTURE, {
+                method: 'PUT',
+                data: { availableClasses: tempClassStructure }
             });
 
-            if (response.data.success) {
+            if (data.success) {
                 setClassStructure(tempClassStructure);
                 setSelectedClasses(Object.values(tempClassStructure).flat());
                 updateMessage({ upload: 'Klassenstruktur erfolgreich gespeichert.' });
@@ -257,7 +247,7 @@ export default function Setup() {
             console.error('Fehler beim Speichern der Klassenstruktur:', error);
             updateMessage({ upload: 'Fehler beim Speichern der Klassenstruktur.' });
         }
-    };
+    }, [request, tempClassStructure]);
 
     return (
         <div className={styles.container}>

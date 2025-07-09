@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import styles from '../styles/Donations.module.css';
+import { API_ENDPOINTS } from '../utils/constants';
+import { useApi } from '../hooks/useApi';
 
 export default function AddDonations() {
     const [students, setStudents] = useState([]);
@@ -11,6 +12,8 @@ export default function AddDonations() {
     const [studentInfo, setStudentInfo] = useState(null);
     const [highlightedIndex, setHighlightedIndex] = useState(-1);
     const [isSpendenMode, setIsSpendenMode] = useState(false);
+
+    const { request, loading, error } = useApi();
     const inputRef = useRef(null);
 
     useEffect(() => {
@@ -20,8 +23,8 @@ export default function AddDonations() {
 
     const fetchStudents = async () => {
         try {
-            const response = await axios.get('/api/getAllStudents');
-            setStudents(response.data);
+            const data = await request(API_ENDPOINTS.STUDENTS);
+            setStudents(data);
         } catch (error) {
             console.error('Fehler beim Laden der Schüler:', error);
         }
@@ -72,10 +75,13 @@ export default function AddDonations() {
             return;
         }
         try {
-            await axios.post('/api/donations', {
-                studentId: student.id,
-                amount,
-                isSpendenMode
+            await request(API_ENDPOINTS.DONATIONS, {
+                method: 'POST',
+                data: {
+                    studentId: student.id,
+                    amount,
+                    isSpendenMode
+                }
             });
             setMessage(isSpendenMode ? 'Erwartete Spende erfolgreich aktualisiert.' : 'Erhaltene Spende erfolgreich hinzugefügt.');
             setSelectedStudent('');
@@ -90,13 +96,8 @@ export default function AddDonations() {
 
     const fetchStudentInfo = async (studentId) => {
         try {
-            const response = await axios.get(`/api/students/${studentId}`);
-            if (response.status === 200) {
-                setStudentInfo(response.data);
-            } else {
-                setStudentInfo(null);
-                setMessage('Schüler nicht gefunden');
-            }
+            const response = await request(`/api/students/${studentId}`);
+            setStudentInfo(response);
         } catch (error) {
             setStudentInfo(null);
             setMessage('Schüler nicht gefunden');
@@ -105,7 +106,8 @@ export default function AddDonations() {
 
     const handleDeleteDonation = async (donationId, type) => {
         try {
-            await axios.delete('/api/donations', {
+            await request(API_ENDPOINTS.DONATIONS, {
+                method: 'DELETE',
                 data: { donationId, type }
             });
             setMessage('Spende erfolgreich gelöscht.');
@@ -196,6 +198,7 @@ export default function AddDonations() {
                     <h2>Schüler-Informationen</h2>
                     <p><strong>Klasse:</strong> {studentInfo.klasse}</p>
                     <p><strong>Name:</strong> {studentInfo.vorname} {studentInfo.nachname}</p>
+                    <p><strong>Geschlecht:</strong> {studentInfo.geschlecht || 'Nicht angegeben'}</p>
                     <p><strong>Runden:</strong> {studentInfo.timestamps.length}</p>
                     <p><strong>erwartete Spenden:</strong> {formatCurrency(studentInfo.spenden ?? 0)}</p>
                     <p><strong>erhaltene Spenden:</strong> {formatCurrency(studentInfo.spendenKonto.reduce((a, b) => a + b, 0))}</p>

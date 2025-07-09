@@ -1,0 +1,131 @@
+/* BaseDialog Styles - Global CSS für alle Dialog-Komponenten */
+
+.popup {
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border: none;
+  width: 90%;
+  max-width: 600px;
+  max-height: 70%;
+  background: #fff;
+  padding: 2rem;
+  overflow-y: auto;
+}
+
+.popup::backdrop {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.popup p {
+  text-align: left;
+}
+
+.popup h2 {
+  margin-bottom: 1rem;
+}
+
+.popupButtons {
+  display: flex;
+  justify-content: space-between;
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: #fff;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  margin-top: 1rem;
+}
+
+.popupButtons button {
+  background-color: #4a90e2;
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  font-size: 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.popupButtons button:hover {
+  background-color: #357abd;
+}
+
+.redButton {
+  background-color: #e94e77 !important;
+  color: #fff;
+}
+
+.redButton:hover {
+  background-color: #d43f5e !important;
+}
+
+.closeButtonX {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #333;
+}
+
+.closeButtonX:hover {
+  color: #000;
+}
+
+/* Size variants */
+.max-w-md {
+  max-width: 28rem;
+}
+
+.max-w-lg {
+  max-width: 32rem;
+}
+
+.max-w-2xl {
+  max-width: 42rem;
+}
+
+/* Form styles für Dialog-Inhalte */
+.popup form {
+  display: flex;
+  flex-direction: column;
+}
+
+.popup label {
+  margin-bottom: 0.5rem;
+  font-weight: bold;
+}
+
+.popup input,
+.popup select,
+.popup textarea {
+  padding: 8px;
+  margin-bottom: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.popup input:focus,
+.popup select:focus,
+.popup textarea:focus {
+  outline: none;
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.1);
+}
+
+.popup select {
+  background-color: white;
+  cursor: pointer;
+}
+
+.errorMessage {
+  color: #e94e77;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}

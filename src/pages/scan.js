@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import styles from '../styles/Scan.module.css';
-import { formatDate, timeAgo } from '/utils/globalFunctions';
+import { formatDate, timeAgo } from '../utils/constants';
+import { useApi } from '../hooks/useApi';
 import ErrorDialog from '../components/dialogs/scan/ErrorDialog';
 
 export default function Scan() {
@@ -11,6 +11,8 @@ export default function Scan() {
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
   const [studentInfo, setStudentInfo] = useState(null);
+
+  const { request, loading, error } = useApi();
   const inputRef = useRef(null);
   const popupRef = useRef(null);
 
@@ -25,31 +27,33 @@ export default function Scan() {
     };
 
     window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const handleInputChange = (e) => {
+  const cleanId = useCallback((rawId) => {
+    return rawId.replace(new RegExp(`${new Date().getFullYear()}[ß/\\-]`, 'gm'), '');
+  }, []);
+
+  const handleInputChange = useCallback((e) => {
     const newValue = e.target.value;
     setID(newValue);
     setSavedID(newValue);
-  };
+  }, []);
 
-  const handleSubmit = async (event) => {
+  const handleSubmit = useCallback(async (event) => {
     event.preventDefault();
+    const cleanedId = cleanId(id);
 
     try {
-      const response = await axios.post('/api/runden', {
-        id: id.replace(new RegExp(`${new Date().getFullYear()}[ß/\\-]`, 'gm'), ''), date: new Date()
+      const response = await request('/api/runden', {
+        method: 'POST',
+        data: { id: cleanedId, date: new Date() }
       });
 
-      if (response.data.success) {
-        const studentResponse = await axios.get(`/api/students/${id.replace(new RegExp(`${new Date().getFullYear()}[ß/\\-]`, 'gm'), '')}`);
-        setStudentInfo(studentResponse.data);
+      if (response.success) {
+        const studentData = await request(`/api/students/${cleanedId}`);
+        setStudentInfo(studentData);
         setCurrentTimestamp(new Date());
-
         setMessage('Runde erfolgreich gezählt!');
         setMessageType('success');
         setID('');
@@ -61,7 +65,7 @@ export default function Scan() {
       }
     } catch (error) {
       setID('');
-      if (error.response?.status === 404) {
+      if (error.message.includes('404')) {
         setMessage('Datensatz nicht gefunden');
         setMessageType('error');
       } else {
@@ -71,13 +75,18 @@ export default function Scan() {
       }
       setStudentInfo(null);
     }
-  };
+  }, [cleanId, id, request]);
 
-  const handleDeleteTimestamp = async (selectedStudent, indexToRemove) => {
+  const handleDeleteTimestamp = useCallback(async (selectedStudent, indexToRemove) => {
     const updatedTimestamps = selectedStudent.timestamps.filter((_, index) => index !== indexToRemove);
+    const cleanedId = cleanId(savedID);
+
     try {
-      await axios.put(`/api/students/${savedID.replace(new RegExp(`${new Date().getFullYear()}[ß/\\-]`, 'gm'), '')}`, { timestamps: updatedTimestamps });
-      setStudentInfo((prevStudentInfo) => ({
+      await request(`/api/students/${cleanedId}`, {
+        method: 'PUT',
+        data: { timestamps: updatedTimestamps }
+      });
+      setStudentInfo(prevStudentInfo => ({
         ...prevStudentInfo,
         timestamps: updatedTimestamps,
       }));
@@ -85,7 +94,7 @@ export default function Scan() {
       setMessage('Fehler beim Löschen des Zeitstempels');
       setMessageType('error');
     }
-  };
+  }, [cleanId, savedID, request]);
 
   return (
     <div className={styles.container}>

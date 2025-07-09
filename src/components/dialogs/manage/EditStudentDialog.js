@@ -1,16 +1,12 @@
 import React from 'react';
-import { formatDate } from '/utils/globalFunctions';
+import { formatDate } from '../../../utils/constants';
 import styles from '../../../styles/Manage.module.css';
 
 const EditStudentDialog = ({
     dialogRef,
     selectedStudent,
-    editVorname,
-    setEditVorname,
-    editNachname,
-    setEditNachname,
-    editKlasse,
-    setEditKlasse,
+    editForm,
+    setEditForm,
     availableClasses,
     deleteTimestamp,
     deleteReplacement,
@@ -20,6 +16,10 @@ const EditStudentDialog = ({
     confirmDeletePopup,
     editStudent
 }) => {
+    const handleInputChange = (field, value) => {
+        setEditForm(prev => ({ ...prev, [field]: value }));
+    };
+
     return (
         <dialog ref={dialogRef} className={styles.popup}>
             <button className={styles.closeButtonX} onClick={() => dialogRef.current.close()}>
@@ -31,25 +31,25 @@ const EditStudentDialog = ({
                 <label>ID:</label>
                 <input
                     type="text"
-                    value={selectedStudent?.id}
+                    value={selectedStudent?.id || ''}
                     disabled
                 />
                 <label>Vorname:</label>
                 <input
                     type="text"
-                    value={editVorname}
-                    onChange={(e) => setEditVorname(e.target.value)}
+                    value={editForm.vorname}
+                    onChange={(e) => handleInputChange('vorname', e.target.value)}
                 />
                 <label>Nachname:</label>
                 <input
                     type="text"
-                    value={editNachname}
-                    onChange={(e) => setEditNachname(e.target.value)}
+                    value={editForm.nachname}
+                    onChange={(e) => handleInputChange('nachname', e.target.value)}
                 />
                 <label>Klasse:</label>
                 <select
-                    value={editKlasse}
-                    onChange={(e) => setEditKlasse(e.target.value)}
+                    value={editForm.klasse}
+                    onChange={(e) => handleInputChange('klasse', e.target.value)}
                     className={styles.select}
                 >
                     <option value="">Klasse auswählen...</option>
@@ -58,6 +58,17 @@ const EditStudentDialog = ({
                             {className}
                         </option>
                     ))}
+                </select>
+
+                <label>Geschlecht:</label>
+                <select
+                    value={editForm.geschlecht}
+                    onChange={(e) => handleInputChange('geschlecht', e.target.value)}
+                    className={styles.select}
+                >
+                    <option value="männlich">Männlich</option>
+                    <option value="weiblich">Weiblich</option>
+                    <option value="divers">Divers</option>
                 </select>
             </div>
 

@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import axios from 'axios';
 import styles from '../styles/Statistics.module.css';
 import config from '../../data/config.json';
+import { formatCurrency, API_ENDPOINTS, downloadFile } from '../utils/constants';
+import { useApi } from '../hooks/useApi';
 
 const classOrder = Object.values(config.availableClasses).flat();
 
@@ -30,31 +31,30 @@ export default function Statistics() {
     topClassesOfGrades: { key: 'totalRounds', direction: 'descending' },
   });
 
+  const { request, loading, error } = useApi();
+
   useEffect(() => {
     const fetchStatistics = async () => {
       try {
-        const response = await axios.get('/api/statistics');
-        setStats(response.data);
+        const data = await request(API_ENDPOINTS.STATISTICS);
+        setStats(data);
       } catch (error) {
         console.error('Fehler beim Abrufen der Statistiken:', error);
       }
     };
     fetchStatistics();
-  }, []);
+  }, [request]);
 
-  const handleExport = async () => {
+  const handleExport = useCallback(async () => {
     try {
-      const response = await axios.get('/api/exportExcel', { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'class_statistics.zip');
-      document.body.appendChild(link);
-      link.click();
+      const response = await request(API_ENDPOINTS.EXPORT_EXCEL, {
+        responseType: 'blob'
+      });
+      downloadFile(response, 'class_statistics.zip');
     } catch (error) {
       console.error('Fehler beim Export der Excel-Dateien:', error);
     }
-  };
+  }, [request]);
 
   const handleSort = useCallback((section, key) => {
     setSortConfig((prevConfig) => {
@@ -103,9 +103,11 @@ export default function Statistics() {
     <div className={styles.container}>
       <h1 className={styles.header}>Statistiken</h1>
 
-      <button onClick={handleExport}>
-        Exportiere Excel-Tabellen
+      <button onClick={handleExport} disabled={loading}>
+        {loading ? 'Exportiere...' : 'Exportiere Excel-Tabellen'}
       </button>
+
+      {error && <p className={styles.error}>{error}</p>}
 
       <div className={styles.section}>
         <h2
@@ -298,9 +300,4 @@ export default function Statistics() {
   );
 }
 
-const formatCurrency = (value) => {
-  if (value === null || value === undefined) return '0,00€';
-  const numericValue = parseFloat(value).toFixed(2); // Konvertiere zu einer Zahl mit zwei Dezimalstellen
-  const [euros, cents] = numericValue.split('.'); // Teile die Zahl in Euros und Cents
-  return `${euros},${cents}€`; // Ersetze den Punkt durch ein Komma und füge das Euro-Zeichen hinzu
-};
+// Entferne die doppelte formatCurrency Funktion da sie jetzt in constants.js ist

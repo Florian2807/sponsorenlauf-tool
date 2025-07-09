@@ -1,5 +1,5 @@
 import React from 'react';
-import styles from '../../../styles/Manage.module.css';
+import BaseDialog from '../../BaseDialog';
 
 const AddReplacementDialog = ({
     dialogRef,
@@ -8,12 +8,24 @@ const AddReplacementDialog = ({
     message,
     addReplacementID
 }) => {
+    const actions = [
+        {
+            label: 'Abbrechen',
+            onClick: () => dialogRef.current.close()
+        },
+        {
+            label: 'Hinzufügen',
+            onClick: addReplacementID
+        }
+    ];
+
     return (
-        <dialog ref={dialogRef} className={styles.popup}>
-            <button className={styles.closeButtonX} onClick={() => dialogRef.current.close()}>
-                &times;
-            </button>
-            <h2>Ersatz-ID hinzufügen</h2>
+        <BaseDialog
+            dialogRef={dialogRef}
+            title="Ersatz-ID hinzufügen"
+            actions={actions}
+            showDefaultClose={false}
+        >
             <p>Füge eine Ersatz-ID zum Schüler hinzu</p>
             <input
                 type="number"
@@ -22,20 +34,8 @@ const AddReplacementDialog = ({
                 onChange={(e) => setNewReplacement(e.target.value)}
                 required
             />
-            {message && <p className={styles.errorMessage}>{message}</p>}
-            <div className={styles.popupButtons}>
-                <button
-                    onClick={() => dialogRef.current.close()}
-                >
-                    Abbrechen
-                </button>
-                <button
-                    onClick={addReplacementID}
-                >
-                    Hinzufügen
-                </button>
-            </div>
-        </dialog>
+            {message && <p className="errorMessage">{message}</p>}
+        </BaseDialog>
     );
 };
 

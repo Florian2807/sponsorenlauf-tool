@@ -2,12 +2,12 @@ import sqlite3 from 'sqlite3';
 
 const db = new sqlite3.Database('./data/database.db');
 
-const saveStudent = (id, vorname, nachname, klasse) => {
+const saveStudent = (id, vorname, nachname, klasse, geschlecht = null) => {
   return new Promise((resolve, reject) => {
     db.run(
-      `INSERT INTO students (id, vorname, nachname, klasse) 
-       VALUES (?, ?, ?, ?)`,
-      [id, vorname, nachname, klasse],
+      `INSERT INTO students (id, vorname, nachname, geschlecht, klasse) 
+       VALUES (?, ?, ?, ?, ?)`,
+      [id, vorname, nachname, geschlecht, klasse],
       function (err) {
         if (err) reject(err);
         resolve();
@@ -86,13 +86,13 @@ const getReceivedDonationsForStudent = (studentId) => {
   });
 };
 
-const updateStudent = (id, vorname, nachname, klasse) => {
+const updateStudent = (id, vorname, nachname, geschlecht, klasse) => {
   return new Promise((resolve, reject) => {
     db.run(
       `UPDATE students 
-       SET vorname = ?, nachname = ?, klasse = ?
+       SET vorname = ?, nachname = ?, geschlecht = ?, klasse = ?
        WHERE id = ?`,
-      [vorname, nachname, klasse, id],
+      [vorname, nachname, geschlecht, klasse, id],
       function (err) {
         if (err) reject(err);
         resolve();
@@ -223,14 +223,19 @@ export default async function handler(req, res) {
     }
 
   } else if (req.method === 'POST') {
-    const { vorname, nachname, klasse, timestamps, spenden, spendenKonto, replacements } = req.body;
+    const { vorname, nachname, klasse, geschlecht, timestamps, spenden, spendenKonto, replacements } = req.body;
 
     if (!id || !vorname || !nachname || !klasse) {
       return res.status(400).json({ error: 'ID, Vorname, Nachname und Klasse sind erforderlich' });
     }
 
+    // Validate geschlecht if provided
+    if (geschlecht && !['männlich', 'weiblich', 'divers'].includes(geschlecht)) {
+      return res.status(400).json({ error: 'Ungültiges Geschlecht. Erlaubt: männlich, weiblich, divers' });
+    }
+
     try {
-      await saveStudent(id, vorname, nachname, klasse);
+      await saveStudent(id, vorname, nachname, klasse, geschlecht || null);
 
       // Speichere die Runden in der separaten Tabelle
       if (timestamps && timestamps.length > 0) {
@@ -242,13 +247,13 @@ export default async function handler(req, res) {
       }
 
       res.status(201).json({
-        id, vorname, nachname, klasse, timestamps: timestamps || []
+        id, vorname, nachname, klasse, geschlecht: geschlecht || null, timestamps: timestamps || []
       });
     } catch (error) {
       res.status(500).json({ error: 'Fehler beim Speichern des Schülers' });
     }
   } else if (req.method === 'PUT') {
-    const { vorname, nachname, klasse, timestamps, spenden, spendenKonto, replacements } = req.body;
+    const { vorname, nachname, klasse, geschlecht, timestamps, spenden, spendenKonto, replacements } = req.body;
 
     try {
       const student = await getStudentById(id);
@@ -256,10 +261,16 @@ export default async function handler(req, res) {
         return res.status(404).json({ error: 'Schüler nicht gefunden' });
       }
 
+      // Validate geschlecht if provided
+      if (geschlecht && !['männlich', 'weiblich', 'divers'].includes(geschlecht)) {
+        return res.status(400).json({ error: 'Ungültiges Geschlecht. Erlaubt: männlich, weiblich, divers' });
+      }
+
       await updateStudent(
         id,
         vorname !== undefined ? vorname : student.vorname,
         nachname !== undefined ? nachname : student.nachname,
+        geschlecht !== undefined ? geschlecht : student.geschlecht,
         klasse !== undefined ? klasse : student.klasse
       );
 

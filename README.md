@@ -140,7 +140,7 @@ Verwende **systemd**, um das Tool dauerhaft im Hintergrund laufen zu lassen.
 
 4. **Logs anzeigen**:
     ```bash
-    journalctl -u sponsorenlauf -f
+    sudo journalctl -u sponsorenlauf -f
     ```
 
 ---

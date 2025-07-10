@@ -54,7 +54,7 @@ const GenerateLabelsDialog = ({
 
             <div className="form-group">
                 <label className="form-label">Klassen auswählen:</label>
-                
+
                 <div className="select-buttons">
                     <button onClick={handleSelectAll} className="btn btn-secondary btn-sm">
                         Alle auswählen
@@ -63,7 +63,7 @@ const GenerateLabelsDialog = ({
                         Alle abwählen
                     </button>
                 </div>
-                
+
                 <div className="class-selection-grid">
                     {replacementAmount > 0 && (
                         <div className="class-checkbox-item class-checkbox-item-replacement">
@@ -98,13 +98,13 @@ const GenerateLabelsDialog = ({
                     ))}
                 </div>
             </div>
-            
+
             {message.download && (
                 <div className="alert alert-success">
                     {message.download}
                 </div>
             )}
-            
+
             {loading.labels && (
                 <div className="loading-container">
                     <div className="loading-spinner"></div>

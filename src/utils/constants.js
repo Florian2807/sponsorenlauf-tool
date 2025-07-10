@@ -14,6 +14,9 @@ export const API_ENDPOINTS = {
     DONATIONS: '/api/donations'
 };
 
+// Database configuration
+export const DATABASE_PATH = './data/database.db';
+
 // Utility-Funktionen für Downloads
 export const downloadFile = (blob, filename) => {
     const url = window.URL.createObjectURL(blob);

@@ -1,5 +1,5 @@
 import React from 'react';
-import '../styles/BaseDialog.module.css';
+import styles from '../styles/BaseDialog.module.css';
 
 const BaseDialog = ({
     dialogRef,
@@ -19,21 +19,22 @@ const BaseDialog = ({
     };
 
     const sizeClasses = {
-        small: 'max-w-md',
-        medium: 'max-w-lg',
-        large: 'max-w-2xl'
+        small: styles.maxWMd,
+        medium: styles.maxWLg,
+        large: styles.maxW2xl
     };
 
     const renderActions = () => {
         if (actions) {
             return (
-                <div className="popupButtons">
+                <div className={styles.popupButtons}>
                     {actions.map((action, index) => (
                         <button
                             key={index}
                             onClick={action.onClick}
-                            className={action.variant === 'danger' ? 'redButton' : ''}
+                            className={action.variant === 'danger' ? styles.redButton : ''}
                             type={action.type || 'button'}
+                            disabled={action.disabled}
                         >
                             {action.label}
                         </button>
@@ -44,7 +45,7 @@ const BaseDialog = ({
 
         if (showDefaultClose) {
             return (
-                <div className="popupButtons">
+                <div className={styles.popupButtons}>
                     <button onClick={handleClose}>Schließen</button>
                 </div>
             );
@@ -56,10 +57,10 @@ const BaseDialog = ({
     return (
         <dialog
             ref={dialogRef}
-            className={`popup ${className} ${sizeClasses[size]}`}
+            className={`${styles.popup} ${className} ${sizeClasses[size]}`}
         >
             <button
-                className="closeButtonX"
+                className={styles.closeButtonX}
                 onClick={handleClose}
                 type="button"
             >

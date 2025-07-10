@@ -1,0 +1,394 @@
+/* DataImport Styles */
+
+/* Method Selector */
+.methodSelector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.methodOption {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  border: 2px solid #e1e5e9;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: #f8f9fa;
+}
+
+.methodOption:hover {
+  border-color: #4a90e2;
+  background: #f0f7ff;
+}
+
+.methodOption.active {
+  border-color: #4a90e2;
+  background: #f0f7ff;
+  box-shadow: 0 2px 8px rgba(74, 144, 226, 0.2);
+}
+
+.methodOption input[type="radio"] {
+  margin: 0;
+  scale: 1.2;
+}
+
+.methodIcon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.methodOption div strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #333;
+}
+
+.methodOption div p {
+  margin: 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+/* Manual Import */
+.manualImport {
+  margin-top: 1.5rem;
+}
+
+.manualHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.manualHeader h3 {
+  margin: 0;
+  color: #333;
+}
+
+.addButton {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.3s ease;
+}
+
+.addButton:hover {
+  background: #218838;
+}
+
+.manualTable {
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.tableHeader {
+  display: grid;
+  grid-template-columns: 1fr 1fr 120px 100px 60px;
+  gap: 1rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  font-weight: bold;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.tableRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr 120px 100px 60px;
+  gap: 1rem;
+  padding: 1rem;
+  border-bottom: 1px solid #f1f3f4;
+  align-items: center;
+}
+
+.tableRow:last-child {
+  border-bottom: none;
+}
+
+.tableRow input,
+.tableRow select {
+  padding: 0.5rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  width: 100%;
+}
+
+.tableRow input:focus,
+.tableRow select:focus {
+  outline: none;
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.1);
+}
+
+.removeButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+
+.removeButton:hover:not(:disabled) {
+  background: #f8d7da;
+}
+
+.removeButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Excel Import */
+.excelImport {
+  margin-top: 1.5rem;
+}
+
+.excelInfo h3 {
+  margin: 0 0 1rem 0;
+  color: #333;
+}
+
+.formatInfo {
+  background: #f8f9fa;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  border-left: 4px solid #4a90e2;
+}
+
+.formatInfo strong {
+  display: block;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.exampleTable {
+  background: white;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #dee2e6;
+  margin-bottom: 1rem;
+}
+
+.exampleHeader {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 1px;
+  background: #e9ecef;
+}
+
+.exampleHeader span {
+  padding: 0.75rem;
+  font-weight: bold;
+  font-size: 0.85rem;
+  background: #f8f9fa;
+  text-align: center;
+}
+
+.exampleRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 1px;
+  background: #e9ecef;
+}
+
+.exampleRow span {
+  padding: 0.75rem;
+  background: white;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.formatNote {
+  margin: 0;
+  color: #666;
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.fileUpload {
+  margin-bottom: 1.5rem;
+}
+
+.fileInput {
+  width: 100%;
+  padding: 1rem;
+  border: 2px dashed #ced4da;
+  border-radius: 8px;
+  background: #f8f9fa;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: border-color 0.3s ease;
+}
+
+.fileInput:hover {
+  border-color: #4a90e2;
+}
+
+.fileInfo {
+  margin-top: 0.5rem;
+  text-align: center;
+}
+
+.selectedFile {
+  color: #28a745;
+  font-weight: bold;
+}
+
+.noFile {
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* Actions */
+.actions {
+  display: flex;
+  justify-content: center;
+  margin: 1.5rem 0;
+}
+
+.importButton {
+  background: #4a90e2;
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: bold;
+  transition: background 0.3s ease;
+  min-width: 200px;
+}
+
+.importButton:hover:not(:disabled) {
+  background: #357abd;
+}
+
+.importButton:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+/* Results */
+.result {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  border-radius: 8px;
+  border-left: 4px solid;
+}
+
+.result.success {
+  background: #d4edda;
+  border-color: #28a745;
+  color: #155724;
+}
+
+.result.error {
+  background: #f8d7da;
+  border-color: #dc3545;
+  color: #721c24;
+}
+
+.resultMessage {
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+.errorList {
+  margin-top: 1rem;
+}
+
+.errorList strong {
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.errorList ul {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.errorList li {
+  margin-bottom: 0.25rem;
+}
+
+/* Dialog Actions */
+.dialogActions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #dee2e6;
+}
+
+.resetButton {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.resetButton:hover {
+  background: #5a6268;
+}
+
+.cancelButton {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.cancelButton:hover {
+  background: #c82333;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .methodSelector {
+    grid-template-columns: 1fr;
+  }
+  
+  .tableHeader,
+  .tableRow {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+  
+  .tableHeader span {
+    display: none;
+  }
+  
+  .tableRow input,
+  .tableRow select {
+    margin-bottom: 0.5rem;
+  }
+  
+  .exampleHeader,
+  .exampleRow {
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .dialogActions {
+    flex-direction: column;
+    gap: 1rem;
+  }
+}

@@ -4,10 +4,10 @@ import { API_ENDPOINTS, downloadFile } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
 import { useAsyncOperation } from '../hooks/useAsyncOperation';
 import GenerateLabelsDialog from '../components/dialogs/setup/GenerateLabelsDialog';
-import ImportExcelDialog from '../components/dialogs/setup/ImportExcelDialog';
 import ExportSpendenDialog from '../components/dialogs/setup/ExportSpendenDialog';
 import ConfirmDeleteAllDialog from '../components/dialogs/setup/ConfirmDeleteAllDialog';
 import ClassStructureDialog from '../components/dialogs/setup/ClassStructureDialog';
+import DataImportDialog from '../components/dialogs/setup/DataImportDialog';
 
 export default function Setup() {
     const [file, setFile] = useState(null);
@@ -18,7 +18,6 @@ export default function Setup() {
     const [selectedClasses, setSelectedClasses] = useState([]);
     const [classStructure, setClassStructure] = useState({});
     const [tempClassStructure, setTempClassStructure] = useState({});
-
     const { request } = useApi();
     const { loading, executeAsync, setLoadingState } = useAsyncOperation({
         upload: false,
@@ -29,9 +28,9 @@ export default function Setup() {
 
     const generateLabelsPopup = useRef(null);
     const confirmDeletePopup = useRef(null);
-    const importExcelPopup = useRef(null);
     const exportSpendenPopup = useRef(null);
     const classStructurePopup = useRef(null);
+    const dataImportPopup = useRef(null);
 
     const fetchClasses = useCallback(async () => {
         try {
@@ -61,45 +60,16 @@ export default function Setup() {
         setMessage(prev => ({ ...prev, ...updates }));
     };
 
-    const handleFileChange = (e) => {
-        setFile(e.target.files[0]);
-        setInsertedCount(0);
-        updateMessage();
+    const handleImportSuccess = (count) => {
+        setInsertedCount(count);
+        updateMessage({ upload: `Import erfolgreich! ${count} Schüler hinzugefügt.` });
+        dataImportPopup.current.close();
+        fetchClasses(); // Refresh classes in case new ones were added
     };
 
-    const handleUploadExcel = useCallback(async (e) => {
-        e.preventDefault();
-        if (!file) {
-            updateMessage({ upload: 'Bitte wählen Sie eine Excel-Datei aus.' });
-            return;
-        }
-
-        const uploadOperation = async () => {
-            const formData = new FormData();
-            formData.append('file', file);
-
-            const response = await fetch(API_ENDPOINTS.UPLOAD_EXCEL, {
-                method: 'POST',
-                body: formData,
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(`Fehler beim Importieren der Excel-Datei: ${errorData.message}`);
-            }
-
-            return response.json();
-        };
-
-        try {
-            const responseData = await executeAsync(uploadOperation, 'upload');
-            setInsertedCount(responseData.count);
-            updateMessage({ upload: `Excel-Datei erfolgreich hochgeladen und ${responseData.count} Datensätze in die Datenbank eingefügt.` });
-        } catch (error) {
-            console.error('Fehler:', error);
-            updateMessage({ upload: error.message || 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.' });
-        }
-    }, [file, executeAsync]);
+    const handleDataImportClose = () => {
+        dataImportPopup.current.close();
+    };
 
     const handleGenerateLabels = useCallback(async () => {
         updateMessage({ download: 'Etiketten werden generiert...' });
@@ -276,11 +246,11 @@ export default function Setup() {
                 </button>
 
                 <button
-                    onClick={() => importExcelPopup.current.showModal()}
+                    onClick={() => dataImportPopup.current.showModal()}
                     className={styles.button}
                     disabled={loading.upload}
                 >
-                    Excel-Datei hochladen
+                    Schüler importieren
                 </button>
 
                 <button
@@ -290,6 +260,7 @@ export default function Setup() {
                     Alle Schüler löschen
                 </button>
                 {message.delete && <p className={styles.message}>{message.delete}</p>}
+                {message.upload && <p className={styles.message}>{message.upload}</p>}
             </div>
 
             <div className={styles.section}>
@@ -340,13 +311,10 @@ export default function Setup() {
                 handleGenerateLabels={handleGenerateLabels}
             />
 
-            <ImportExcelDialog
-                dialogRef={importExcelPopup}
-                handleUploadExcel={handleUploadExcel}
-                handleFileChange={handleFileChange}
-                loading={loading}
-                message={message}
-                insertedCount={insertedCount}
+            <DataImportDialog
+                dialogRef={dataImportPopup}
+                onImportSuccess={handleImportSuccess}
+                onClose={handleDataImportClose}
             />
 
             <ExportSpendenDialog

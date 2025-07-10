@@ -78,15 +78,15 @@
 }
 
 /* Size variants */
-.max-w-md {
+.maxWMd {
   max-width: 28rem;
 }
 
-.max-w-lg {
+.maxWLg {
   max-width: 32rem;
 }
 
-.max-w-2xl {
+.maxW2xl {
   max-width: 42rem;
 }
 

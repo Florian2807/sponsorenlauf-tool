@@ -39,7 +39,6 @@ db.serialize(() => {
       nachname TEXT NOT NULL,
       klasse TEXT,
       email TEXT,
-      timestamps TEXT,
       FOREIGN KEY (klasse) REFERENCES classes(class_name) ON DELETE SET NULL
     )
   `);

@@ -1,5 +1,4 @@
 import React from 'react';
-import styles from '../../../styles/Teachers.module.css';
 
 const ClassTeacherDialog = ({
     dialogRef,
@@ -11,22 +10,21 @@ const ClassTeacherDialog = ({
     saveClassTeacher
 }) => {
     return (
-        <dialog ref={dialogRef} className={styles.popup}>
-            <button className={styles.closeButtonX} onClick={() => dialogRef.current.close()}>
+        <dialog ref={dialogRef}>
+            <button className="dialog-close" onClick={() => dialogRef.current.close()}>
                 &times;
             </button>
             <div>
-                <h2 className={styles.subtitle}>Klassenlehrer Konfigurieren</h2>
+                <h2>Klassenlehrer Konfigurieren</h2>
                 {allPossibleClasses.map((className) => (
-                    <div key={className} className={styles.classContainer}>
-                        <div className={styles.classTitle}>{className}</div>
-                        <div className={styles.emailFields}>
+                    <div key={className} className="class-container">
+                        <div className="class-title">{className}</div>
+                        <div className="email-fields">
                             {[...Array(2)].map((_, index) => (
-                                <div key={index} className={styles.emailField}>
+                                <div key={index} className="email-field">
                                     <select
                                         value={classTeacher[className]?.[index]?.id || ''}
                                         onChange={handleTeacherChange(className, index)}
-                                        className={styles.select}
                                     >
                                         <option value="">Wählen Sie einen Lehrer</option>
                                         {teachers.map((teacherOption) => (
@@ -41,14 +39,18 @@ const ClassTeacherDialog = ({
                     </div>
                 ))}
             </div>
-            <div className={styles.popupButtons}>
+            <div className="dialog-actions">
                 <button
-                    className={styles.redButton}
+                    className="btn btn-secondary"
                     onClick={() => dialogRef.current.close()}
                 >
                     Abbrechen
                 </button>
-                <button disabled={loading.saveTeacher} onClick={saveClassTeacher}>
+                <button
+                    className="btn btn-primary"
+                    disabled={loading.saveTeacher}
+                    onClick={saveClassTeacher}
+                >
                     Speichern
                 </button>
             </div>

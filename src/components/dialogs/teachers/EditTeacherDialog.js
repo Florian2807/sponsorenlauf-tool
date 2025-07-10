@@ -1,5 +1,4 @@
 import React from 'react';
-import styles from '../../../styles/Teachers.module.css';
 
 const EditTeacherDialog = ({
     dialogRef,
@@ -17,8 +16,8 @@ const EditTeacherDialog = ({
     editTeacher
 }) => {
     return (
-        <dialog ref={dialogRef} className={styles.popup}>
-            <button className={styles.closeButtonX} onClick={() => dialogRef.current.close()}>
+        <dialog ref={dialogRef}>
+            <button className="dialog-close" onClick={() => dialogRef.current.close()}>
                 &times;
             </button>
 
@@ -46,7 +45,6 @@ const EditTeacherDialog = ({
                 <select
                     value={editKlasse || ''}
                     onChange={(e) => setEditKlasse(e.target.value)}
-                    className={styles.select}
                 >
                     <option value="">Wählen Sie eine Klasse</option>
                     {allPossibleClasses.map((klasse) => (
@@ -64,14 +62,14 @@ const EditTeacherDialog = ({
                 />
             </div>
 
-            <div className={styles.popupButtons}>
+            <div className="dialog-actions">
                 <button
-                    className={styles.redButton}
+                    className="btn btn-danger"
                     onClick={() => confirmDeletePopup.current.showModal()}
                 >
                     Lehrer löschen
                 </button>
-                <button onClick={editTeacher}>Speichern</button>
+                <button className="btn btn-primary" onClick={editTeacher}>Speichern</button>
             </div>
         </dialog>
     );

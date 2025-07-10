@@ -1,6 +1,5 @@
 import React from 'react';
 import { formatDate } from '../../../utils/constants';
-import styles from '../../../styles/Manage.module.css';
 
 const EditStudentDialog = ({
     dialogRef,
@@ -21,8 +20,8 @@ const EditStudentDialog = ({
     };
 
     return (
-        <dialog ref={dialogRef} className={styles.popup}>
-            <button className={styles.closeButtonX} onClick={() => dialogRef.current.close()}>
+        <dialog ref={dialogRef}>
+            <button className="dialog-close" onClick={() => dialogRef.current.close()}>
                 &times;
             </button>
 
@@ -50,7 +49,6 @@ const EditStudentDialog = ({
                 <select
                     value={editForm.klasse}
                     onChange={(e) => handleInputChange('klasse', e.target.value)}
-                    className={styles.select}
                 >
                     <option value="">Klasse auswählen...</option>
                     {availableClasses.map((className) => (
@@ -64,7 +62,6 @@ const EditStudentDialog = ({
                 <select
                     value={editForm.geschlecht}
                     onChange={(e) => handleInputChange('geschlecht', e.target.value)}
-                    className={styles.select}
                 >
                     <option value="männlich">Männlich</option>
                     <option value="weiblich">Weiblich</option>
@@ -75,12 +72,12 @@ const EditStudentDialog = ({
             <div>
                 <h3>Gelaufene Runden: {selectedStudent?.timestamps.length}</h3>
                 <h3>Timestamps:</h3>
-                <ul className={styles.timestampList}>
+                <ul className="timestamp-list">
                     {selectedStudent?.timestamps.map((timestamp, index) => (
-                        <li key={index} className={styles.timestampItem}>
+                        <li key={index} className="timestamp-item">
                             <span>{formatDate(new Date(timestamp))}</span>
                             <button
-                                className={styles.deleteTimestampButton}
+                                className="delete-timestamp-btn"
                                 onClick={() => deleteTimestamp(index)}
                             >
                                 Löschen
@@ -91,21 +88,21 @@ const EditStudentDialog = ({
             </div>
 
             <h3>Ersatz-IDs:</h3>
-            <div className={styles.replacementContainer}>
+            <div className="replacement-container">
                 {selectedStudent?.replacements.map((replacement, index) => (
-                    <div key={index} className={styles.replacementTag}>
-                        <span className={styles.replacementText}>{replacement}</span>
+                    <div key={index} className="replacement-tag">
+                        <span className="replacement-text">{replacement}</span>
                         <button
-                            className={styles.deleteReplacementButton}
+                            className="delete-replacement-btn"
                             onClick={() => deleteReplacement(index)}
                         >
-                            <span className={styles.deleteIcon}>&times;</span>
+                            <span className="delete-icon">&times;</span>
                         </button>
                     </div>
                 ))}
                 <button
                     type="button"
-                    className={styles.replacementTag}
+                    className="replacement-tag"
                     onClick={() => {
                         setMessage('');
                         setNewReplacement('');
@@ -116,14 +113,14 @@ const EditStudentDialog = ({
                 </button>
             </div>
 
-            <div className={styles.popupButtons}>
+            <div className="dialog-actions">
                 <button
-                    className={styles.redButton}
+                    className="btn btn-danger"
                     onClick={() => confirmDeletePopup.current.showModal()}
                 >
                     Schüler löschen
                 </button>
-                <button onClick={editStudent}>Speichern</button>
+                <button className="btn btn-primary" onClick={editStudent}>Speichern</button>
             </div>
         </dialog>
     );

@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import styles from '../styles/Scan.module.css';
 import { formatDate, timeAgo } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
 import ErrorDialog from '../components/dialogs/scan/ErrorDialog';
@@ -97,9 +96,9 @@ export default function Scan() {
   }, [cleanId, savedID, request]);
 
   return (
-    <div className={styles.container}>
-      <h1 className={styles.title}>Sponsorenlauf {new Date().getFullYear()}</h1>
-      <form onSubmit={handleSubmit} className={styles.form}>
+    <div className="page-container">
+      <h1 className="page-title-large">Sponsorenlauf {new Date().getFullYear()}</h1>
+      <form onSubmit={handleSubmit} className="form">
         <input
           type="text"
           ref={inputRef}
@@ -107,32 +106,33 @@ export default function Scan() {
           onChange={handleInputChange}
           placeholder="Barcode scannen"
           required
-          className={styles.idInput}
+          className="input"
         />
-        <button type="submit">Runde zählen</button>
+        <button type="submit" className="btn">Runde zählen</button>
       </form>
 
       <ErrorDialog dialogRef={popupRef} />
 
       {message && (
-        <p className={`${styles.message} ${styles[messageType]}`}>{message}</p>
+        <p className={`message ${messageType === 'success' ? 'message-success' : 'message-error'}`}>{message}</p>
       )}
+
       {studentInfo && (
-        <div className={styles.studentInfo}>
+        <div className="student-info">
           <h2>Schüler-Informationen</h2>
           <p><strong>Klasse:</strong> {studentInfo.klasse}</p>
           <p><strong>Name:</strong> {studentInfo.vorname} {studentInfo.nachname}</p>
           <p><strong>Gelaufene Runden:</strong> {studentInfo.timestamps.length}</p>
 
           {studentInfo.timestamps && studentInfo.timestamps.length > 0 && (
-            <div className={styles.timestamps}>
+            <div className="mt-2">
               <h3>Scan-Timestamps:</h3>
-              <ul className={styles.timestampList}>
+              <ul className="timestamp-list">
                 {studentInfo.timestamps.map((timestamp, index) => (
-                  <li key={index} className={styles.timestampItem}>
+                  <li key={index} className="timestamp-item">
                     <span>{formatDate(new Date(timestamp)) + " Uhr => " + timeAgo(currentTimestamp, new Date(timestamp))}</span>
                     <button
-                      className={styles.deleteTimestampButton}
+                      className="btn btn-danger btn-sm"
                       onClick={() => handleDeleteTimestamp(studentInfo, index)}
                     >
                       Löschen

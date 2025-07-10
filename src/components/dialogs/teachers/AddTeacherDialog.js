@@ -1,5 +1,4 @@
 import React from 'react';
-import styles from '../../../styles/Teachers.module.css';
 
 const AddTeacherDialog = ({
     dialogRef,
@@ -9,8 +8,8 @@ const AddTeacherDialog = ({
     addTeacherSubmit
 }) => {
     return (
-        <dialog ref={dialogRef} className={styles.popup}>
-            <button className={styles.closeButtonX} onClick={() => dialogRef.current.close()}>
+        <dialog ref={dialogRef}>
+            <button className="dialog-close" onClick={() => dialogRef.current.close()}>
                 &times;
             </button>
             <h2>Neuen Lehrer hinzufügen</h2>
@@ -43,7 +42,6 @@ const AddTeacherDialog = ({
                     name="klasse"
                     value={newTeacher.klasse || ''}
                     onChange={addTeacherChangeField}
-                    className={styles.select}
                 >
                     <option value="">Wählen Sie eine Klasse</option>
                     {allPossibleClasses.map((klasse) => (
@@ -61,11 +59,11 @@ const AddTeacherDialog = ({
                     onChange={addTeacherChangeField}
                     required
                 />
-                <div className={styles.popupButtons}>
-                    <button className={styles.redButton} onClick={() => dialogRef.current.close()}>
+                <div className="dialog-actions">
+                    <button className="btn btn-secondary" onClick={() => dialogRef.current.close()}>
                         Abbrechen
                     </button>
-                    <button type="submit">Hinzufügen</button>
+                    <button type="submit" className="btn btn-primary">Hinzufügen</button>
                 </div>
             </form>
         </dialog>

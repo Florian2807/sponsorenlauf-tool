@@ -1,6 +1,5 @@
 import React from 'react';
 import BaseDialog from '../../BaseDialog';
-import styles from '../../../styles/Manage.module.css';
 
 const AddStudentDialog = ({
     dialogRef,
@@ -10,8 +9,8 @@ const AddStudentDialog = ({
     addStudentSubmit
 }) => {
     return (
-        <dialog ref={dialogRef} className={styles.popup}>
-            <button className={styles.closeButtonX} onClick={() => dialogRef.current.close()}>
+        <dialog ref={dialogRef}>
+            <button className="dialog-close" onClick={() => dialogRef.current.close()}>
                 &times;
             </button>
             <h2>Neuen Schüler hinzufügen</h2>
@@ -44,7 +43,6 @@ const AddStudentDialog = ({
                     name="klasse"
                     value={newStudent.klasse}
                     onChange={addStudentChangeField}
-                    className={styles.select}
                     required
                 >
                     <option value="">Klasse auswählen...</option>
@@ -60,16 +58,15 @@ const AddStudentDialog = ({
                     name="geschlecht"
                     value={newStudent.geschlecht}
                     onChange={addStudentChangeField}
-                    className={styles.select}
                     required
                 >
                     <option value="männlich">Männlich</option>
                     <option value="weiblich">Weiblich</option>
                     <option value="divers">Divers</option>
                 </select>
-                <div className={styles.popupButtons}>
-                    <button className={styles.redButton} onClick={() => dialogRef.current.close()}>Abbrechen</button>
-                    <button type="submit">Hinzufügen</button>
+                <div className="dialog-actions">
+                    <button className="btn btn-secondary" onClick={() => dialogRef.current.close()}>Abbrechen</button>
+                    <button type="submit" className="btn btn-primary">Hinzufügen</button>
                 </div>
             </form>
         </dialog>

@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import styles from '../styles/Donations.module.css';
 import { API_ENDPOINTS } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
 
@@ -140,40 +139,40 @@ export default function AddDonations() {
     };
 
     return (
-        <div className={styles.container}>
-            <h1 className={styles.title}>Spenden hinzufügen</h1>
-            <form onSubmit={handleSubmit} className={styles.form}>
-                <div className={styles.switchContainer}>
-                    <label className={styles.switch}>
+        <div className="page-container">
+            <h1 className="page-title">Spenden hinzufügen</h1>
+            <form onSubmit={handleSubmit} className="form">
+                <div className="switch-container">
+                    <label className="switch">
                         <input
                             type="checkbox"
                             checked={isSpendenMode}
                             onChange={() => setIsSpendenMode(!isSpendenMode)}
                         />
-                        <span className={styles.slider}></span>
+                        <span className="switch-slider"></span>
                     </label>
                 </div>
                 <span>{isSpendenMode ? 'Schülerliste (muss überwiesen werden)' : 'Kontoauszug (wurde bereits überwiesen)'}</span>
                 <br />
                 <label htmlFor="student">Schüler:</label>
-                <div className={styles.inputWrapper}>
+                <div className="input-wrapper">
                     <input
                         type="text"
                         id="student"
                         value={selectedStudent}
                         onChange={handleStudentChange}
                         onKeyDown={handleKeyDown}
-                        className={styles.input}
+                        className="form-control"
                         autoComplete="off"
                         ref={inputRef}
                     />
                     {filteredStudents.length > 0 && (
-                        <ul className={styles.suggestions}>
+                        <ul className="suggestions">
                             {filteredStudents.map((student, index) => (
                                 <li
                                     key={student.id}
                                     onClick={() => handleStudentSelect(student)}
-                                    className={`${styles.suggestionItem} ${highlightedIndex === index ? styles.highlighted : ''}`}
+                                    className={`suggestion-item ${highlightedIndex === index ? 'highlighted' : ''}`}
                                 >
                                     {student.vorname} {student.nachname} ({student.klasse})
                                 </li>
@@ -187,14 +186,14 @@ export default function AddDonations() {
                     id="amount"
                     value={amount}
                     onChange={handleAmountChange}
-                    className={styles.input}
+                    className="form-control"
                 />
-                <button type="submit" className={styles.button}>Hinzufügen</button>
+                <button type="submit" className="btn">Hinzufügen</button>
             </form>
-            {message && <p className={styles.message}>{message}</p>}
+            {message && <p className="message message-info">{message}</p>}
 
             {studentInfo && (
-                <div className={styles.studentInfo}>
+                <div className="student-info">
                     <h2>Schüler-Informationen</h2>
                     <p><strong>Klasse:</strong> {studentInfo.klasse}</p>
                     <p><strong>Name:</strong> {studentInfo.vorname} {studentInfo.nachname}</p>
@@ -207,14 +206,14 @@ export default function AddDonations() {
                     {studentInfo.expectedDonations && studentInfo.expectedDonations.length > 0 && (
                         <div>
                             <p><strong>Erwartete Spenden (Details):</strong></p>
-                            <div className={styles.timestamps}>
-                                <ul className={styles.timestampList}>
+                            <div className="timestamps">
+                                <ul className="timestamp-list">
                                     {studentInfo.expectedDonations.map((donation) => (
-                                        <li key={donation.id} className={styles.timestampItem}>
+                                        <li key={donation.id} className="timestamp-item">
                                             <p>{formatCurrency(donation.amount)} - {new Date(donation.created_at).toLocaleDateString()}</p>
                                             <button
                                                 type="button"
-                                                className={styles.deleteTimestampButton}
+                                                className="btn btn-danger btn-sm"
                                                 onClick={() => handleDeleteDonation(donation.id, 'expected')}
                                             >
                                                 Löschen
@@ -229,14 +228,14 @@ export default function AddDonations() {
                     {studentInfo.receivedDonations && studentInfo.receivedDonations.length > 0 && (
                         <div>
                             <p><strong>Erhaltene Spenden (Details):</strong></p>
-                            <div className={styles.timestamps}>
-                                <ul className={styles.timestampList}>
+                            <div className="timestamps">
+                                <ul className="timestamp-list">
                                     {studentInfo.receivedDonations.map((donation) => (
-                                        <li key={donation.id} className={styles.timestampItem}>
+                                        <li key={donation.id} className="timestamp-item">
                                             <p>{formatCurrency(donation.amount)} - {new Date(donation.created_at).toLocaleDateString()}</p>
                                             <button
                                                 type="button"
-                                                className={styles.deleteTimestampButton}
+                                                className="btn btn-danger btn-sm"
                                                 onClick={() => handleDeleteDonation(donation.id, 'received')}
                                             >
                                                 Löschen

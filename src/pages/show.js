@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import styles from '../styles/Show.module.css';
 import { formatDate, timeAgo, API_ENDPOINTS } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
 
@@ -61,10 +60,10 @@ export default function Show() {
   }, [cleanId, savedID, request]);
 
   return (
-    <div className={styles.container}>
-      <h1 className={styles.title}>Schüler anzeigen</h1>
-      <p className={styles.warning}>Achtung: Hier werden keine Runden hinzugefügt, nur die Schülerdaten angezeigt.</p>
-      <form onSubmit={handleSubmit} className={styles.form}>
+    <div className="page-container">
+      <h1 className="page-title">Schüler anzeigen</h1>
+      <p className="message message-warning">Achtung: Hier werden keine Runden hinzugefügt, nur die Schülerdaten angezeigt.</p>
+      <form onSubmit={handleSubmit} className="form">
         <input
           type="text"
           ref={inputRef}
@@ -72,15 +71,15 @@ export default function Show() {
           onChange={(e) => { setSavedID(e.target.value); setID(e.target.value) }}
           placeholder="Barcode scannen"
           required
-          className={styles.input}
+          className="form-control"
         />
-        <button type="submit">Anzeigen</button>
+        <button type="submit" className="btn">Anzeigen</button>
       </form>
       {message && (
-        <p className={`${styles.message} ${styles[messageType]}`}>{message}</p>
+        <p className={`message ${messageType === 'success' ? 'message-success' : 'message-error'}`}>{message}</p>
       )}
       {studentInfo && (
-        <div className={styles.studentInfo}>
+        <div className="student-info">
           <h2>Schüler-Informationen</h2>
           <p><strong>Klasse:</strong> {studentInfo.klasse}</p>
           <p><strong>Name:</strong> {studentInfo.vorname} {studentInfo.nachname}</p>
@@ -88,15 +87,15 @@ export default function Show() {
           <p><strong>Gelaufene Runden:</strong> {studentInfo.timestamps.length}</p>
 
           {studentInfo.timestamps && studentInfo.timestamps.length > 0 && (
-            <div className={styles.timestamps}>
+            <div className="mt-3">
               <h3>Scan-Timestamps:</h3>
-              <ul className={styles.timestampList}>
+              <ul className="timestamp-list">
                 {studentInfo.timestamps.map((timestamp, index) => (
-                  <li key={index} className={styles.timestampItem}>
+                  <li key={index} className="timestamp-item">
                     <span>{formatDate(new Date(timestamp)) + " Uhr => " + timeAgo(currentTimestamp, new Date(timestamp))}</span>
                     <button
                       type="button"
-                      className={styles.deleteTimestampButton}
+                      className="btn btn-danger btn-sm"
                       onClick={() => handleDeleteTimestamp(studentInfo, index)}
                     >
                       Löschen

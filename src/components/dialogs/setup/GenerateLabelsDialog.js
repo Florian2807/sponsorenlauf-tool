@@ -1,5 +1,4 @@
 import React from 'react';
-import styles from '../../../styles/Setup.module.css';
 
 const GenerateLabelsDialog = ({
     dialogRef,
@@ -15,8 +14,8 @@ const GenerateLabelsDialog = ({
     handleGenerateLabels
 }) => {
     return (
-        <dialog ref={dialogRef} className={styles.popup}>
-            <button className={styles.closeButtonX} onClick={() => dialogRef.current.close()}>
+        <dialog ref={dialogRef}>
+            <button className="dialog-close" onClick={() => dialogRef.current.close()}>
                 &times;
             </button>
             <h2>Etiketten generieren</h2>
@@ -26,15 +25,14 @@ const GenerateLabelsDialog = ({
                 type="number"
                 value={replacementAmount}
                 onChange={(e) => setReplacementAmount(e.target.value)}
-                className={styles.input}
             />
             <label>Klassen auswählen:</label>
-            <div className={styles.selectButtons}>
-                <button onClick={handleSelectAll} className={styles.selectButton}>Alle auswählen</button>
-                <button onClick={handleDeselectAll} className={styles.selectButton}>Alle abwählen</button>
+            <div className="select-buttons">
+                <button onClick={handleSelectAll} className="select-button">Alle auswählen</button>
+                <button onClick={handleDeselectAll} className="select-button">Alle abwählen</button>
             </div>
-            <div className={styles.classCheckboxes} style={{ color: 'grey' }}>
-                <label className={styles.classSelectLabel}>
+            <div className="class-checkboxes" style={{ color: 'grey' }}>
+                <label className="class-select-label">
                     <input
                         type="checkbox"
                         value="Erstatz"
@@ -44,11 +42,11 @@ const GenerateLabelsDialog = ({
                     />
                     Ersatz
                 </label>
-                <div className={styles.newLine}></div>
+                <div className="new-line"></div>
 
                 {classes.map((klasse, index) => (
                     <React.Fragment key={klasse}>
-                        <label className={styles.classSelectLabel}>
+                        <label className="class-select-label">
                             <input
                                 type="checkbox"
                                 value={klasse}
@@ -60,18 +58,19 @@ const GenerateLabelsDialog = ({
                     </React.Fragment>
                 ))}
             </div>
-            {message.download && <p className={styles.message}>{message.download}</p>}
-            {loading.labels && <div className={styles.progress} />}
-            <div className={styles.popupButtons}>
+            {message.download && <p className="message success">{message.download}</p>}
+            {loading.labels && <div className="progress-bar" />}
+            <div className="dialog-actions">
                 <button
                     onClick={() => dialogRef.current.close()}
-                    className={styles.redButton}
+                    className="btn btn-secondary"
                 >
                     Abbrechen
                 </button>
                 <button
                     onClick={handleGenerateLabels}
                     disabled={loading.labels}
+                    className="btn btn-primary"
                 >
                     Generieren
                 </button>

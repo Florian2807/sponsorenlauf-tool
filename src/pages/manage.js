@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import styles from '../styles/Manage.module.css';
 import { getNextId, API_ENDPOINTS } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
 import { useSortableTable } from '../hooks/useSortableTable';
@@ -200,27 +199,29 @@ export default function Manage() {
   const filteredStudents = filteredData;
 
   return (
-    <div className={styles.container}>
-      <h1 className={styles.title}>Schüler verwalten</h1>
-      <div className={styles.searchContainer}>
-        <button onClick={addStudentClick}>Schüler hinzufügen</button>
+    <div className="page-container-extra-wide">
+      <h1 className="page-title">Schüler verwalten</h1>
+      <div className="search-container">
+        <div className="btn-group">
+          <button className="btn" onClick={addStudentClick}>Schüler hinzufügen</button>
+        </div>
         <input
           type="text"
           placeholder="Suche..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className={styles.searchInput}
+          className="search-input"
         />
       </div>
-      <table className={styles.table}>
+      <table className="table">
         <thead>
           <tr>
-            <th className={`${styles.sortable}`} onClick={() => sortData('id')}>ID</th>
-            <th className={`${styles.sortable}`} onClick={() => sortData('klasse')}>Klasse</th>
-            <th className={`${styles.sortable}`} onClick={() => sortData('vorname')}>Vorname</th>
-            <th className={`${styles.sortable}`} onClick={() => sortData('nachname')}>Nachname</th>
-            <th className={`${styles.sortable}`} onClick={() => sortData('geschlecht')}>Geschlecht</th>
-            <th className={`${styles.sortable}`} onClick={() => sortData('timestamps')}>Runden</th>
+            <th className="sortable" onClick={() => sortData('id')}>ID</th>
+            <th className="sortable" onClick={() => sortData('klasse')}>Klasse</th>
+            <th className="sortable" onClick={() => sortData('vorname')}>Vorname</th>
+            <th className="sortable" onClick={() => sortData('nachname')}>Nachname</th>
+            <th className="sortable" onClick={() => sortData('geschlecht')}>Geschlecht</th>
+            <th className="sortable" onClick={() => sortData('timestamps')}>Runden</th>
             <th>Aktion</th>
           </tr>
         </thead>
@@ -234,7 +235,7 @@ export default function Manage() {
               <td>{student.geschlecht || 'Nicht angegeben'}</td>
               <td>{student.timestamps.length}</td>
               <td>
-                <button onClick={() => editStudentClick(student)}>Bearbeiten</button>
+                <button className="btn btn-sm" onClick={() => editStudentClick(student)}>Bearbeiten</button>
               </td>
             </tr>
           ))}

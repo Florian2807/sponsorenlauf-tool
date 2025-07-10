@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import styles from '../styles/Teachers.module.css';
 import config from '../../data/config.json';
 import { getNextId, API_ENDPOINTS } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
@@ -184,27 +183,29 @@ export default function Teachers() {
     const filteredTeachers = filteredData;
 
     return (
-        <div className={styles.container}>
-            <h1 className={styles.title}>Lehrer verwalten</h1>
-            <div className={styles.searchContainer}>
-                <button onClick={addTeacherClick}>Lehrer hinzufügen</button>
+        <div className="page-container-wide">
+            <h1 className="page-title">Lehrer verwalten</h1>
+            <div className="search-container">
+                <div className="btn-group">
+                    <button className="btn" onClick={addTeacherClick}>Lehrer hinzufügen</button>
+                    <button className="btn btn-secondary" onClick={classTeacherClick}>Klassenlehrer Konfigurieren</button>
+                </div>
                 <input
                     type="text"
                     placeholder="Suche..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className={styles.searchInput}
+                    className="search-input"
                 />
-                <button onClick={classTeacherClick}>Klassenlehrer Konfigurieren</button>
             </div>
-            <table className={styles.table}>
+            <table className="table">
                 <thead>
                     <tr>
-                        <th className={`${styles.sortable} ${sortField === 'id' ? styles[sortDirection] : ''}`} onClick={() => sortTeachersFunc('id')}>ID</th>
-                        <th className={`${styles.sortable} ${sortField === 'klasse' ? styles[sortDirection] : ''}`} onClick={() => sortTeachersFunc('klasse')}>Klasse</th>
-                        <th className={`${styles.sortable} ${sortField === 'vorname' ? styles[sortDirection] : ''}`} onClick={() => sortTeachersFunc('vorname')}>Vorname</th>
-                        <th className={`${styles.sortable} ${sortField === 'nachname' ? styles[sortDirection] : ''}`} onClick={() => sortTeachersFunc('nachname')}>Nachname</th>
-                        <th className={`${styles.sortable} ${sortField === 'email' ? styles[sortDirection] : ''}`} onClick={() => sortTeachersFunc('email')}>E-Mail Adresse</th>
+                        <th className={`sortable ${sortField === 'id' ? sortDirection : ''}`} onClick={() => sortTeachersFunc('id')}>ID</th>
+                        <th className={`sortable ${sortField === 'klasse' ? sortDirection : ''}`} onClick={() => sortTeachersFunc('klasse')}>Klasse</th>
+                        <th className={`sortable ${sortField === 'vorname' ? sortDirection : ''}`} onClick={() => sortTeachersFunc('vorname')}>Vorname</th>
+                        <th className={`sortable ${sortField === 'nachname' ? sortDirection : ''}`} onClick={() => sortTeachersFunc('nachname')}>Nachname</th>
+                        <th className={`sortable ${sortField === 'email' ? sortDirection : ''}`} onClick={() => sortTeachersFunc('email')}>E-Mail Adresse</th>
                         <th>Aktion</th>
                     </tr>
                 </thead>
@@ -217,7 +218,7 @@ export default function Teachers() {
                             <td>{teacher.nachname}</td>
                             <td>{teacher.email}</td>
                             <td>
-                                <button onClick={() => editTeacherClick(teacher)}>Bearbeiten</button>
+                                <button className="btn btn-sm" onClick={() => editTeacherClick(teacher)}>Bearbeiten</button>
                             </td>
                         </tr>
                     ))}

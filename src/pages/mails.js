@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import JSZip from 'jszip';
-import styles from '../styles/Mails.module.css';
 import { API_ENDPOINTS } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
 import SendMailsDialog from '../components/dialogs/mails/SendMailsDialog';
@@ -191,14 +190,13 @@ export default function Home() {
     };
 
     return (
-        <div className={styles.container}>
-            <h1 className={styles.title}>Mails versenden</h1>
-            <p className={styles.description}>
+        <div className="page-container-wide">
+            <h1 className="page-title">Mails versenden</h1>
+            <p className="text-center text-muted mb-3">
                 Hier werden die Klassenlisten mit gelaufenen Rundern der Schüler generiert und an die jeweiligen Klassenlehrer versendet.
             </p>
-            <br />
             {!Object.keys(teacherData.files).length && (
-                <button className={styles.button} onClick={() => sendMailsPopup.current.showModal()}>
+                <button className="btn" onClick={() => sendMailsPopup.current.showModal()}>
                     Mail versenden
                 </button>
             )}
@@ -215,18 +213,18 @@ export default function Home() {
 
             {Object.keys(teacherData.files).length > 0 && (
                 <div>
-                    <h2 className={styles.subtitle}>Lehrer E-Mails</h2>
+                    <h2>Lehrer E-Mails</h2>
                     {Object.keys(teacherData.classTeacher).map((className) => (
-                        <div key={className} className={styles.classContainer}>
-                            <div className={styles.classTitle}>{className}</div>
-                            <div className={styles.emailFields}>
+                        <div key={className} className="class-container">
+                            <div className="class-title">{className}</div>
+                            <div className="email-fields">
                                 {teacherData.classTeacher[className]?.map((teacher, index) => (
                                     <div key={index} style={{ display: 'flex', alignItems: 'center' }}>
-                                        <span className={styles.emailIndex}>{index + 1}.</span>
+                                        <span className="email-index">{index + 1}.</span>
                                         <select
                                             value={teacher.id || ''}
                                             onChange={handleTeacherChange(className, index)}
-                                            className={styles.select}
+                                            className="form-select"
                                         >
                                             <option value="">Wählen Sie einen Lehrer</option>
                                             {teacherData.allTeachers.map((teacherOption) => (
@@ -244,15 +242,15 @@ export default function Home() {
                     <textarea
                         value={fileData.mailText}
                         onChange={(e) => setFileData((prev) => ({ ...prev, mailText: e.target.value }))}
-                        className={styles.textarea}
+                        className="form-textarea"
                     />
                     <br />
-                    <button onClick={handleSendEmails} className={styles.button}>E-Mails senden</button>
+                    <button onClick={handleSendEmails} className="btn btn-primary">E-Mails senden</button>
                 </div>
             )}
 
-            {status.sendMailLoading && <div className={styles.progress} />}
-            {status.message && <p className={styles.message}>{status.message}</p>}
+            {status.sendMailLoading && <div className="progress-bar" />}
+            {status.message && <p className="message-info">{status.message}</p>}
         </div>
     );
 }

@@ -1,5 +1,4 @@
 import React from 'react';
-import styles from '../../../styles/Setup.module.css';
 
 const ExportSpendenDialog = ({
     dialogRef,
@@ -7,28 +6,28 @@ const ExportSpendenDialog = ({
     loading
 }) => {
     return (
-        <dialog ref={dialogRef} className={styles.popup}>
-            <button className={styles.closeButtonX} onClick={() => dialogRef.current.close()}>
+        <dialog ref={dialogRef}>
+            <button className="dialog-close" onClick={() => dialogRef.current.close()}>
                 &times;
             </button>
             <h2>Spenden Auswertungen downloaden</h2>
-            <div className={styles.popupButtons}>
+            <div className="dialog-buttons">
                 <button
                     onClick={() => downloadResults('allstudents')}
-                    className={styles.button}
+                    className="btn btn-primary"
                     disabled={loading.downloadResults}
                 >
                     Gesamtauswertung
                 </button>
                 <button
-                    className={styles.button}
+                    className="btn btn-primary"
                     onClick={() => downloadResults('classes')}
                     disabled={loading.downloadResults}
                 >
                     Klassenweise Auswertung
                 </button>
             </div>
-            {loading.downloadResults && <div className={styles.progress} />}
+            {loading.downloadResults && <div className="progress-bar" />}
         </dialog>
     );
 };

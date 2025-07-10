@@ -1,5 +1,4 @@
 import React from 'react';
-import styles from '../../../styles/Setup.module.css';
 
 const ClassStructureDialog = ({
     dialogRef,
@@ -14,35 +13,35 @@ const ClassStructureDialog = ({
     saveClassStructure
 }) => {
     return (
-        <dialog ref={dialogRef} className={styles.popup}>
-            <button className={styles.closeButtonX} onClick={() => dialogRef.current.close()}>
+        <dialog ref={dialogRef}>
+            <button className="dialog-close" onClick={() => dialogRef.current.close()}>
                 &times;
             </button>
             <h2>Klassenstruktur verwalten</h2>
             <p>Verwalten Sie die Jahrgänge und deren Klassen.</p>
 
-            <div className={styles.classStructureContainer}>
+            <div className="class-structure-container">
                 {Object.entries(tempClassStructure).map(([grade, classes], gradeIndex) => (
                     <div
                         key={gradeIndex}
-                        className={styles.gradeSection}
+                        className="grade-section"
                     >
-                        <div className={styles.gradeHeader}>
-                            <div className={styles.gradeInputWrapper}>
-                                <label className={styles.gradeLabel}>Jahrgang/Stufe:</label>
+                        <div className="grade-header">
+                            <div className="grade-input-wrapper">
+                                <label className="form-label">Jahrgang/Stufe:</label>
                                 <input
                                     type="text"
                                     defaultValue={grade}
                                     onBlur={(e) => handleGradeNameChange(grade, e.target.value)}
-                                    className={styles.gradeInput}
+                                    className="form-input"
                                     placeholder="Jahrgangsname (z.B. Jahrgang 5, Oberstufe, etc.)"
                                 />
                             </div>
 
-                            <div className={styles.gradeControls}>
+                            <div className="grade-controls">
                                 <button
                                     onClick={() => removeGrade(grade)}
-                                    className={styles.deleteButton}
+                                    className="btn btn-danger btn-sm"
                                     title="Jahrgang löschen"
                                 >
                                     🗑️
@@ -50,26 +49,26 @@ const ClassStructureDialog = ({
                             </div>
                         </div>
 
-                        <div className={styles.classesContainer}>
-                            <div className={styles.classesHeader}>
-                                <label className={styles.classesLabel}>Klassen in diesem Jahrgang:</label>
+                        <div className="classes-container">
+                            <div className="classes-header">
+                                <label className="form-label">Klassen in diesem Jahrgang:</label>
                             </div>
                             {classes.map((className, classIndex) => (
                                 <div
                                     key={classIndex}
-                                    className={styles.classItem}
+                                    className="class-item"
                                 >
                                     <input
                                         type="text"
                                         value={className}
                                         onChange={(e) => handleClassNameChange(grade, classIndex, e.target.value)}
-                                        className={styles.classInput}
+                                        className="form-input"
                                         placeholder="Klassenname (z.B. 5a, 5b, etc.)"
                                     />
 
                                     <button
                                         onClick={() => removeClassFromGrade(grade, classIndex)}
-                                        className={styles.deleteButtonSmall}
+                                        className="btn btn-danger btn-sm"
                                         title="Klasse löschen"
                                     >
                                         ✕
@@ -79,7 +78,7 @@ const ClassStructureDialog = ({
 
                             <button
                                 onClick={() => addClassToGrade(grade)}
-                                className={styles.addClassButton}
+                                className="btn btn-secondary btn-sm"
                             >
                                 + Klasse hinzufügen
                             </button>
@@ -89,24 +88,24 @@ const ClassStructureDialog = ({
 
                 <button
                     onClick={addGrade}
-                    className={styles.addGradeButton}
+                    className="btn btn-secondary"
                 >
                     + Jahrgang hinzufügen
                 </button>
             </div>
 
-            {message.upload && <p className={styles.message}>{message.upload}</p>}
+            {message.upload && <p className="message-info">{message.upload}</p>}
 
-            <div className={styles.popupButtons}>
+            <div className="dialog-buttons">
                 <button
                     onClick={() => dialogRef.current.close()}
-                    className={styles.redButton}
+                    className="btn btn-secondary"
                 >
                     Abbrechen
                 </button>
                 <button
                     onClick={saveClassStructure}
-                    className={styles.button}
+                    className="btn btn-primary"
                 >
                     Speichern
                 </button>

@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import styles from '../styles/Setup.module.css';
 import { API_ENDPOINTS, downloadFile } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
 import { useAsyncOperation } from '../hooks/useAsyncOperation';
@@ -220,81 +219,83 @@ export default function Setup() {
     }, [request, tempClassStructure]);
 
     return (
-        <div className={styles.container}>
-            <h1 className={styles.title}>Setup</h1>
+        <div className="page-container-extra-wide">
+            <h1 className="page-title">Setup</h1>
 
-            <div className={styles.section}>
-                <div className={styles.sectionHeader}>
-                    <h2 className={styles.subTitle}>Datenbank</h2>
-                    <hr className={styles.line} />
+            <div className="section">
+                <div className="section-header">
+                    <h2 className="section-title">Datenbank</h2>
                 </div>
 
-                <button
-                    onClick={() => window.open('/teachers', '_self')}
-                    className={styles.button}
-                    title="Konfiguriere die E-Mail-Adressen und Klassen der Lehrer."
-                >
-                    Lehrer Verwaltung
-                </button>
+                <div className="btn-group btn-stack">
+                    <button
+                        onClick={() => window.open('/teachers', '_self')}
+                        className="btn btn-sm"
+                        title="Konfiguriere die E-Mail-Adressen und Klassen der Lehrer."
+                    >
+                        Lehrer Verwaltung
+                    </button>
 
-                <button
-                    onClick={openClassStructurePopup}
-                    className={styles.button}
-                    title="Konfiguriere die Struktur der Jahrgänge und Klassen."
-                >
-                    Klassenstruktur verwalten
-                </button>
+                    <button
+                        onClick={openClassStructurePopup}
+                        className="btn btn-sm"
+                        title="Konfiguriere die Struktur der Jahrgänge und Klassen."
+                    >
+                        Klassenstruktur verwalten
+                    </button>
 
-                <button
-                    onClick={() => dataImportPopup.current.showModal()}
-                    className={styles.button}
-                    disabled={loading.upload}
-                >
-                    Schüler importieren
-                </button>
+                    <button
+                        onClick={() => dataImportPopup.current.showModal()}
+                        className="btn btn-sm"
+                        disabled={loading.upload}
+                    >
+                        Schüler importieren
+                    </button>
 
-                <button
-                    onClick={() => confirmDeletePopup.current.showModal()}
-                    className={styles.redButton}
-                >
-                    Alle Schüler löschen
-                </button>
-                {message.delete && <p className={styles.message}>{message.delete}</p>}
-                {message.upload && <p className={styles.message}>{message.upload}</p>}
+                    <button
+                        onClick={() => confirmDeletePopup.current.showModal()}
+                        className="btn btn-danger btn-sm"
+                    >
+                        Alle Schüler löschen
+                    </button>
+                </div>
+
+                {message.delete && <p className="message message-info">{message.delete}</p>}
+                {message.upload && <p className="message message-info">{message.upload}</p>}
             </div>
 
-            <div className={styles.section}>
-                <div className={styles.sectionHeader}>
-                    <h2 className={styles.subTitle}>Etiketten</h2>
-                    <hr className={styles.line} />
+            <div className="section">
+                <div className="section-header">
+                    <h2 className="section-title">Etiketten</h2>
                 </div>
                 <button
                     onClick={() => generateLabelsPopup.current.showModal()}
-                    className={styles.button}
+                    className="btn btn-sm"
                     disabled={loading.replacement}
                 >
                     Etiketten generieren
                 </button>
             </div>
 
-            <div className={styles.section}>
-                <div className={styles.sectionHeader}>
-                    <h2 className={styles.subTitle}>Auswertungen</h2>
-                    <hr className={styles.line} />
+            <div className="section">
+                <div className="section-header">
+                    <h2 className="section-title">Auswertungen</h2>
                 </div>
-                <button
-                    onClick={() => window.open('/mails', '_self')}
-                    className={styles.button}
-                    title="Versendet eine E-Mail mit den gelaufenen Runden aller Schüler an die jeweiligen Klassenlehrer."
-                >
-                    gelaufene Runden per Mail versenden
-                </button>
-                <button onClick={() => window.open('/donations', '_self')} className={styles.button}>
-                    Spenden eintragen
-                </button>
-                <button onClick={() => exportSpendenPopup.current.showModal()} className={styles.button}>
-                    Spenden-Auswertungen downloaden
-                </button>
+                <div className="btn-group btn-stack">
+                    <button
+                        onClick={() => window.open('/mails', '_self')}
+                        className="btn btn-sm"
+                        title="Versendet eine E-Mail mit den gelaufenen Runden aller Schüler an die jeweiligen Klassenlehrer."
+                    >
+                        gelaufene Runden per Mail versenden
+                    </button>
+                    <button onClick={() => window.open('/donations', '_self')} className="btn btn-sm">
+                        Spenden eintragen
+                    </button>
+                    <button onClick={() => exportSpendenPopup.current.showModal()} className="btn btn-sm">
+                        Spenden-Auswertungen downloaden
+                    </button>
+                </div>
             </div>
 
             <GenerateLabelsDialog

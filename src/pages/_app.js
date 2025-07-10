@@ -1,13 +1,13 @@
 import '../styles/globals.css';
-import Topbar from '../components/Topbar';
+import '../styles/components.css';
+import Layout from '../components/Layout';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 
 function MyApp({ Component, pageProps }) {
   return (
-    <>
-      <Topbar />
+    <Layout>
       <Component {...pageProps} />
-    </>
+    </Layout>
   );
 }
 

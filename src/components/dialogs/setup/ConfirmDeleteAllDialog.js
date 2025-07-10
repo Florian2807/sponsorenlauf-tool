@@ -1,26 +1,26 @@
 import React from 'react';
-import styles from '../../../styles/Setup.module.css';
 
 const ConfirmDeleteAllDialog = ({
     dialogRef,
     handleDeleteAllStudents
 }) => {
     return (
-        <dialog ref={dialogRef} className={styles.popup}>
-            <button className={styles.closeButtonX} onClick={() => dialogRef.current.close()}>
+        <dialog ref={dialogRef}>
+            <button className="dialog-close" onClick={() => dialogRef.current.close()}>
                 &times;
             </button>
             <h2>Bestätigen Sie das Löschen</h2>
             <p>Möchten Sie wirklich alle Schüler löschen?</p>
-            <div className={styles.popupButtons}>
+            <div className="dialog-buttons">
                 <button
                     onClick={() => dialogRef.current.close()}
+                    className="btn btn-secondary"
                 >
                     Abbrechen
                 </button>
                 <button
                     onClick={handleDeleteAllStudents}
-                    className={styles.redButton}
+                    className="btn btn-danger"
                 >
                     Alle löschen
                 </button>

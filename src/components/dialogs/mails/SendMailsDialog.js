@@ -1,5 +1,5 @@
 import React from 'react';
-import styles from '../../../styles/Mails.module.css';
+
 
 const SendMailsDialog = ({
     dialogRef,
@@ -11,8 +11,8 @@ const SendMailsDialog = ({
     handleUpload
 }) => {
     return (
-        <dialog ref={dialogRef} className={styles.popup}>
-            <button className={styles.closeButtonX} onClick={() => dialogRef.current.close()}>
+        <dialog ref={dialogRef}>
+            <button className="dialog-close" onClick={() => dialogRef.current.close()}>
                 &times;
             </button>
             <h2>Mails mit Tabellen versenden</h2>
@@ -48,20 +48,20 @@ const SendMailsDialog = ({
                 required
             />
 
-            <button onClick={handleLogin}>Login</button>
+            <button className="btn" onClick={handleLogin}>Login</button>
             <br />
-            {status.loginLoading && <div className={styles.progress} />}
-            {status.loginMessage && <p>{status.loginMessage}</p>}
+            {status.loginLoading && <div className="loading-spinner" />}
+            {status.loginMessage && <p className="message">{status.loginMessage}</p>}
 
-            <div className={styles.popupButtons}>
-                <button onClick={() => dialogRef.current.close()} className={`${styles.button} ${styles.redButton}`}>
+            <div className="dialog-actions">
+                <button onClick={() => dialogRef.current.close()} className="btn btn-secondary">
                     Abbrechen
                 </button>
-                <button className={styles.button} onClick={handleUpload} disabled={!credentialsCorrect}>
+                <button className="btn btn-primary" onClick={handleUpload} disabled={!credentialsCorrect}>
                     Weiter
                 </button>
             </div>
-            {status.uploadLoading && <div className={styles.progress} />}
+            {status.uploadLoading && <div className="loading-spinner" />}
         </dialog>
     );
 };

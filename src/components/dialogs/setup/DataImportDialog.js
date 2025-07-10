@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import BaseDialog from '../../BaseDialog';
 import { useApi } from '../../../hooks/useApi';
-import styles from '../../../styles/DataImport.module.css';
+
 
 const DataImportDialog = ({ dialogRef, onImportSuccess, onClose }) => {
     const [importMethod, setImportMethod] = useState('manual');
@@ -173,8 +173,8 @@ const DataImportDialog = ({ dialogRef, onImportSuccess, onClose }) => {
             showDefaultClose={false}
         >
             {/* Method Selector */}
-            <div className={styles.methodSelector}>
-                <label className={`${styles.methodOption} ${importMethod === 'manual' ? styles.active : ''}`}>
+            <div className="method-selector">
+                <label className={`method-option ${importMethod === 'manual' ? 'active' : ''}`}>
                     <input
                         type="radio"
                         name="importMethod"
@@ -182,14 +182,14 @@ const DataImportDialog = ({ dialogRef, onImportSuccess, onClose }) => {
                         checked={importMethod === 'manual'}
                         onChange={(e) => setImportMethod(e.target.value)}
                     />
-                    <div className={styles.methodIcon}>✏️</div>
+                    <div className="method-icon">✏️</div>
                     <div>
                         <strong>Manuell eingeben</strong>
                         <p>Schüler einzeln hinzufügen</p>
                     </div>
                 </label>
 
-                <label className={`${styles.methodOption} ${importMethod === 'excel' ? styles.active : ''}`}>
+                <label className={`method-option ${importMethod === 'excel' ? 'active' : ''}`}>
                     <input
                         type="radio"
                         name="importMethod"
@@ -197,7 +197,7 @@ const DataImportDialog = ({ dialogRef, onImportSuccess, onClose }) => {
                         checked={importMethod === 'excel'}
                         onChange={(e) => setImportMethod(e.target.value)}
                     />
-                    <div className={styles.methodIcon}>📊</div>
+                    <div className="method-icon">📊</div>
                     <div>
                         <strong>Excel importieren</strong>
                         <p>Aus Excel-Datei importieren</p>
@@ -207,16 +207,16 @@ const DataImportDialog = ({ dialogRef, onImportSuccess, onClose }) => {
 
             {/* Manual Import */}
             {importMethod === 'manual' && (
-                <div className={styles.manualImport}>
-                    <div className={styles.manualHeader}>
+                <div className="manual-import">
+                    <div className="manual-header">
                         <h3>Schüler manuell hinzufügen</h3>
-                        <button className={styles.addButton} onClick={addManualRow}>
+                        <button className="add-button" onClick={addManualRow}>
                             + Zeile hinzufügen
                         </button>
                     </div>
 
-                    <div className={styles.manualTable}>
-                        <div className={styles.tableHeader}>
+                    <div className="manual-table">
+                        <div className="table-header">
                             <span>Vorname</span>
                             <span>Nachname</span>
                             <span>Geschlecht</span>
@@ -225,7 +225,7 @@ const DataImportDialog = ({ dialogRef, onImportSuccess, onClose }) => {
                         </div>
 
                         {manualData.map((row, index) => (
-                            <div key={index} className={styles.tableRow}>
+                            <div key={index} className="table-row">
                                 <input
                                     type="text"
                                     placeholder="Vorname"
@@ -253,7 +253,7 @@ const DataImportDialog = ({ dialogRef, onImportSuccess, onClose }) => {
                                     onChange={(e) => updateManualRow(index, 'klasse', e.target.value)}
                                 />
                                 <button
-                                    className={styles.removeButton}
+                                    className="remove-button"
                                     onClick={() => removeManualRow(index)}
                                     disabled={manualData.length === 1}
                                     title="Zeile entfernen"
@@ -268,52 +268,52 @@ const DataImportDialog = ({ dialogRef, onImportSuccess, onClose }) => {
 
             {/* Excel Import */}
             {importMethod === 'excel' && (
-                <div className={styles.excelImport}>
-                    <div className={styles.excelInfo}>
+                <div className="excel-import">
+                    <div className="excel-info">
                         <h3>Excel-Import</h3>
 
-                        <div className={styles.formatInfo}>
+                        <div className="format-info">
                             <strong>Erwartetes Format:</strong>
-                            <div className={styles.exampleTable}>
-                                <div className={styles.exampleHeader}>
+                            <div className="example-table">
+                                <div className="example-header">
                                     <span>Vorname</span>
                                     <span>Nachname</span>
                                     <span>Geschlecht</span>
                                     <span>Klasse</span>
                                 </div>
-                                <div className={styles.exampleRow}>
+                                <div className="example-row">
                                     <span>Max</span>
                                     <span>Mustermann</span>
                                     <span>männlich</span>
                                     <span>5a</span>
                                 </div>
-                                <div className={styles.exampleRow}>
+                                <div className="example-row">
                                     <span>Anna</span>
                                     <span>Schmidt</span>
                                     <span>weiblich</span>
                                     <span>5b</span>
                                 </div>
                             </div>
-                            <p className={styles.formatNote}>
+                            <p className="format-note">
                                 Die erste Zeile sollte die Spaltenüberschriften enthalten.
                             </p>
                         </div>
 
-                        <div className={styles.fileUpload}>
+                        <div className="file-upload">
                             <input
                                 ref={fileInputRef}
                                 type="file"
                                 accept=".xlsx,.xls"
                                 onChange={handleFileSelect}
-                                className={styles.fileInput}
+                                className="file-input"
                             />
-                            <div className={styles.fileInfo}>
+                            <div className="file-info">
                                 {excelFile ? (
-                                    <span className={styles.selectedFile}>
+                                    <span className="selected-file">
                                         Ausgewählt: {excelFile.name}
                                     </span>
                                 ) : (
-                                    <span className={styles.noFile}>
+                                    <span className="no-file">
                                         Keine Datei ausgewählt
                                     </span>
                                 )}
@@ -325,12 +325,12 @@ const DataImportDialog = ({ dialogRef, onImportSuccess, onClose }) => {
 
             {/* Import Result */}
             {importResult && (
-                <div className={`${styles.result} ${importResult.success ? styles.success : styles.error}`}>
-                    <div className={styles.resultMessage}>
+                <div className={`result ${importResult.success ? 'success' : 'error'}`}>
+                    <div className="result-message">
                         {importResult.message}
                     </div>
                     {importResult.errors && (
-                        <div className={styles.errorList}>
+                        <div className="error-list">
                             <strong>Fehler:</strong>
                             <ul>
                                 {importResult.errors.map((error, index) => (

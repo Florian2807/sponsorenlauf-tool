@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import styles from '../styles/Statistics.module.css';
 import config from '../../data/config.json';
 import { formatCurrency, API_ENDPOINTS, downloadFile } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
@@ -100,164 +99,174 @@ export default function Statistics() {
   }, [stats.topClassesOfGrades, sortConfig.topClassesOfGrades, sortedData]);
 
   return (
-    <div className={styles.container}>
-      <h1 className={styles.header}>Statistiken</h1>
+    <div className="page-container-extra-wide">
+      <h1 className="page-title">Statistiken</h1>
 
-      <button onClick={handleExport} disabled={loading}>
+      <button className="btn" onClick={handleExport} disabled={loading}>
         {loading ? 'Exportiere...' : 'Exportiere Excel-Tabellen'}
       </button>
 
-      {error && <p className={styles.error}>{error}</p>}
+      {error && <p className="message message-error">{error}</p>}
 
-      <div className={styles.section}>
-        <h2
-          className={styles.toggleHeader}
+      <div className="toggle-section">
+        <div
+          className="toggle-header"
           onClick={() => setShowSections((prev) => ({ ...prev, classStats: !prev.classStats }))}
         >
-          Klassen-Statistiken {showSections.classStats ? '▲' : '▼'}
-        </h2>
+          <span>Klassen-Statistiken</span>
+          <span className="toggle-icon">{showSections.classStats ? '▲' : '▼'}</span>
+        </div>
         {showSections.classStats && (
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th className={styles.tableHeader} onClick={() => handleSort('classStats', 'klasse')}>
-                  Klasse {getSortIndicator('classStats', 'klasse')}
-                </th>
-                <th className={styles.tableHeader} onClick={() => handleSort('classStats', 'totalRounds')}>
-                  Gesamt Runden {getSortIndicator('classStats', 'totalRounds')}
-                </th>
-                <th className={styles.tableHeader} onClick={() => handleSort('classStats', 'averageRounds')}>
-                  Durchschnitt Runden {getSortIndicator('classStats', 'averageRounds')}
-                </th>
-                <th className={styles.tableHeader} onClick={() => handleSort('classStats', 'totalMoney')}>
-                  Gesamt Spenden {getSortIndicator('classStats', 'totalMoney')}
-                </th>
-                <th className={styles.tableHeader} onClick={() => handleSort('classStats', 'averageMoney')}>
-                  Durchschnitt Spenden {getSortIndicator('classStats', 'averageMoney')}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedClassStats.map((stat) => (
-                <tr key={stat.klasse}>
-                  <td className={styles.tableCell}>{stat.klasse}</td>
-                  <td className={styles.tableCell}>{stat.totalRounds ?? 0}</td>
-                  <td className={styles.tableCell}>{stat.averageRounds?.toFixed(2) ?? 0}</td>
-                  <td className={styles.tableCell}>{formatCurrency(stat.totalMoney ?? 0)}</td>
-                  <td className={styles.tableCell}>{formatCurrency(stat.averageMoney ?? 0)}</td>
+          <div className="toggle-content">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th className="sortable" onClick={() => handleSort('classStats', 'klasse')}>
+                    Klasse {getSortIndicator('classStats', 'klasse')}
+                  </th>
+                  <th className="sortable" onClick={() => handleSort('classStats', 'totalRounds')}>
+                    Gesamt Runden {getSortIndicator('classStats', 'totalRounds')}
+                  </th>
+                  <th className="sortable" onClick={() => handleSort('classStats', 'averageRounds')}>
+                    Durchschnitt Runden {getSortIndicator('classStats', 'averageRounds')}
+                  </th>
+                  <th className="sortable" onClick={() => handleSort('classStats', 'totalMoney')}>
+                    Gesamt Spenden {getSortIndicator('classStats', 'totalMoney')}
+                  </th>
+                  <th className="sortable" onClick={() => handleSort('classStats', 'averageMoney')}>
+                    Durchschnitt Spenden {getSortIndicator('classStats', 'averageMoney')}
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {sortedClassStats.map((stat) => (
+                  <tr key={stat.klasse}>
+                    <td>{stat.klasse}</td>
+                    <td>{stat.totalRounds ?? 0}</td>
+                    <td>{stat.averageRounds?.toFixed(2) ?? 0}</td>
+                    <td>{formatCurrency(stat.totalMoney ?? 0)}</td>
+                    <td>{formatCurrency(stat.averageMoney ?? 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
-      <div className={styles.section}>
-        <h2
-          className={styles.toggleHeader}
+      <div className="toggle-section">
+        <div
+          className="toggle-header"
           onClick={() => setShowSections((prev) => ({ ...prev, topStudentsByRounds: !prev.topStudentsByRounds }))}
         >
-          Top Schüler nach Runden {showSections.topStudentsByRounds ? '▲' : '▼'}
-        </h2>
+          <span>Top Schüler nach Runden</span>
+          <span className="toggle-icon">{showSections.topStudentsByRounds ? '▲' : '▼'}</span>
+        </div>
         {showSections.topStudentsByRounds && (
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th className={styles.tableHeader} onClick={() => handleSort('topStudentsByRounds', 'id')}>
-                  ID {getSortIndicator('topStudentsByRounds', 'id')}
-                </th>
-                <th className={styles.tableHeader} onClick={() => handleSort('topStudentsByRounds', 'vorname')}>
-                  Vorname {getSortIndicator('topStudentsByRounds', 'vorname')}
-                </th>
-                <th className={styles.tableHeader} onClick={() => handleSort('topStudentsByRounds', 'nachname')}>
-                  Nachname {getSortIndicator('topStudentsByRounds', 'nachname')}
-                </th>
-                <th className={styles.tableHeader} onClick={() => handleSort('topStudentsByRounds', 'timestamps')}>
-                  Runden {getSortIndicator('topStudentsByRounds', 'timestamps')}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedTopStudentsByRounds.map((student) => (
-                <tr key={student.id}>
-                  <td className={styles.tableCell}>{student.id}</td>
-                  <td className={styles.tableCell}>{student.vorname}</td>
-                  <td className={styles.tableCell}>{student.nachname}</td>
-                  <td className={styles.tableCell}>{student.timestamps.length}</td>
+          <div className="toggle-content">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th className="sortable" onClick={() => handleSort('topStudentsByRounds', 'id')}>
+                    ID {getSortIndicator('topStudentsByRounds', 'id')}
+                  </th>
+                  <th className="sortable" onClick={() => handleSort('topStudentsByRounds', 'vorname')}>
+                    Vorname {getSortIndicator('topStudentsByRounds', 'vorname')}
+                  </th>
+                  <th className="sortable" onClick={() => handleSort('topStudentsByRounds', 'nachname')}>
+                    Nachname {getSortIndicator('topStudentsByRounds', 'nachname')}
+                  </th>
+                  <th className="sortable" onClick={() => handleSort('topStudentsByRounds', 'timestamps')}>
+                    Runden {getSortIndicator('topStudentsByRounds', 'timestamps')}
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {sortedTopStudentsByRounds.map((student) => (
+                  <tr key={student.id}>
+                    <td>{student.id}</td>
+                    <td>{student.vorname}</td>
+                    <td>{student.nachname}</td>
+                    <td>{student.timestamps.length}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
-      <div className={styles.section}>
-        <h2
-          className={styles.toggleHeader}
+      <div className="toggle-section">
+        <div
+          className="toggle-header"
           onClick={() => setShowSections((prev) => ({ ...prev, topStudentsByMoney: !prev.topStudentsByMoney }))}
         >
-          Top Schüler nach gesammeltem Geld {showSections.topStudentsByMoney ? '▲' : '▼'}
-        </h2>
+          <span>Top Schüler nach gesammeltem Geld</span>
+          <span className="toggle-icon">{showSections.topStudentsByMoney ? '▲' : '▼'}</span>
+        </div>
         {showSections.topStudentsByMoney && (
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th className={styles.tableHeader} onClick={() => handleSort('topStudentsByMoney', 'id')}>
-                  ID {getSortIndicator('topStudentsByMoney', 'id')}
-                </th>
-                <th className={styles.tableHeader} onClick={() => handleSort('topStudentsByMoney', 'vorname')}>
-                  Vorname {getSortIndicator('topStudentsByMoney', 'vorname')}
-                </th>
-                <th className={styles.tableHeader} onClick={() => handleSort('topStudentsByMoney', 'nachname')}>
-                  Nachname {getSortIndicator('topStudentsByMoney', 'nachname')}
-                </th>
-                <th className={styles.tableHeader} onClick={() => handleSort('topStudentsByMoney', 'spenden')}>
-                  Gesammeltes Geld {getSortIndicator('topStudentsByMoney', 'spenden')}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedTopStudentsByMoney.map((student) => (
-                <tr key={student.id}>
-                  <td className={styles.tableCell}>{student.id}</td>
-                  <td className={styles.tableCell}>{student.vorname}</td>
-                  <td className={styles.tableCell}>{student.nachname}</td>
-                  <td className={styles.tableCell}>{formatCurrency(student.spenden)}</td>
+          <div className="toggle-content">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th className="sortable" onClick={() => handleSort('topStudentsByMoney', 'id')}>
+                    ID {getSortIndicator('topStudentsByMoney', 'id')}
+                  </th>
+                  <th className="sortable" onClick={() => handleSort('topStudentsByMoney', 'vorname')}>
+                    Vorname {getSortIndicator('topStudentsByMoney', 'vorname')}
+                  </th>
+                  <th className="sortable" onClick={() => handleSort('topStudentsByMoney', 'nachname')}>
+                    Nachname {getSortIndicator('topStudentsByMoney', 'nachname')}
+                  </th>
+                  <th className="sortable" onClick={() => handleSort('topStudentsByMoney', 'spenden')}>
+                    Gesammeltes Geld {getSortIndicator('topStudentsByMoney', 'spenden')}
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {sortedTopStudentsByMoney.map((student) => (
+                  <tr key={student.id}>
+                    <td>{student.id}</td>
+                    <td>{student.vorname}</td>
+                    <td>{student.nachname}</td>
+                    <td>{formatCurrency(student.spenden)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
-      <div className={styles.section}>
-        <h2
-          className={styles.toggleHeader}
+      <div className="toggle-section">
+        <div
+          className="toggle-header"
           onClick={() => setShowSections((prev) => ({ ...prev, topClassesOfGrades: !prev.topClassesOfGrades }))}
         >
-          Top Klassen jeder Stufe {showSections.topClassesOfGrades ? '▲' : '▼'}
-        </h2>
+          <span>Top Klassen jeder Stufe</span>
+          <span className="toggle-icon">{showSections.topClassesOfGrades ? '▲' : '▼'}</span>
+        </div>
         {showSections.topClassesOfGrades && (
-          <>
+          <div className="toggle-content">
             {Object.keys(sortedTopClassesOfGrades).map((grade) => (
-              <div key={grade}>
-                <h2>Stufe {grade}:</h2>
-                <table className={styles.table}>
+              <div key={grade} className="mb-3">
+                <h3 className="section-title">Stufe {grade}:</h3>
+                <table className="table">
                   <thead>
                     <tr>
-                      <th className={styles.tableHeader} onClick={() => handleSort('topClassesOfGrades', 'klasse')}>
+                      <th className="sortable" onClick={() => handleSort('topClassesOfGrades', 'klasse')}>
                         Klasse {getSortIndicator('topClassesOfGrades', 'klasse')}
                       </th>
-                      <th className={styles.tableHeader} onClick={() => handleSort('topClassesOfGrades', 'totalRounds')}>
+                      <th className="sortable" onClick={() => handleSort('topClassesOfGrades', 'totalRounds')}>
                         Gesamt Runden {getSortIndicator('topClassesOfGrades', 'totalRounds')}
                       </th>
-                      <th className={styles.tableHeader} onClick={() => handleSort('topClassesOfGrades', 'averageRounds')}>
+                      <th className="sortable" onClick={() => handleSort('topClassesOfGrades', 'averageRounds')}>
                         Durchschnitt Runden {getSortIndicator('topClassesOfGrades', 'averageRounds')}
                       </th>
-                      <th className={styles.tableHeader} onClick={() => handleSort('topClassesOfGrades', 'totalMoney')}>
+                      <th className="sortable" onClick={() => handleSort('topClassesOfGrades', 'totalMoney')}>
                         Gesamt Spenden {getSortIndicator('topClassesOfGrades', 'totalMoney')}
                       </th>
-                      <th className={styles.tableHeader} onClick={() => handleSort('topClassesOfGrades', 'averageMoney')}>
+                      <th className="sortable" onClick={() => handleSort('topClassesOfGrades', 'averageMoney')}>
                         Durchschnitt Spenden {getSortIndicator('topClassesOfGrades', 'averageMoney')}
                       </th>
                     </tr>
@@ -265,34 +274,41 @@ export default function Statistics() {
                   <tbody>
                     {sortedTopClassesOfGrades[grade].map((stat) => (
                       <tr key={stat.klasse}>
-                        <td className={styles.tableCell}>{stat.klasse}</td>
-                        <td className={styles.tableCell}>{stat.totalRounds ?? 0}</td>
-                        <td className={styles.tableCell}>{stat.averageRounds.toFixed(2) ?? 0}</td>
-                        <td className={styles.tableCell}>{formatCurrency(stat.totalMoney)}</td>
-                        <td className={styles.tableCell}>{formatCurrency(stat.averageMoney)}</td>
+                        <td>{stat.klasse}</td>
+                        <td>{stat.totalRounds ?? 0}</td>
+                        <td>{stat.averageRounds.toFixed(2) ?? 0}</td>
+                        <td>{formatCurrency(stat.totalMoney)}</td>
+                        <td>{formatCurrency(stat.averageMoney)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             ))}
-          </>
+          </div>
         )}
       </div>
 
-      <div className={styles.section}>
-        <h2
-          className={styles.toggleHeader}
+      <div className="toggle-section">
+        <div
+          className="toggle-header"
           onClick={() => setShowSections((prev) => ({ ...prev, overallStats: !prev.overallStats }))}
         >
-          Gesamtstatistiken {showSections.overallStats ? '▲' : '▼'}
-        </h2>
+          <span>Gesamtstatistiken</span>
+          <span className="toggle-icon">{showSections.overallStats ? '▲' : '▼'}</span>
+        </div>
         {showSections.overallStats && (
-          <div>
-            <p className={styles.stats}>
-              Durchschnittliche Runden pro Schüler: {stats.averageRounds?.toFixed(2) ?? 0}
-            </p>
-            <p className={styles.stats}>Gesamtanzahl der Runden: {stats.totalRounds}</p>
+          <div className="toggle-content">
+            <div className="stats-grid">
+              <div className="stat-card">
+                <div className="stat-value">{stats.averageRounds?.toFixed(2) ?? 0}</div>
+                <div className="stat-label">Durchschnittliche Runden pro Schüler</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-value">{stats.totalRounds}</div>
+                <div className="stat-label">Gesamtanzahl der Runden</div>
+              </div>
+            </div>
           </div>
         )}
       </div>

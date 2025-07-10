@@ -1,5 +1,4 @@
 import React from 'react';
-import styles from '../styles/BaseDialog.module.css';
 
 const BaseDialog = ({
     dialogRef,
@@ -19,20 +18,23 @@ const BaseDialog = ({
     };
 
     const sizeClasses = {
-        small: styles.maxWMd,
-        medium: styles.maxWLg,
-        large: styles.maxW2xl
+        small: 'dialog-sm',
+        medium: 'dialog-md',
+        large: 'dialog-lg',
+        xl: 'dialog-xl'
     };
 
     const renderActions = () => {
         if (actions) {
             return (
-                <div className={styles.popupButtons}>
+                <div className="dialog-actions">
                     {actions.map((action, index) => (
                         <button
                             key={index}
                             onClick={action.onClick}
-                            className={action.variant === 'danger' ? styles.redButton : ''}
+                            className={`btn ${action.variant === 'danger' ? 'btn-danger' :
+                                action.variant === 'secondary' ? 'btn-secondary' :
+                                    action.variant === 'success' ? 'btn-success' : ''}`}
                             type={action.type || 'button'}
                             disabled={action.disabled}
                         >
@@ -45,8 +47,8 @@ const BaseDialog = ({
 
         if (showDefaultClose) {
             return (
-                <div className={styles.popupButtons}>
-                    <button onClick={handleClose}>Schließen</button>
+                <div className="dialog-actions">
+                    <button className="btn" onClick={handleClose}>Schließen</button>
                 </div>
             );
         }
@@ -57,19 +59,22 @@ const BaseDialog = ({
     return (
         <dialog
             ref={dialogRef}
-            className={`${styles.popup} ${className} ${sizeClasses[size]}`}
+            className={`${className} ${sizeClasses[size]}`}
         >
             <button
-                className={styles.closeButtonX}
+                className="dialog-close"
                 onClick={handleClose}
                 type="button"
+                title="Dialog schließen"
             >
                 &times;
             </button>
 
-            {title && <h2>{title}</h2>}
+            {title && <h2 className="page-title">{title}</h2>}
 
-            {children}
+            <div className="card-body">
+                {children}
+            </div>
 
             {renderActions()}
         </dialog>

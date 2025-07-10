@@ -1,4 +1,5 @@
 import React from 'react';
+import BaseDialog from '../../BaseDialog';
 
 const GenerateLabelsDialog = ({
     dialogRef,
@@ -13,24 +14,45 @@ const GenerateLabelsDialog = ({
     loading,
     handleGenerateLabels
 }) => {
+    const actions = [
+        {
+            label: 'Abbrechen',
+            position: 'left',
+            onClick: () => dialogRef.current.close()
+        },
+        {
+            label: loading.labels ? 'Generiere...' : 'Generieren',
+            variant: 'success',
+            onClick: handleGenerateLabels,
+            disabled: loading.labels
+        }
+    ];
+
     return (
-        <dialog ref={dialogRef}>
-            <button className="dialog-close" onClick={() => dialogRef.current.close()}>
-                &times;
-            </button>
-            <h2>Etiketten generieren</h2>
+        <BaseDialog
+            dialogRef={dialogRef}
+            title="Etiketten generieren"
+            actions={actions}
+            actionLayout="split"
+            size="large"
+            showDefaultClose={false}
+        >
             <p>Füge Ersatz-IDs hinzu, welche später Schülern zugeordnet werden, welche ihren Zettel verloren haben</p>
-            <label>Ersatz-IDs hinzufügen:</label>
+
+            <label className="form-label">Ersatz-IDs hinzufügen:</label>
             <input
                 type="number"
                 value={replacementAmount}
                 onChange={(e) => setReplacementAmount(e.target.value)}
+                className="form-input"
             />
-            <label>Klassen auswählen:</label>
+
+            <label className="form-label">Klassen auswählen:</label>
             <div className="select-buttons">
                 <button onClick={handleSelectAll} className="select-button">Alle auswählen</button>
                 <button onClick={handleDeselectAll} className="select-button">Alle abwählen</button>
             </div>
+
             <div className="class-checkboxes" style={{ color: 'grey' }}>
                 <label className="class-select-label">
                     <input
@@ -75,7 +97,7 @@ const GenerateLabelsDialog = ({
                     Generieren
                 </button>
             </div>
-        </dialog>
+        </BaseDialog>
     );
 };
 

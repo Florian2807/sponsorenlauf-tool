@@ -318,13 +318,45 @@ body {
   justify-content: flex-start;
 }
 
+/* Adaptive gap for centered button groups */
 .btn-group-center {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.75rem; /* Default gap for centered groups */
   align-items: center;
   justify-content: center;
 }
+
+/* Dynamic gap based on number of children for centered groups */
+.btn-group-center:has(.btn:nth-child(1):nth-last-child(1)) {
+  gap: 0; /* 1 button: no gap needed */
+}
+
+.btn-group-center:has(.btn:nth-child(2):nth-last-child(1)) {
+  gap: 2rem; /* 2 buttons: large gap for separation */
+}
+
+.btn-group-center:has(.btn:nth-child(3):nth-last-child(1)) {
+  gap: 1.5rem; /* 3 buttons: medium gap */
+}
+
+.btn-group-center:has(.btn:nth-child(4):nth-last-child(1)) {
+  gap: 1rem; /* 4 buttons: smaller gap */
+}
+
+.btn-group-center:has(.btn:nth-child(5):nth-last-child(1)),
+.btn-group-center:has(.btn:nth-child(n+5)) {
+  gap: 0.5rem; /* 5+ buttons: minimal gap */
+}
+
+/* Alternative classes for manual gap control */
+.btn-group-gap-none { gap: 0; }
+.btn-group-gap-xs { gap: 0.25rem; }
+.btn-group-gap-sm { gap: 0.5rem; }
+.btn-group-gap-md { gap: 0.75rem; }
+.btn-group-gap-lg { gap: 1rem; }
+.btn-group-gap-xl { gap: 1.5rem; }
+.btn-group-gap-2xl { gap: 2rem; }
 
 .btn-group-end {
   display: flex;

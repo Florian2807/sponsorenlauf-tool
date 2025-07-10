@@ -1,4 +1,5 @@
 import React from 'react';
+import BaseDialog from '../../BaseDialog';
 
 const ClassStructureDialog = ({
     dialogRef,
@@ -12,12 +13,29 @@ const ClassStructureDialog = ({
     message,
     saveClassStructure
 }) => {
+    const actions = [
+        {
+            label: 'Abbrechen',
+            position: 'left',
+            onClick: () => dialogRef.current.close()
+        },
+        {
+            label: 'Speichern',
+            variant: 'success',
+            position: 'right',
+            onClick: saveClassStructure
+        }
+    ];
+
     return (
-        <dialog ref={dialogRef}>
-            <button className="dialog-close" onClick={() => dialogRef.current.close()}>
-                &times;
-            </button>
-            <h2>Klassenstruktur verwalten</h2>
+        <BaseDialog
+            dialogRef={dialogRef}
+            title="Klassenstruktur verwalten"
+            actions={actions}
+            actionLayout="split"
+            size="xl"
+            showDefaultClose={false}
+        >
             <p>Verwalten Sie die Jahrgänge und deren Klassen.</p>
 
             <div className="class-structure-container">
@@ -88,29 +106,14 @@ const ClassStructureDialog = ({
 
                 <button
                     onClick={addGrade}
-                    className="btn btn-secondary"
+                    className="add-grade-button"
                 >
                     + Jahrgang hinzufügen
                 </button>
             </div>
 
-            {message.upload && <p className="message-info">{message.upload}</p>}
-
-            <div className="dialog-buttons">
-                <button
-                    onClick={() => dialogRef.current.close()}
-                    className="btn btn-secondary"
-                >
-                    Abbrechen
-                </button>
-                <button
-                    onClick={saveClassStructure}
-                    className="btn btn-primary"
-                >
-                    Speichern
-                </button>
-            </div>
-        </dialog>
+            {message.upload && <p className="setup-message">{message.upload}</p>}
+        </BaseDialog>
     );
 };
 

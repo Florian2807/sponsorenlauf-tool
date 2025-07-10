@@ -8,41 +8,71 @@ const AddStudentDialog = ({
     availableClasses,
     addStudentSubmit
 }) => {
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        addStudentSubmit(e);
+        dialogRef.current.close();
+    };
+
+    const actions = [
+        {
+            label: 'Abbrechen',
+            position: 'left',
+            onClick: () => dialogRef.current.close()
+        },
+        {
+            label: 'Hinzufügen',
+            variant: 'success',
+            type: 'submit',
+            onClick: handleSubmit
+        }
+    ];
+
     return (
-        <dialog ref={dialogRef}>
-            <button className="dialog-close" onClick={() => dialogRef.current.close()}>
-                &times;
-            </button>
-            <h2>Neuen Schüler hinzufügen</h2>
-            <form onSubmit={addStudentSubmit}>
-                <label>ID:</label>
+        <BaseDialog
+            dialogRef={dialogRef}
+            title="Neuen Schüler hinzufügen"
+            actions={actions}
+            actionLayout="split"
+            size="large"
+            showDefaultClose={false}
+        >
+            <form onSubmit={handleSubmit}>
+                <label className="form-label">ID:</label>
                 <input
                     type="text"
                     name="id"
                     value={newStudent.id}
+                    className="form-input"
                     readOnly
                 />
-                <label>Vorname:</label>
+
+                <label className="form-label">Vorname:</label>
                 <input
                     type="text"
                     name="vorname"
                     value={newStudent.vorname}
                     onChange={addStudentChangeField}
+                    className="form-input"
                     required
                 />
-                <label>Nachname:</label>
+
+                <label className="form-label">Nachname:</label>
                 <input
                     type="text"
                     name="nachname"
                     value={newStudent.nachname}
                     onChange={addStudentChangeField}
+                    className="form-input"
                     required
                 />
-                <label>Klasse:</label>
+
+                <label className="form-label">Klasse:</label>
                 <select
                     name="klasse"
                     value={newStudent.klasse}
                     onChange={addStudentChangeField}
+                    className="form-select"
                     required
                 >
                     <option value="">Klasse auswählen...</option>
@@ -53,23 +83,20 @@ const AddStudentDialog = ({
                     ))}
                 </select>
 
-                <label>Geschlecht:</label>
+                <label className="form-label">Geschlecht:</label>
                 <select
                     name="geschlecht"
                     value={newStudent.geschlecht}
                     onChange={addStudentChangeField}
+                    className="form-select"
                     required
                 >
                     <option value="männlich">Männlich</option>
                     <option value="weiblich">Weiblich</option>
                     <option value="divers">Divers</option>
                 </select>
-                <div className="dialog-actions">
-                    <button className="btn btn-secondary" onClick={() => dialogRef.current.close()}>Abbrechen</button>
-                    <button type="submit" className="btn btn-primary">Hinzufügen</button>
-                </div>
             </form>
-        </dialog>
+        </BaseDialog>
     );
 };
 

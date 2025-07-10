@@ -1,31 +1,33 @@
 import React from 'react';
+import BaseDialog from '../../BaseDialog';
 
 const ConfirmDeleteAllDialog = ({
     dialogRef,
     handleDeleteAllStudents
 }) => {
+    const actions = [
+        {
+            label: 'Abbrechen',
+            position: 'left',
+            onClick: () => dialogRef.current.close()
+        },
+        {
+            label: 'Alle löschen',
+            variant: 'danger',
+            onClick: handleDeleteAllStudents
+        }
+    ];
+
     return (
-        <dialog ref={dialogRef}>
-            <button className="dialog-close" onClick={() => dialogRef.current.close()}>
-                &times;
-            </button>
-            <h2>Bestätigen Sie das Löschen</h2>
+        <BaseDialog
+            dialogRef={dialogRef}
+            title="Bestätigen Sie das Löschen"
+            actions={actions}
+            actionLayout="split"
+            showDefaultClose={false}
+        >
             <p>Möchten Sie wirklich alle Schüler löschen?</p>
-            <div className="dialog-buttons">
-                <button
-                    onClick={() => dialogRef.current.close()}
-                    className="btn btn-secondary"
-                >
-                    Abbrechen
-                </button>
-                <button
-                    onClick={handleDeleteAllStudents}
-                    className="btn btn-danger"
-                >
-                    Alle löschen
-                </button>
-            </div>
-        </dialog>
+        </BaseDialog>
     );
 };
 

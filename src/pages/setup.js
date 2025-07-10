@@ -220,81 +220,115 @@ export default function Setup() {
 
     return (
         <div className="page-container-extra-wide">
-            <h1 className="page-title">Setup</h1>
-
-            <div className="section">
-                <div className="section-header">
-                    <h2 className="section-title">Datenbank</h2>
-                </div>
-
-                <div className="btn-group btn-stack">
-                    <button
-                        onClick={() => window.open('/teachers', '_self')}
-                        className="btn btn-sm"
-                        title="Konfiguriere die E-Mail-Adressen und Klassen der Lehrer."
-                    >
-                        Lehrer Verwaltung
-                    </button>
-
-                    <button
-                        onClick={openClassStructurePopup}
-                        className="btn btn-sm"
-                        title="Konfiguriere die Struktur der Jahrgänge und Klassen."
-                    >
-                        Klassenstruktur verwalten
-                    </button>
-
-                    <button
-                        onClick={() => dataImportPopup.current.showModal()}
-                        className="btn btn-sm"
-                        disabled={loading.upload}
-                    >
-                        Schüler importieren
-                    </button>
-
-                    <button
-                        onClick={() => confirmDeletePopup.current.showModal()}
-                        className="btn btn-danger btn-sm"
-                    >
-                        Alle Schüler löschen
-                    </button>
-                </div>
-
-                {message.delete && <p className="message message-info">{message.delete}</p>}
-                {message.upload && <p className="message message-info">{message.upload}</p>}
+            <div className="setup-header">
+                <h1 className="setup-title">Setup & Verwaltung</h1>
+                <p className="setup-subtitle">Verwalten Sie Ihre Sponsorenlauf-Daten und -Einstellungen</p>
             </div>
 
-            <div className="section">
-                <div className="section-header">
-                    <h2 className="section-title">Etiketten</h2>
-                </div>
-                <button
-                    onClick={() => generateLabelsPopup.current.showModal()}
-                    className="btn btn-sm"
-                    disabled={loading.replacement}
-                >
-                    Etiketten generieren
-                </button>
-            </div>
+            <div className="setup-grid">
+                <div className="setup-card">
+                    <div className="setup-card-header">
+                        <h2 className="setup-card-title">📊 Datenbank</h2>
+                        <p className="setup-card-description">Verwalten Sie Schüler, Lehrer und Klassenstrukturen</p>
+                    </div>
+                    <div className="setup-card-content">
+                        <div className="setup-actions">
+                            <button
+                                onClick={() => window.open('/teachers', '_self')}
+                                className="setup-action-btn"
+                                title="Konfiguriere die E-Mail-Adressen und Klassen der Lehrer."
+                            >
+                                <span className="setup-btn-icon">👨‍🏫</span>
+                                <span className="setup-btn-text">Lehrer Verwaltung</span>
+                            </button>
 
-            <div className="section">
-                <div className="section-header">
-                    <h2 className="section-title">Auswertungen</h2>
+                            <button
+                                onClick={openClassStructurePopup}
+                                className="setup-action-btn"
+                                title="Konfiguriere die Struktur der Jahrgänge und Klassen."
+                            >
+                                <span className="setup-btn-icon">🏫</span>
+                                <span className="setup-btn-text">Klassenstruktur</span>
+                            </button>
+
+                            <button
+                                onClick={() => dataImportPopup.current.showModal()}
+                                className="setup-action-btn"
+                                disabled={loading.upload}
+                            >
+                                <span className="setup-btn-icon">📥</span>
+                                <span className="setup-btn-text">Schüler importieren</span>
+                            </button>
+
+                            <button
+                                onClick={() => confirmDeletePopup.current.showModal()}
+                                className="setup-action-btn setup-action-btn-danger"
+                            >
+                                <span className="setup-btn-icon">🗑️</span>
+                                <span className="setup-btn-text">Alle Schüler löschen</span>
+                            </button>
+                        </div>
+                        {(message.delete || message.upload) && (
+                            <div className="setup-messages">
+                                {message.delete && <div className="setup-message">{message.delete}</div>}
+                                {message.upload && <div className="setup-message">{message.upload}</div>}
+                            </div>
+                        )}
+                    </div>
                 </div>
-                <div className="btn-group btn-stack">
-                    <button
-                        onClick={() => window.open('/mails', '_self')}
-                        className="btn btn-sm"
-                        title="Versendet eine E-Mail mit den gelaufenen Runden aller Schüler an die jeweiligen Klassenlehrer."
-                    >
-                        gelaufene Runden per Mail versenden
-                    </button>
-                    <button onClick={() => window.open('/donations', '_self')} className="btn btn-sm">
-                        Spenden eintragen
-                    </button>
-                    <button onClick={() => exportSpendenPopup.current.showModal()} className="btn btn-sm">
-                        Spenden-Auswertungen downloaden
-                    </button>
+
+                <div className="setup-card">
+                    <div className="setup-card-header">
+                        <h2 className="setup-card-title">🏷️ Etiketten</h2>
+                        <p className="setup-card-description">Generieren Sie Barcode-Etiketten für den Sponsorenlauf</p>
+                    </div>
+                    <div className="setup-card-content">
+                        <div className="setup-actions">
+                            <button
+                                onClick={() => generateLabelsPopup.current.showModal()}
+                                className="setup-action-btn"
+                                disabled={loading.replacement}
+                            >
+                                <span className="setup-btn-icon">📄</span>
+                                <span className="setup-btn-text">Etiketten generieren</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="setup-card">
+                    <div className="setup-card-header">
+                        <h2 className="setup-card-title">📈 Auswertungen</h2>
+                        <p className="setup-card-description">Exportieren und versenden Sie Ergebnisse</p>
+                    </div>
+                    <div className="setup-card-content">
+                        <div className="setup-actions">
+                            <button
+                                onClick={() => window.open('/mails', '_self')}
+                                className="setup-action-btn"
+                                title="Versendet eine E-Mail mit den gelaufenen Runden aller Schüler an die jeweiligen Klassenlehrer."
+                            >
+                                <span className="setup-btn-icon">📧</span>
+                                <span className="setup-btn-text">E-Mails versenden</span>
+                            </button>
+
+                            <button
+                                onClick={() => window.open('/donations', '_self')}
+                                className="setup-action-btn"
+                            >
+                                <span className="setup-btn-icon">💰</span>
+                                <span className="setup-btn-text">Spenden eintragen</span>
+                            </button>
+
+                            <button
+                                onClick={() => exportSpendenPopup.current.showModal()}
+                                className="setup-action-btn"
+                            >
+                                <span className="setup-btn-icon">📊</span>
+                                <span className="setup-btn-text">Spenden-Export</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 

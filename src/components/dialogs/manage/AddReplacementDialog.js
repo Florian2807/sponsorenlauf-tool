@@ -11,10 +11,12 @@ const AddReplacementDialog = ({
     const actions = [
         {
             label: 'Abbrechen',
+            position: 'left',
             onClick: () => dialogRef.current.close()
         },
         {
             label: 'Hinzufügen',
+            variant: 'success',
             onClick: addReplacementID
         }
     ];
@@ -24,6 +26,7 @@ const AddReplacementDialog = ({
             dialogRef={dialogRef}
             title="Ersatz-ID hinzufügen"
             actions={actions}
+            actionLayout="split"
             showDefaultClose={false}
         >
             <p>Füge eine Ersatz-ID zum Schüler hinzu</p>

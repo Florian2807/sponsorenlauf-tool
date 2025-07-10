@@ -1,4 +1,5 @@
 import React from 'react';
+import BaseDialog from '../../BaseDialog';
 import { formatDate } from '../../../utils/constants';
 
 const EditStudentDialog = ({
@@ -19,36 +20,64 @@ const EditStudentDialog = ({
         setEditForm(prev => ({ ...prev, [field]: value }));
     };
 
-    return (
-        <dialog ref={dialogRef}>
-            <button className="dialog-close" onClick={() => dialogRef.current.close()}>
-                &times;
-            </button>
+    const actions = [
+        {
+            label: 'Abbrechen',
+            position: 'left',
+            onClick: () => dialogRef.current.close()
+        },
+        {
+            label: 'Schüler löschen',
+            position: 'left',
+            variant: 'danger',
+            onClick: () => confirmDeletePopup.current.showModal()
+        },
+        {
+            label: 'Speichern',
+            variant: 'success',
+            onClick: editStudent
+        }
+    ];
 
+    return (
+        <BaseDialog
+            dialogRef={dialogRef}
+            title="Schüler bearbeiten"
+            actions={actions}
+            actionLayout="split"
+            size="large"
+            showDefaultClose={false}
+        >
             <div>
-                <h2>Schüler bearbeiten</h2>
-                <label>ID:</label>
+                <label className="form-label">ID:</label>
                 <input
                     type="text"
                     value={selectedStudent?.id || ''}
+                    className="form-input"
                     disabled
                 />
-                <label>Vorname:</label>
+
+                <label className="form-label">Vorname:</label>
                 <input
                     type="text"
                     value={editForm.vorname}
                     onChange={(e) => handleInputChange('vorname', e.target.value)}
+                    className="form-input"
                 />
-                <label>Nachname:</label>
+
+                <label className="form-label">Nachname:</label>
                 <input
                     type="text"
                     value={editForm.nachname}
                     onChange={(e) => handleInputChange('nachname', e.target.value)}
+                    className="form-input"
                 />
-                <label>Klasse:</label>
+
+                <label className="form-label">Klasse:</label>
                 <select
                     value={editForm.klasse}
                     onChange={(e) => handleInputChange('klasse', e.target.value)}
+                    className="form-select"
                 >
                     <option value="">Klasse auswählen...</option>
                     {availableClasses.map((className) => (
@@ -58,10 +87,11 @@ const EditStudentDialog = ({
                     ))}
                 </select>
 
-                <label>Geschlecht:</label>
+                <label className="form-label">Geschlecht:</label>
                 <select
                     value={editForm.geschlecht}
                     onChange={(e) => handleInputChange('geschlecht', e.target.value)}
+                    className="form-select"
                 >
                     <option value="männlich">Männlich</option>
                     <option value="weiblich">Weiblich</option>
@@ -113,16 +143,7 @@ const EditStudentDialog = ({
                 </button>
             </div>
 
-            <div className="dialog-actions">
-                <button
-                    className="btn btn-danger"
-                    onClick={() => confirmDeletePopup.current.showModal()}
-                >
-                    Schüler löschen
-                </button>
-                <button className="btn btn-primary" onClick={editStudent}>Speichern</button>
-            </div>
-        </dialog>
+        </BaseDialog>
     );
 };
 

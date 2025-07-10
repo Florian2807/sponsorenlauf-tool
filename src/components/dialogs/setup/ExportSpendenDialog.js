@@ -1,34 +1,41 @@
 import React from 'react';
+import BaseDialog from '../../BaseDialog';
 
 const ExportSpendenDialog = ({
     dialogRef,
     downloadResults,
     loading
 }) => {
+    const actions = [
+        {
+            label: 'Schließen',
+            onClick: () => dialogRef.current.close()
+        },
+        {
+            label: 'Gesamtauswertung',
+            variant: 'success',
+            onClick: () => downloadResults('allstudents'),
+            disabled: loading.downloadResults
+        },
+        {
+            label: 'Klassenweise Auswertung',
+            variant: 'success',
+            onClick: () => downloadResults('classes'),
+            disabled: loading.downloadResults
+        }
+    ];
+
     return (
-        <dialog ref={dialogRef}>
-            <button className="dialog-close" onClick={() => dialogRef.current.close()}>
-                &times;
-            </button>
-            <h2>Spenden Auswertungen downloaden</h2>
-            <div className="dialog-buttons">
-                <button
-                    onClick={() => downloadResults('allstudents')}
-                    className="btn btn-primary"
-                    disabled={loading.downloadResults}
-                >
-                    Gesamtauswertung
-                </button>
-                <button
-                    className="btn btn-primary"
-                    onClick={() => downloadResults('classes')}
-                    disabled={loading.downloadResults}
-                >
-                    Klassenweise Auswertung
-                </button>
-            </div>
+        <BaseDialog
+            dialogRef={dialogRef}
+            title="Spenden Auswertungen downloaden"
+            actions={actions}
+            actionLayout="default"
+            size='xl'
+            showDefaultClose={false}
+        >
             {loading.downloadResults && <div className="progress-bar" />}
-        </dialog>
+        </BaseDialog>
     );
 };
 

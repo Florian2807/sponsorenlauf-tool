@@ -147,18 +147,15 @@ const DataImportDialog = ({ dialogRef, onImportSuccess, onClose }) => {
     const actions = [
         {
             label: 'Zurücksetzen',
+            position: 'left',
             onClick: resetForm,
             variant: 'secondary'
         },
         {
-            label: 'Abbrechen',
-            onClick: handleClose,
-            variant: 'danger'
-        },
-        {
             label: isImporting ? 'Importiere...' : 'Importieren',
             onClick: importMethod === 'manual' ? submitManualImport : submitExcelImport,
-            variant: 'primary',
+            variant: 'success',
+            position: 'right',
             disabled: isImporting
         }
     ];
@@ -168,8 +165,9 @@ const DataImportDialog = ({ dialogRef, onImportSuccess, onClose }) => {
             dialogRef={dialogRef}
             title="Schüler importieren"
             onClose={handleClose}
-            size="large"
+            size="xl"
             actions={actions}
+            actionLayout="split"
             showDefaultClose={false}
         >
             {/* Method Selector */}
@@ -215,54 +213,75 @@ const DataImportDialog = ({ dialogRef, onImportSuccess, onClose }) => {
                         </button>
                     </div>
 
-                    <div className="manual-table">
-                        <div className="table-header">
-                            <span>Vorname</span>
-                            <span>Nachname</span>
-                            <span>Geschlecht</span>
-                            <span>Klasse</span>
-                            <span></span>
-                        </div>
-
-                        {manualData.map((row, index) => (
-                            <div key={index} className="table-row">
-                                <input
-                                    type="text"
-                                    placeholder="Vorname"
-                                    value={row.vorname}
-                                    onChange={(e) => updateManualRow(index, 'vorname', e.target.value)}
-                                />
-                                <input
-                                    type="text"
-                                    placeholder="Nachname"
-                                    value={row.nachname}
-                                    onChange={(e) => updateManualRow(index, 'nachname', e.target.value)}
-                                />
-                                <select
-                                    value={row.geschlecht}
-                                    onChange={(e) => updateManualRow(index, 'geschlecht', e.target.value)}
-                                >
-                                    <option value="männlich">Männlich</option>
-                                    <option value="weiblich">Weiblich</option>
-                                    <option value="divers">Divers</option>
-                                </select>
-                                <input
-                                    type="text"
-                                    placeholder="Klasse"
-                                    value={row.klasse}
-                                    onChange={(e) => updateManualRow(index, 'klasse', e.target.value)}
-                                />
-                                <button
-                                    className="remove-button"
-                                    onClick={() => removeManualRow(index)}
-                                    disabled={manualData.length === 1}
-                                    title="Zeile entfernen"
-                                >
-                                    🗑️
-                                </button>
-                            </div>
-                        ))}
-                    </div>
+                    <table className="table">
+                        <thead>
+                            <tr>
+                                <th>Vorname</th>
+                                <th>Nachname</th>
+                                <th>Geschlecht</th>
+                                <th>Klasse</th>
+                                <th style={{ width: '60px' }}></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {manualData.map((row, index) => (
+                                <tr key={index}>
+                                    <td>
+                                        <input
+                                            type="text"
+                                            placeholder="Vorname"
+                                            value={row.vorname}
+                                            onChange={(e) => updateManualRow(index, 'vorname', e.target.value)}
+                                            className="form-input"
+                                            style={{ width: '100%', margin: 0, padding: '0.5rem' }}
+                                        />
+                                    </td>
+                                    <td>
+                                        <input
+                                            type="text"
+                                            placeholder="Nachname"
+                                            value={row.nachname}
+                                            onChange={(e) => updateManualRow(index, 'nachname', e.target.value)}
+                                            className="form-input"
+                                            style={{ width: '100%', margin: 0, padding: '0.5rem' }}
+                                        />
+                                    </td>
+                                    <td>
+                                        <select
+                                            value={row.geschlecht}
+                                            onChange={(e) => updateManualRow(index, 'geschlecht', e.target.value)}
+                                            className="form-select"
+                                            style={{ width: '100%', margin: 0, padding: '0.5rem' }}
+                                        >
+                                            <option value="männlich">Männlich</option>
+                                            <option value="weiblich">Weiblich</option>
+                                            <option value="divers">Divers</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input
+                                            type="text"
+                                            placeholder="Klasse"
+                                            value={row.klasse}
+                                            onChange={(e) => updateManualRow(index, 'klasse', e.target.value)}
+                                            className="form-input"
+                                            style={{ width: '100%', margin: 0, padding: '0.5rem' }}
+                                        />
+                                    </td>
+                                    <td>
+                                        <button
+                                            className="btn btn-danger btn-sm"
+                                            onClick={() => removeManualRow(index)}
+                                            disabled={manualData.length === 1}
+                                            title="Zeile entfernen"
+                                        >
+                                            🗑️
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
             )}
 

@@ -8,7 +8,8 @@ const BaseDialog = ({
     className = '',
     size = 'medium',
     actions = null,
-    showDefaultClose = true
+    showDefaultClose = true,
+    actionLayout = 'default' // 'default' (auto-distribute based on count), 'split' (left/right for 2 buttons), 'right' (align right)
 }) => {
     const handleClose = () => {
         if (onClose) {
@@ -26,29 +27,93 @@ const BaseDialog = ({
 
     const renderActions = () => {
         if (actions) {
-            return (
-                <div className="dialog-actions">
-                    {actions.map((action, index) => (
-                        <button
-                            key={index}
-                            onClick={action.onClick}
-                            className={`btn ${action.variant === 'danger' ? 'btn-danger' :
-                                action.variant === 'secondary' ? 'btn-secondary' :
-                                    action.variant === 'success' ? 'btn-success' : ''}`}
-                            type={action.type || 'button'}
-                            disabled={action.disabled}
-                        >
-                            {action.label}
-                        </button>
-                    ))}
-                </div>
-            );
+            const actionCount = actions.length;
+
+            // Determine action layout class based on count and layout preference
+            let actionClass = 'dialog-actions';
+
+            if (actionLayout === 'split' && actionCount === 2) {
+                // Special handling for split layout with exactly 2 actions
+                actionClass += ' dialog-actions-split';
+                const leftActions = actions.filter(action => action.position === 'left');
+                const rightActions = actions.filter(action => action.position !== 'left');
+
+                // If no position specified, put first action left, second right
+                if (leftActions.length === 0 && rightActions.length === 0) {
+                    leftActions.push(actions[0]);
+                    rightActions.push(actions[1]);
+                } else if (leftActions.length === 0) {
+                    leftActions.push(actions[0]);
+                } else if (rightActions.length === 0) {
+                    rightActions.push(actions[1]);
+                }
+
+                return (
+                    <div className={actionClass}>
+                        <div className="btn-group">
+                            {leftActions.map((action, index) => (
+                                <button
+                                    key={`left-${index}`}
+                                    onClick={action.onClick}
+                                    className={`btn ${action.variant === 'danger' ? 'btn-danger' :
+                                        action.variant === 'secondary' ? 'btn-secondary' :
+                                            action.variant === 'success' ? 'btn-success' : 'btn-primary'}`}
+                                    type={action.type || 'button'}
+                                    disabled={action.disabled}
+                                >
+                                    {action.label}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="btn-group">
+                            {rightActions.map((action, index) => (
+                                <button
+                                    key={`right-${index}`}
+                                    onClick={action.onClick}
+                                    className={`btn ${action.variant === 'danger' ? 'btn-danger' :
+                                        action.variant === 'secondary' ? 'btn-secondary' :
+                                            action.variant === 'success' ? 'btn-success' : 'btn-primary'}`}
+                                    type={action.type || 'button'}
+                                    disabled={action.disabled}
+                                >
+                                    {action.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                );
+            } else {
+                // Auto-distribute actions based on count
+                if (actionCount >= 2) {
+                    actionClass += ` dialog-actions-distributed dialog-actions-count-${Math.min(actionCount, 5)}`;
+                } else if (actionLayout === 'right') {
+                    actionClass += ' dialog-actions-right';
+                }
+
+                return (
+                    <div className={actionClass}>
+                        {actions.map((action, index) => (
+                            <button
+                                key={index}
+                                onClick={action.onClick}
+                                className={`btn ${action.variant === 'danger' ? 'btn-danger' :
+                                    action.variant === 'secondary' ? 'btn-secondary' :
+                                        action.variant === 'success' ? 'btn-success' : 'btn-primary'}`}
+                                type={action.type || 'button'}
+                                disabled={action.disabled}
+                            >
+                                {action.label}
+                            </button>
+                        ))}
+                    </div>
+                );
+            }
         }
 
         if (showDefaultClose) {
             return (
                 <div className="dialog-actions">
-                    <button className="btn" onClick={handleClose}>Schließen</button>
+                    <button className="btn btn-primary" onClick={handleClose}>Schließen</button>
                 </div>
             );
         }

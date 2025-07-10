@@ -1,36 +1,38 @@
 import React from 'react';
+import BaseDialog from '../../BaseDialog';
 
 const ConfirmDeleteTeacherDialog = ({
     dialogRef,
     deleteTeacher,
     editTeacherPopup
 }) => {
+    const actions = [
+        {
+            label: 'Abbrechen',
+            position: 'left',
+            onClick: () => dialogRef.current.close()
+        },
+        {
+            label: 'Lehrer löschen',
+            variant: 'danger',
+            onClick: () => {
+                deleteTeacher();
+                dialogRef.current.close();
+                editTeacherPopup.current.close();
+            }
+        }
+    ];
+
     return (
-        <dialog ref={dialogRef}>
-            <button className="dialog-close" onClick={() => dialogRef.current.close()}>
-                &times;
-            </button>
-            <h2>Bestätigen Sie das Löschen</h2>
+        <BaseDialog
+            dialogRef={dialogRef}
+            title="Bestätigen Sie das Löschen"
+            actions={actions}
+            actionLayout="split"
+            showDefaultClose={false}
+        >
             <p>Möchten Sie diesen Lehrer wirklich löschen?</p>
-            <div className="dialog-actions">
-                <button
-                    className="btn btn-secondary"
-                    onClick={() => dialogRef.current.close()}
-                >
-                    Abbrechen
-                </button>
-                <button
-                    onClick={() => {
-                        deleteTeacher();
-                        dialogRef.current.close();
-                        editTeacherPopup.current.close();
-                    }}
-                    className="btn btn-danger"
-                >
-                    Lehrer löschen
-                </button>
-            </div>
-        </dialog>
+        </BaseDialog>
     );
 };
 

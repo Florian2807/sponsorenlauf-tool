@@ -317,7 +317,7 @@ dialog {
   border: none;
   width: 90%;
   max-width: 600px;
-  max-height: 70%;
+  max-height: 80%;
   background: var(--card-background);
   padding: 2rem;
   overflow-y: auto;
@@ -372,9 +372,9 @@ dialog h2 {
 /* Dialog Action Buttons */
 .dialog-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   align-items: center;
-  gap: 0.5rem;
+  gap: 100px;
   flex-wrap: wrap;
   position: sticky;
   bottom: 0;
@@ -385,6 +385,13 @@ dialog h2 {
   border-radius: var(--radius);
   border: 1px solid var(--border-light);
   margin-top: 1rem;
+  max-width: 90%;
+  justify-self: center;
+}
+
+/* Space-between for left and right buttons */
+.dialog-actions-split {
+  justify-content: space-between;
 }
 
 .dialog-actions .btn-group {
@@ -413,18 +420,22 @@ dialog h2 {
 /* Dialog Size Variants */
 .dialog-sm {
   max-width: 28rem;
+  max-height: 50vh;
 }
 
 .dialog-md {
   max-width: 32rem;
+  max-height: 60vh;
 }
 
 .dialog-lg {
   max-width: 42rem;
+  max-height: 75vh;
 }
 
 .dialog-xl {
   max-width: 60rem;
+  max-height: 85vh;
 }
 
 /* Dialog Form Styles */
@@ -520,7 +531,7 @@ dialog select {
 }
 
 .delete-timestamp-btn {
-  background-color: var(--danger);
+  background-color: var(--danger-color);
   color: var(--white);
   border: none;
   padding: 0.25rem 0.5rem;
@@ -531,7 +542,7 @@ dialog select {
 }
 
 .delete-timestamp-btn:hover {
-  background-color: var(--danger-dark);
+  background-color: var(--danger-hover);
 }
 
 .replacement-container {
@@ -756,66 +767,6 @@ dialog select {
   background: var(--success-hover);
 }
 
-.manual-table {
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-
-.table-header {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr auto;
-  gap: 1rem;
-  padding: 0.75rem;
-  background: var(--background-light);
-  font-weight: 600;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.table-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr auto;
-  gap: 1rem;
-  padding: 0.5rem;
-  border-bottom: 1px solid var(--border-light);
-  align-items: center;
-}
-
-.table-row:last-child {
-  border-bottom: none;
-}
-
-.table-row input,
-.table-row select {
-  padding: 0.5rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-sm);
-  background: var(--card-background);
-  color: var(--text-color);
-}
-
-.remove-button {
-  background: var(--danger-color);
-  color: var(--white);
-  border: none;
-  padding: 0.25rem 0.5rem;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: 0.875rem;
-  transition: var(--transition);
-}
-
-.remove-button:hover:not(:disabled) {
-  background: var(--danger-hover);
-}
-
-.remove-button:disabled {
-  background: var(--text-muted);
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
 .excel-import {
   margin-top: 1rem;
 }
@@ -957,31 +908,39 @@ dialog select {
 
 /* Class Structure Dialog Specific Styles */
 .class-structure-container {
-  max-height: 60vh;
+  max-height: 70vh;
   overflow-y: auto;
-  margin: 1rem 0;
+  margin: 1.5rem 0;
+  padding: 0.5rem;
 }
 
 .grade-section {
   border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  margin-bottom: 1rem;
+  border-radius: var(--radius-large);
+  margin-bottom: 1.5rem;
   background: var(--card-background);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: var(--transition);
+}
+
+.grade-section:hover {
+  box-shadow: var(--shadow-md);
 }
 
 .grade-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem;
-  background: var(--background-light);
+  padding: 1.25rem;
+  background: linear-gradient(135deg, var(--primary-light), var(--background-light));
   border-bottom: 1px solid var(--border-light);
 }
 
 .grade-input-wrapper {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
   flex: 1;
 }
 
@@ -989,98 +948,142 @@ dialog select {
   font-weight: 600;
   color: var(--text-color);
   white-space: nowrap;
+  font-size: 1.1rem;
 }
 
 .grade-input {
-  padding: 0.5rem;
+  padding: 0.75rem;
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--card-background);
   color: var(--text-color);
   flex: 1;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: var(--transition);
+}
+
+.grade-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.1);
 }
 
 .grade-controls {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
 .delete-button {
   background: var(--danger-color);
   color: var(--white);
   border: none;
-  padding: 0.5rem 1rem;
-  border-radius: var(--radius-sm);
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--radius);
   cursor: pointer;
   transition: var(--transition);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .delete-button:hover {
   background: var(--danger-hover);
+  transform: translateY(-1px);
 }
 
 .classes-container {
-  padding: 1rem;
+  padding: 1.5rem;
 }
 
 .classes-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-light);
 }
 
 .classes-label {
   font-weight: 600;
   color: var(--text-color);
+  font-size: 1.1rem;
 }
 
 .class-item {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-  padding: 0.5rem;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  padding: 0.75rem;
   background: var(--background-light);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-light);
+  transition: var(--transition);
+}
+
+.class-item:hover {
+  background: var(--card-background);
+  border-color: var(--primary-color);
 }
 
 .class-input {
-  padding: 0.25rem 0.5rem;
+  padding: 0.5rem 0.75rem;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   background: var(--card-background);
   color: var(--text-color);
   flex: 1;
+  font-size: 0.95rem;
+  transition: var(--transition);
+}
+
+.class-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.1);
 }
 
 .delete-button-small {
   background: var(--danger-color);
   color: var(--white);
   border: none;
-  padding: 0.25rem 0.5rem;
+  padding: 0.5rem 0.75rem;
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: var(--transition);
   font-size: var(--font-size-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
 }
 
 .delete-button-small:hover {
   background: var(--danger-hover);
+  transform: scale(1.05);
 }
 
 .add-class-button {
   background: var(--success-color);
   color: var(--white);
   border: none;
-  padding: 0.5rem 1rem;
-  border-radius: var(--radius-sm);
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--radius);
   cursor: pointer;
   transition: var(--transition);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .add-class-button:hover {
   background: var(--success-hover);
+  transform: translateY(-1px);
 }
 
 .add-grade-button {
@@ -1466,12 +1469,6 @@ dialog[open] {
   margin-right: var(--spacing-sm);
 }
 
-.student-info-value {
-  color: var(--text-color);
-  font-weight: 500;
-  text-align: right;
-}
-
 /* Ensure proper CSS variable fallbacks for dark mode compatibility */
 [data-theme="dark"] {
   --bg-hover: var(--background-light);
@@ -1536,3 +1533,451 @@ dialog[open] {
 [data-theme="dark"] .table tr:hover {
   background: var(--background-light);
 }
+
+/* Setup page specific styles */
+.setup-header {
+  text-align: center;
+  margin-bottom: var(--spacing-xl);
+}
+
+.setup-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  margin-bottom: var(--spacing-sm);
+}
+
+.setup-subtitle {
+  font-size: 1.1rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.setup-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: var(--spacing-lg);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.setup-card {
+  background: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-large);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.setup-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.setup-card-header {
+  padding: var(--spacing-lg);
+  border-bottom: 1px solid var(--border-light);
+  background: linear-gradient(135deg, var(--background-light), var(--card-background));
+}
+
+.setup-card-title {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--text-color);
+  margin: 0 0 var(--spacing-xs) 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.setup-card-description {
+  color: var(--text-muted);
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.setup-card-content {
+  padding: var(--spacing-lg);
+}
+
+.setup-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.setup-action-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  background: var(--background-light);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  color: var(--text-color);
+  text-decoration: none;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.setup-action-btn:hover {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.setup-action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.setup-action-btn-danger {
+  border-color: var(--danger-color);
+  color: var(--danger-color);
+}
+
+.setup-action-btn-danger:hover {
+  background: var(--danger-color);
+  color: white;
+}
+
+.setup-btn-icon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.setup-btn-text {
+  font-weight: 500;
+}
+
+.setup-feature-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  width: 100%;
+  padding: var(--spacing-lg);
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+  border: none;
+  border-radius: var(--radius-large);
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1rem;
+}
+
+.setup-feature-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.setup-feature-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.setup-btn-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.setup-btn-subtitle {
+  font-size: 0.85rem;
+  opacity: 0.9;
+  font-weight: 400;
+}
+
+.setup-messages {
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border-light);
+}
+
+.setup-message {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: rgba(40, 167, 69, 0.1);
+  color: var(--success-color);
+  border: 1px solid rgba(40, 167, 69, 0.3);
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+}
+
+.setup-message + .setup-message {
+  margin-top: var(--spacing-sm);
+}
+
+/* Dark mode enhancements */
+[data-theme="dark"] .setup-card {
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .setup-card:hover {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .setup-action-btn {
+  background: var(--background-color);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .setup-feature-btn {
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+}
+
+[data-theme="dark"] .setup-message {
+  background: rgba(52, 208, 88, 0.1);
+  color: var(--success-color);
+  border-color: rgba(52, 208, 88, 0.3);
+}
+
+/* Dark Mode Enhancements for Class Structure and Tables */
+[data-theme="dark"] .grade-input:focus,
+[data-theme="dark"] .class-input:focus,
+[data-theme="dark"] .table-row input:focus,
+[data-theme="dark"] .table-row select:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(91, 160, 242, 0.2);
+}
+
+[data-theme="dark"] .grade-section {
+  border-color: var(--border-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .grade-section:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .example-header {
+  background: var(--primary-color);
+  color: var(--white);
+}
+
+[data-theme="dark"] .example-row {
+  background: var(--card-background);
+}
+
+[data-theme="dark"] .example-row:nth-child(even) {
+  background: var(--background-light);
+}
+
+/* ClassTeacher Dialog specific styles */
+.class-teacher-container {
+    padding: 1rem 0;
+}
+
+.class-container {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    background: var(--color-card-bg);
+}
+
+[data-theme="dark"] .class-container {
+    border-color: var(--color-border-dark);
+    background: var(--color-card-bg-dark);
+}
+
+.class-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+    color: var(--color-primary);
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--color-border);
+}
+
+[data-theme="dark"] .class-title {
+    color: var(--color-primary-dark);
+    border-bottom-color: var(--color-border-dark);
+}
+
+.email-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.email-field {
+    display: flex;
+    align-items: center;
+}
+
+.email-field .form-select {
+    flex: 1;
+    min-width: 0;
+}
+
+/* SendMails Dialog specific styles */
+.send-mails-content h3 {
+    margin-bottom: 1.5rem;
+    color: var(--color-primary);
+    font-size: 1.2rem;
+    font-weight: 600;
+    border-bottom: 2px solid var(--color-primary);
+    padding-bottom: 0.5rem;
+}
+
+[data-theme="dark"] .send-mails-content h3 {
+    color: var(--color-primary-dark);
+    border-bottom-color: var(--color-primary-dark);
+}
+
+.login-section {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--color-border);
+}
+
+[data-theme="dark"] .login-section {
+    border-top-color: var(--color-border-dark);
+}
+
+.login-section .btn {
+    margin-bottom: 1rem;
+}
+
+.send-mails-content .message {
+    margin-top: 0.5rem;
+    padding: 0.75rem;
+    border-radius: var(--border-radius);
+    background: var(--color-info-bg);
+    color: var(--color-info-text);
+    border: 1px solid var(--color-info-border);
+}
+
+[data-theme="dark"] .send-mails-content .message {
+    background: var(--color-info-bg-dark);
+    color: var(--color-info-text-dark);
+    border-color: var(--color-info-border-dark);
+}
+
+/* Print styles enhancements */
+
+/* Dialog Actions - Auto-distributed layout based on button count */
+.dialog-actions-distributed {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* 2 buttons: left and right */
+.dialog-actions-count-2 {
+    justify-content: space-between;
+}
+
+.dialog-actions-count-2 > .btn:first-child {
+    margin-right: auto;
+}
+
+.dialog-actions-count-2 > .btn:last-child {
+    margin-left: auto;
+}
+
+/* 3 buttons: left, center, right */
+.dialog-actions-count-3 {
+    justify-content: space-between;
+}
+
+.dialog-actions-count-3 > .btn:nth-child(2) {
+    margin: 0 auto;
+}
+
+/* 4 buttons: smaller gap, more compact */
+.dialog-actions-count-4 {
+    justify-content: space-evenly;
+}
+
+/* 5+ buttons: evenly distributed with wrap */
+.dialog-actions-count-5 {
+    justify-content: space-evenly;
+    flex-wrap: wrap;
+}
+
+/* Responsive behavior for distributed actions */
+@media (max-width: 768px) {
+    .dialog-actions-distributed {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .dialog-actions-distributed > .btn {
+        width: 100%;
+        margin: 0 !important;
+    }
+    
+    .dialog-actions-count-2,
+    .dialog-actions-count-3,
+    .dialog-actions-count-4,
+    .dialog-actions-count-5 {
+        justify-content: stretch;
+    }
+}
+
+/* Enhanced button styling for distributed layout */
+.dialog-actions-distributed > .btn {
+    min-width: 120px;
+    flex: 0 1 auto;
+}
+
+/* Adaptive gap based on button count */
+.dialog-actions-distributed {
+    gap: 0.75rem; /* Default gap */
+}
+
+/* 1 button: no gap needed, center or right align */
+.dialog-actions-count-1 {
+    gap: 0;
+    justify-content: flex-end;
+}
+
+/* 2 buttons: larger gap for better separation */
+.dialog-actions-count-2 {
+    gap: 2rem; /* Larger gap for clear left/right separation */
+}
+
+/* 3 buttons: medium gap for balanced spacing */
+.dialog-actions-count-3 {
+    gap: 1.5rem; /* Medium gap for left-center-right */
+}
+
+/* 4 buttons: smaller gap, more compact */
+.dialog-actions-count-4 {
+    gap: 1rem; /* Smaller gap as buttons get closer */
+}
+
+/* 5+ buttons: minimal gap, compact layout */
+.dialog-actions-count-5 {
+    gap: 0.5rem; /* Minimal gap for many buttons */
+}
+
+/* Alternative: Dynamic gap calculation using CSS custom properties */
+.dialog-actions-distributed.adaptive-gap {
+    --button-count: 1;
+    --max-gap: 2rem;
+    --min-gap: 0.5rem;
+    gap: calc(var(--max-gap) - ((var(--button-count) - 1) * 0.3rem));
+}
+
+/* Override gap for specific button counts when using adaptive-gap class */
+.dialog-actions-distributed.adaptive-gap.dialog-actions-count-1 { --button-count: 1; }
+.dialog-actions-distributed.adaptive-gap.dialog-actions-count-2 { --button-count: 2; }
+.dialog-actions-distributed.adaptive-gap.dialog-actions-count-3 { --button-count: 3; }
+.dialog-actions-distributed.adaptive-gap.dialog-actions-count-4 { --button-count: 4; }
+.dialog-actions-distributed.adaptive-gap.dialog-actions-count-5 { --button-count: 5; }
+
+/* Special handling for single button in distributed mode */
+.dialog-actions-distributed.dialog-actions-count-1 {
+    justify-content: flex-end;
+}
+
+/* Print styles enhancements */

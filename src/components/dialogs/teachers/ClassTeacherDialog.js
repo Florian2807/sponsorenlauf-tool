@@ -1,4 +1,5 @@
 import React from 'react';
+import BaseDialog from '../../BaseDialog';
 
 const ClassTeacherDialog = ({
     dialogRef,
@@ -9,13 +10,30 @@ const ClassTeacherDialog = ({
     loading,
     saveClassTeacher
 }) => {
+    const actions = [
+        {
+            label: 'Abbrechen',
+            position: 'left',
+            onClick: () => dialogRef.current.close()
+        },
+        {
+            label: loading.saveTeacher ? 'Speichert...' : 'Speichern',
+            variant: 'success',
+            onClick: saveClassTeacher,
+            disabled: loading.saveTeacher
+        }
+    ];
+
     return (
-        <dialog ref={dialogRef}>
-            <button className="dialog-close" onClick={() => dialogRef.current.close()}>
-                &times;
-            </button>
-            <div>
-                <h2>Klassenlehrer Konfigurieren</h2>
+        <BaseDialog
+            dialogRef={dialogRef}
+            title="Klassenlehrer Konfigurieren"
+            actions={actions}
+            actionLayout="split"
+            size="large"
+            showDefaultClose={false}
+        >
+            <div className="class-teacher-container">
                 {allPossibleClasses.map((className) => (
                     <div key={className} className="class-container">
                         <div className="class-title">{className}</div>
@@ -25,6 +43,7 @@ const ClassTeacherDialog = ({
                                     <select
                                         value={classTeacher[className]?.[index]?.id || ''}
                                         onChange={handleTeacherChange(className, index)}
+                                        className="form-select"
                                     >
                                         <option value="">Wählen Sie einen Lehrer</option>
                                         {teachers.map((teacherOption) => (
@@ -39,22 +58,7 @@ const ClassTeacherDialog = ({
                     </div>
                 ))}
             </div>
-            <div className="dialog-actions">
-                <button
-                    className="btn btn-secondary"
-                    onClick={() => dialogRef.current.close()}
-                >
-                    Abbrechen
-                </button>
-                <button
-                    className="btn btn-primary"
-                    disabled={loading.saveTeacher}
-                    onClick={saveClassTeacher}
-                >
-                    Speichern
-                </button>
-            </div>
-        </dialog>
+        </BaseDialog>
     );
 };
 

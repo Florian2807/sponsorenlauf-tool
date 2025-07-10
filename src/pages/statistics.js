@@ -99,7 +99,7 @@ export default function Statistics() {
   }, [stats.topClassesOfGrades, sortConfig.topClassesOfGrades, sortedData]);
 
   return (
-    <div className="page-container-extra-wide">
+    <div className="page-container-wide">
       <h1 className="page-title">Statistiken</h1>
 
       <button className="btn" onClick={handleExport} disabled={loading}>

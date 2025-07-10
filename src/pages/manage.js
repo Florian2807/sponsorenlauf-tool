@@ -199,7 +199,7 @@ export default function Manage() {
   const filteredStudents = filteredData;
 
   return (
-    <div className="page-container-extra-wide">
+    <div className="page-container-wide">
       <h1 className="page-title">Schüler verwalten</h1>
       <div className="search-container">
         <div className="btn-group">

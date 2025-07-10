@@ -1,5 +1,4 @@
 /* Gemeinsame Layout-Komponenten für alle Seiten */
-/* Diese Datei definiert wiederverwendbare Layout-Komponenten */
 
 /* Page Header Komponenten */
 .page-header {
@@ -45,11 +44,6 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
-}
-
-/* Content Area */
-.content-area {
-  margin-bottom: var(--spacing-lg);
 }
 
 /* Statistics Cards */
@@ -127,40 +121,6 @@
   background: var(--card-background);
 }
 
-/* Data Lists */
-.data-list {
-  background: var(--card-background);
-  border-radius: var(--radius);
-  overflow: hidden;
-  border: 1px solid var(--border-light);
-}
-
-.data-list-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--spacing-sm) var(--spacing-md);
-  border-bottom: 1px solid var(--border-light);
-  transition: var(--transition);
-}
-
-.data-list-item:last-child {
-  border-bottom: none;
-}
-
-.data-list-item:hover {
-  background: #f8f9fa;
-}
-
-.data-list-content {
-  flex: 1;
-}
-
-.data-list-actions {
-  display: flex;
-  gap: var(--spacing-xs);
-}
-
 /* Form Layouts */
 .form-grid {
   display: grid;
@@ -209,107 +169,6 @@
   to { transform: rotate(360deg); }
 }
 
-/* Empty States */
-.empty-state {
-  text-align: center;
-  padding: var(--spacing-xl);
-  color: var(--text-muted);
-}
-
-.empty-state-icon {
-  font-size: var(--font-size-3xl);
-  margin-bottom: var(--spacing-md);
-  opacity: 0.5;
-}
-
-.empty-state-title {
-  font-size: var(--font-size-xl);
-  margin-bottom: var(--spacing-sm);
-  color: var(--text-color);
-}
-
-.empty-state-description {
-  margin-bottom: var(--spacing-md);
-}
-
-/* Navigation Breadcrumbs */
-.breadcrumbs {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-  margin-bottom: var(--spacing-md);
-  font-size: var(--font-size-sm);
-  color: var(--text-muted);
-}
-
-.breadcrumb-separator {
-  margin: 0 var(--spacing-xs);
-}
-
-.breadcrumb-link {
-  color: var(--primary-color);
-  text-decoration: none;
-  transition: var(--transition);
-}
-
-.breadcrumb-link:hover {
-  text-decoration: underline;
-}
-
-/* Alerts */
-.alert {
-  padding: var(--spacing-md);
-  border-radius: var(--radius);
-  margin-bottom: var(--spacing-md);
-  border-left: 4px solid;
-  position: relative;
-}
-
-.alert-success {
-  background: #d4edda;
-  border-color: var(--success-color);
-  color: #155724;
-}
-
-.alert-error {
-  background: #f8d7da;
-  border-color: var(--danger-color);
-  color: #721c24;
-}
-
-.alert-warning {
-  background: var(--warning-bg);
-  border-color: var(--warning-color);
-  color: #856404;
-}
-
-.alert-info {
-  background: var(--info-bg);
-  border-color: var(--primary-color);
-  color: var(--info-color);
-}
-
-.alert-dismissible {
-  padding-right: 3rem;
-}
-
-.alert-close {
-  position: absolute;
-  top: 50%;
-  right: var(--spacing-md);
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  font-size: var(--font-size-lg);
-  cursor: pointer;
-  opacity: 0.7;
-  transition: var(--transition);
-}
-
-.alert-close:hover {
-  opacity: 1;
-}
-
 /* Dialog Styles */
 dialog {
   border-radius: var(--radius);
@@ -347,49 +206,25 @@ dialog h2 {
   margin-bottom: 1rem;
 }
 
-.dialog-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.dialog-content {
-  background: var(--card-background);
-  border-radius: var(--radius);
-  max-width: 90vw;
-  max-height: 90vh;
-  overflow: auto;
-  box-shadow: var(--shadow);
-}
-
 /* Dialog Action Buttons */
 .dialog-actions {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
-  gap: 100px;
+  gap: 1rem;
   flex-wrap: wrap;
   position: sticky;
   bottom: 0;
-  left: 0;
-  right: 0;
   background-color: var(--card-background);
   padding: 1rem;
   border-radius: var(--radius);
   border: 1px solid var(--border-light);
   margin-top: 1rem;
   max-width: 90%;
-  justify-self: center;
+  margin-left: auto;
+  margin-right: auto;
 }
 
-/* Space-between for left and right buttons */
 .dialog-actions-split {
   justify-content: space-between;
 }
@@ -458,7 +293,7 @@ dialog textarea {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   font-size: 1rem;
-  background: var(--background);
+  background: var(--card-background);
   color: var(--text-color);
   transition: var(--transition);
 }
@@ -467,7 +302,7 @@ dialog input:focus,
 dialog select:focus,
 dialog textarea:focus {
   outline: none;
-  border-color: var(--primary);
+  border-color: var(--primary-color);
   box-shadow: 0 0 0 2px var(--primary-light);
 }
 
@@ -475,60 +310,9 @@ dialog select {
   cursor: pointer;
 }
 
-/* Class Teacher Dialog Specific Styles */
-.class-container {
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  padding: 1rem;
-  margin: 1.5rem 0;
-  background-color: var(--card-background);
-  box-shadow: var(--shadow-sm);
-}
+/* Spezielle Dialog-Styles */
 
-.class-title {
-  font-size: 1.2rem;
-  color: var(--text-color);
-  font-weight: 600;
-  background-color: var(--primary-light);
-  padding: 0.5rem;
-  border-radius: var(--radius-sm);
-  margin-bottom: 1rem;
-  text-align: left;
-}
-
-.email-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.email-field {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.email-index {
-  font-weight: 600;
-}
-
-/* Student Edit Dialog Specific Styles */
-.timestamp-list {
-  list-style-type: none;
-  padding: 0;
-  margin: 1rem 0;
-}
-
-.timestamp-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  margin-bottom: 0.5rem;
-  background-color: var(--background-light);
-}
+/* Student Edit Dialog - timestamp lists are now defined in scan section below */
 
 .delete-timestamp-btn {
   background-color: var(--danger-color);
@@ -571,11 +355,6 @@ dialog select {
   transform: scale(1.05);
 }
 
-.replacement-text {
-  display: flex;
-  align-items: center;
-}
-
 .delete-replacement-btn {
   background: none;
   border: none;
@@ -586,16 +365,16 @@ dialog select {
 }
 
 .delete-icon {
-  color: var(--danger);
+  color: var(--danger-color);
   transition: var(--transition);
   font-size: 1rem;
 }
 
 .delete-replacement-btn:hover .delete-icon {
-  color: var(--danger-dark);
+  color: var(--danger-hover);
 }
 
-/* Setup Dialog Specific Styles */
+/* Setup Dialog Styles */
 .class-checkboxes {
   display: flex;
   flex-wrap: wrap;
@@ -623,10 +402,6 @@ dialog select {
   margin-right: 0.3rem;
 }
 
-.new-line {
-  flex-basis: 100%;
-}
-
 .select-buttons {
   display: flex;
   justify-content: center;
@@ -635,7 +410,7 @@ dialog select {
 }
 
 .select-button {
-  background-color: var(--primary);
+  background-color: var(--primary-color);
   color: var(--white);
   border: none;
   padding: 0.25rem 0.5rem;
@@ -646,44 +421,10 @@ dialog select {
 }
 
 .select-button:hover {
-  background-color: var(--primary-dark);
+  background-color: var(--primary-hover);
 }
 
-/* Print Styles */
-@media print {
-  .no-print {
-    display: none !important;
-  }
-  
-  .page-container,
-  .page-container-wide,
-  .page-container-extra-wide,
-  .page-container-narrow {
-    box-shadow: none;
-    margin: 0;
-    padding: 0;
-  }
-}
-
-/* High Contrast Mode */
-@media (prefers-contrast: high) {
-  :root {
-    --border-color: #000000;
-    --border-light: #333333;
-    --text-muted: #000000;
-  }
-}
-
-/* Reduced Motion */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-
-/* Data Import Dialog Specific Styles */
+/* Data Import Dialog */
 .method-selector {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -703,11 +444,7 @@ dialog select {
   background: var(--background-light);
 }
 
-.method-option:hover {
-  border-color: var(--primary-color);
-  background: var(--primary-light);
-}
-
+.method-option:hover,
 .method-option.active {
   border-color: var(--primary-color);
   background: var(--primary-light);
@@ -736,7 +473,8 @@ dialog select {
   font-size: var(--font-size-sm);
 }
 
-.manual-import {
+.manual-import,
+.excel-import {
   margin-top: 1rem;
 }
 
@@ -747,8 +485,9 @@ dialog select {
   margin-bottom: 1rem;
 }
 
-.manual-header h3 {
-  margin: 0;
+.manual-header h3,
+.excel-info h3 {
+  margin: 0 0 1rem 0;
   color: var(--text-color);
 }
 
@@ -765,15 +504,6 @@ dialog select {
 
 .add-button:hover {
   background: var(--success-hover);
-}
-
-.excel-import {
-  margin-top: 1rem;
-}
-
-.excel-info h3 {
-  margin: 0 0 1rem 0;
-  color: var(--text-color);
 }
 
 .format-info {
@@ -906,7 +636,7 @@ dialog select {
   margin-bottom: 0.25rem;
 }
 
-/* Class Structure Dialog Specific Styles */
+/* Class Structure Dialog */
 .class-structure-container {
   max-height: 70vh;
   overflow-y: auto;
@@ -1102,88 +832,88 @@ dialog select {
   background: var(--primary-hover);
 }
 
-/* Donations Styles */
+/* Donations Page Styles */
 .switch-container {
-    margin: var(--spacing-md) 0;
+  margin: var(--spacing-md) 0;
 }
 
 .switch {
-    position: relative;
-    display: inline-block;
-    width: 60px;
-    height: 34px;
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 34px;
 }
 
 .switch input {
-    opacity: 0;
-    width: 0;
-    height: 0;
+  opacity: 0;
+  width: 0;
+  height: 0;
 }
 
 .switch-slider {
-    position: absolute;
-    cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: #ccc;
-    transition: .4s;
-    border-radius: 34px;
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+  border-radius: 34px;
 }
 
 .switch-slider:before {
-    position: absolute;
-    content: "";
-    height: 26px;
-    width: 26px;
-    left: 4px;
-    bottom: 4px;
-    background-color: white;
-    transition: .4s;
-    border-radius: 50%;
+  position: absolute;
+  content: "";
+  height: 26px;
+  width: 26px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
 }
 
 .switch input:checked + .switch-slider {
-    background-color: var(--color-primary);
+  background-color: var(--primary-color);
 }
 
 .switch input:checked + .switch-slider:before {
-    transform: translateX(26px);
+  transform: translateX(26px);
 }
 
 .input-wrapper {
-    position: relative;
-    display: inline-block;
-    width: 100%;
+  position: relative;
+  display: inline-block;
+  width: 100%;
 }
 
 .suggestions {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-top: none;
-    border-radius: 0 0 var(--border-radius) var(--border-radius);
-    max-height: 200px;
-    overflow-y: auto;
-    z-index: 1000;
-    list-style: none;
-    margin: 0;
-    padding: 0;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
 .suggestion-item {
-    padding: var(--spacing-sm) var(--spacing-md);
-    cursor: pointer;
-    transition: background-color 0.2s ease;
+  padding: var(--spacing-sm) var(--spacing-md);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
 }
 
 .suggestion-item:hover,
 .suggestion-item.highlighted {
-    background: var(--bg-hover);
+  background: var(--background-light);
 }
 
 .timestamps {
@@ -1196,7 +926,6 @@ dialog select {
   list-style: none;
   padding: 0;
   margin: 0;
-  background: var(--background-light);
   border-radius: var(--radius);
   overflow: hidden;
 }
@@ -1223,318 +952,7 @@ dialog select {
   font-size: var(--font-size-sm);
 }
 
-/* Mails Styles */
-.class-container {
-    margin: var(--spacing-md) 0;
-    padding: var(--spacing-md);
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    background: var(--bg-card);
-}
-
-.class-title {
-    font-weight: bold;
-    margin-bottom: var(--spacing-sm);
-    color: var(--color-primary);
-}
-
-.email-fields {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
-}
-
-.email-index {
-    min-width: 30px;
-    font-weight: bold;
-    margin-right: var(--spacing-sm);
-}
-
-/* Dark mode */
-@media (prefers-color-scheme: dark) {
-    .switch-slider {
-        background-color: #444;
-    }
-    
-    .switch-slider:before {
-        background-color: #f1f1f1;
-    }
-}
-
-/* Dark Theme Dialog Improvements */
-[data-theme="dark"] dialog {
-  background: var(--card-background);
-  color: var(--text-color);
-  border: 1px solid var(--border-color);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-}
-
-[data-theme="dark"] dialog::backdrop {
-  background: rgba(0, 0, 0, 0.7);
-}
-
-[data-theme="dark"] .dialog-close {
-  color: var(--text-color);
-  background: transparent;
-  border: 1px solid var(--border-color);
-}
-
-[data-theme="dark"] .dialog-close:hover {
-  background: var(--bg-hover);
-  color: var(--danger-color);
-  border-color: var(--danger-color);
-}
-
-/* Form elements in dialogs */
-[data-theme="dark"] dialog input,
-[data-theme="dark"] dialog textarea,
-[data-theme="dark"] dialog select {
-  background: var(--background-light);
-  color: var(--text-color);
-  border: 1px solid var(--border-color);
-}
-
-[data-theme="dark"] dialog input:focus,
-[data-theme="dark"] dialog textarea:focus,
-[data-theme="dark"] dialog select:focus {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(91, 160, 242, 0.2);
-}
-
-[data-theme="dark"] dialog label {
-  color: var(--text-color);
-}
-
-[data-theme="dark"] dialog h1,
-[data-theme="dark"] dialog h2,
-[data-theme="dark"] dialog h3,
-[data-theme="dark"] dialog h4 {
-  color: var(--text-color);
-}
-
-[data-theme="dark"] dialog p {
-  color: var(--text-muted);
-}
-
-[data-theme="dark"] .dialog-close:hover {
-  background: var(--background-light);
-  color: var(--danger-color);
-  border-color: var(--danger-color);
-}
-
-/* Enhanced Dialog and Popup Styles for Dark Mode */
-dialog {
-  transition: all 0.3s ease;
-  backdrop-filter: blur(4px);
-}
-
-dialog:not([open]) {
-  opacity: 0;
-  transform: scale(0.9);
-}
-
-dialog[open] {
-  opacity: 1;
-  transform: scale(1);
-}
-
-/* Scan Page Specific Styles */
-.scan-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 60vh;
-  padding: var(--spacing-lg);
-}
-
-.scan-form {
-  background: var(--card-background);
-  padding: var(--spacing-xl);
-  border-radius: var(--radius-large);
-  box-shadow: var(--shadow-lg);
-  width: 100%;
-  max-width: 500px;
-  text-align: center;
-}
-
-.scan-input {
-  width: 100%;
-  padding: var(--spacing-md);
-  font-size: 1.2rem;
-  border: 2px solid var(--border-color);
-  border-radius: var(--radius);
-  background: var(--background-light);
-  color: var(--text-color);
-  text-align: center;
-  transition: var(--transition);
-}
-
-.scan-input:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
-}
-
-[data-theme="dark"] .scan-input:focus {
-  box-shadow: 0 0 0 3px rgba(91, 160, 242, 0.2);
-}
-
-.scan-submit {
-  margin-top: var(--spacing-md);
-  padding: var(--spacing-md) var(--spacing-xl);
-  font-size: 1.1rem;
-  background: var(--primary-color);
-  color: white;
-  border: none;
-  border-radius: var(--radius);
-  cursor: pointer;
-  transition: var(--transition);
-}
-
-.scan-submit:hover {
-  background: var(--primary-hover);
-  transform: translateY(-2px);
-}
-
-.scan-message {
-  margin-top: var(--spacing-md);
-  padding: var(--spacing-md);
-  border-radius: var(--radius);
-  font-weight: 500;
-  text-align: center;
-}
-
-.scan-message.success {
-  background: rgba(40, 167, 69, 0.1);
-  color: var(--success-color);
-  border: 1px solid rgba(40, 167, 69, 0.3);
-}
-
-.scan-message.error {
-  background: rgba(244, 67, 54, 0.1);
-  color: var(--danger-color);
-  border: 1px solid rgba(244, 67, 54, 0.3);
-}
-
-[data-theme="dark"] .scan-message.success {
-  background: rgba(52, 208, 88, 0.1);
-  color: var(--success-color);
-  border: 1px solid rgba(52, 208, 88, 0.3);
-}
-
-[data-theme="dark"] .scan-message.error {
-  background: rgba(248, 81, 73, 0.1);
-  color: var(--danger-color);
-  border: 1px solid rgba(248, 81, 73, 0.3);
-}
-
-.student-info-card {
-  margin-top: var(--spacing-lg);
-  background: var(--card-background);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-large);
-  padding: var(--spacing-lg);
-  box-shadow: var(--shadow-sm);
-  transition: all 0.3s ease;
-}
-
-.student-info-card h3,
-.student-info-card h4 {
-  color: var(--primary-color);
-  margin-bottom: var(--spacing-md);
-}
-
-.student-info-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-md);
-}
-
-.student-info-item {
-  display: flex;
-  justify-content: space-between;
-  padding: var(--spacing-xs) 0;
-  border-bottom: 1px solid var(--border-light);
-}
-
-.student-info-item:last-child {
-  border-bottom: none;
-}
-
-.student-info-label {
-  font-weight: 600;
-  color: var(--text-muted);
-  margin-right: var(--spacing-sm);
-}
-
-/* Ensure proper CSS variable fallbacks for dark mode compatibility */
-[data-theme="dark"] {
-  --bg-hover: var(--background-light);
-  --bg-active: var(--border-color);
-}
-
-/* Enhanced button dark mode support */
-[data-theme="dark"] .btn {
-  border-color: var(--border-color);
-}
-
-[data-theme="dark"] .btn:hover {
-  background: var(--primary-hover);
-}
-
-[data-theme="dark"] .btn-secondary {
-  background: var(--background-light);
-  color: var(--text-color);
-  border-color: var(--border-color);
-}
-
-[data-theme="dark"] .btn-secondary:hover {
-  background: var(--border-color);
-}
-
-[data-theme="dark"] .btn-danger:hover {
-  background: var(--danger-hover);
-}
-
-/* Enhanced form dark mode support */
-[data-theme="dark"] .form-input,
-[data-theme="dark"] .form-select,
-[data-theme="dark"] .form-textarea {
-  background: var(--background-light);
-  color: var(--text-color);
-  border-color: var(--border-color);
-}
-
-[data-theme="dark"] .form-input:focus,
-[data-theme="dark"] .form-select:focus,
-[data-theme="dark"] .form-textarea:focus {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(91, 160, 242, 0.2);
-}
-
-/* Enhanced table dark mode support */
-[data-theme="dark"] .table {
-  background: var(--card-background);
-  color: var(--text-color);
-}
-
-[data-theme="dark"] .table th {
-  background: var(--background-light);
-  color: var(--text-color);
-  border-color: var(--border-color);
-}
-
-[data-theme="dark"] .table td {
-  border-color: var(--border-color);
-}
-
-[data-theme="dark"] .table tr:hover {
-  background: var(--background-light);
-}
-
-/* Setup page specific styles */
+/* Setup Page Styles */
 .setup-header {
   text-align: center;
   margin-bottom: var(--spacing-xl);
@@ -1714,28 +1132,119 @@ dialog[open] {
   margin-top: var(--spacing-sm);
 }
 
-/* Dark mode enhancements */
-[data-theme="dark"] .setup-card {
-  border-color: var(--border-color);
+/* Scan Page Styles */
+.scan-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: var(--spacing-lg);
 }
 
-[data-theme="dark"] .setup-card:hover {
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+.scan-form {
+  background: var(--card-background);
+  padding: var(--spacing-xl);
+  border-radius: var(--radius-large);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 500px;
+  text-align: center;
 }
 
-[data-theme="dark"] .setup-action-btn {
-  background: var(--background-color);
-  border-color: var(--border-color);
+.scan-input {
+  width: 100%;
+  padding: var(--spacing-md);
+  font-size: 1.2rem;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--background-light);
+  color: var(--text-color);
+  text-align: center;
+  transition: var(--transition);
 }
 
-[data-theme="dark"] .setup-feature-btn {
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+.scan-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
 }
 
-[data-theme="dark"] .setup-message {
-  background: rgba(52, 208, 88, 0.1);
+.scan-submit {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-xl);
+  font-size: 1.1rem;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.scan-submit:hover {
+  background: var(--primary-hover);
+  transform: translateY(-2px);
+}
+
+.scan-message {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-md);
+  border-radius: var(--radius);
+  font-weight: 500;
+  text-align: center;
+}
+
+.scan-message.success {
+  background: rgba(40, 167, 69, 0.1);
   color: var(--success-color);
-  border-color: rgba(52, 208, 88, 0.3);
+  border: 1px solid rgba(40, 167, 69, 0.3);
+}
+
+.scan-message.error {
+  background: rgba(244, 67, 54, 0.1);
+  color: var(--danger-color);
+  border: 1px solid rgba(244, 67, 54, 0.3);
+}
+
+.student-info-card {
+  margin-top: var(--spacing-lg);
+  background: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-large);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+}
+
+.student-info-card h3,
+.student-info-card h4 {
+  color: var(--primary-color);
+  margin-bottom: var(--spacing-md);
+}
+
+.student-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.student-info-item {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--spacing-xs) 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.student-info-item:last-child {
+  border-bottom: none;
+}
+
+.student-info-label {
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-right: var(--spacing-sm);
 }
 
 /* Dark Mode Enhancements for Class Structure and Tables */
@@ -1750,10 +1259,33 @@ dialog[open] {
 [data-theme="dark"] .grade-section {
   border-color: var(--border-color);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  background: var(--card-background);
 }
 
 [data-theme="dark"] .grade-section:hover {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .grade-header {
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+  color: var(--white);
+}
+
+[data-theme="dark"] .grade-input {
+  background: var(--background-light);
+  color: var(--text-color);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .class-input {
+  background: var(--background-light);
+  color: var(--text-color);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .class-item {
+  background: var(--background-color);
+  border-color: var(--border-color);
 }
 
 [data-theme="dark"] .example-header {
@@ -1763,6 +1295,7 @@ dialog[open] {
 
 [data-theme="dark"] .example-row {
   background: var(--card-background);
+  color: var(--text-color);
 }
 
 [data-theme="dark"] .example-row:nth-child(even) {
@@ -1777,28 +1310,28 @@ dialog[open] {
 .class-container {
     margin-bottom: 1.5rem;
     padding: 1rem;
-    border: 1px solid var(--color-border);
-    border-radius: var(--border-radius);
-    background: var(--color-card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    background: var(--card-background);
 }
 
 [data-theme="dark"] .class-container {
-    border-color: var(--color-border-dark);
-    background: var(--color-card-bg-dark);
+    border-color: var(--border-color);
+    background: var(--card-background);
 }
 
 .class-title {
     font-weight: 600;
     font-size: 1.1rem;
     margin-bottom: 0.75rem;
-    color: var(--color-primary);
+    color: var(--primary-color);
     padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--border-color);
 }
 
 [data-theme="dark"] .class-title {
-    color: var(--color-primary-dark);
-    border-bottom-color: var(--color-border-dark);
+    color: var(--primary-color);
+    border-bottom-color: var(--border-color);
 }
 
 .email-fields {
@@ -1820,26 +1353,26 @@ dialog[open] {
 /* SendMails Dialog specific styles */
 .send-mails-content h3 {
     margin-bottom: 1.5rem;
-    color: var(--color-primary);
+    color: var(--primary-color);
     font-size: 1.2rem;
     font-weight: 600;
-    border-bottom: 2px solid var(--color-primary);
+    border-bottom: 2px solid var(--primary-color);
     padding-bottom: 0.5rem;
 }
 
 [data-theme="dark"] .send-mails-content h3 {
-    color: var(--color-primary-dark);
-    border-bottom-color: var(--color-primary-dark);
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
 }
 
 .login-section {
     margin-top: 2rem;
     padding-top: 1.5rem;
-    border-top: 1px solid var(--color-border);
+    border-top: 1px solid var(--border-color);
 }
 
 [data-theme="dark"] .login-section {
-    border-top-color: var(--color-border-dark);
+    border-top-color: var(--border-color);
 }
 
 .login-section .btn {
@@ -1849,58 +1382,24 @@ dialog[open] {
 .send-mails-content .message {
     margin-top: 0.5rem;
     padding: 0.75rem;
-    border-radius: var(--border-radius);
-    background: var(--color-info-bg);
-    color: var(--color-info-text);
-    border: 1px solid var(--color-info-border);
+    border-radius: var(--radius);
+    background: var(--info-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
 }
 
 [data-theme="dark"] .send-mails-content .message {
-    background: var(--color-info-bg-dark);
-    color: var(--color-info-text-dark);
-    border-color: var(--color-info-border-dark);
+    background: var(--info-bg);
+    color: var(--text-color);
+    border-color: var(--border-color);
 }
 
-/* Print styles enhancements */
-
-/* Dialog Actions - Auto-distributed layout based on button count */
+/* Dialog Actions - Simplified */
 .dialog-actions-distributed {
     display: flex;
     justify-content: space-between;
     align-items: center;
-}
-
-/* 2 buttons: left and right */
-.dialog-actions-count-2 {
-    justify-content: space-between;
-}
-
-.dialog-actions-count-2 > .btn:first-child {
-    margin-right: auto;
-}
-
-.dialog-actions-count-2 > .btn:last-child {
-    margin-left: auto;
-}
-
-/* 3 buttons: left, center, right */
-.dialog-actions-count-3 {
-    justify-content: space-between;
-}
-
-.dialog-actions-count-3 > .btn:nth-child(2) {
-    margin: 0 auto;
-}
-
-/* 4 buttons: smaller gap, more compact */
-.dialog-actions-count-4 {
-    justify-content: space-evenly;
-}
-
-/* 5+ buttons: evenly distributed with wrap */
-.dialog-actions-count-5 {
-    justify-content: space-evenly;
-    flex-wrap: wrap;
+    gap: 1rem;
 }
 
 /* Responsive behavior for distributed actions */
@@ -1912,72 +1411,248 @@ dialog[open] {
     
     .dialog-actions-distributed > .btn {
         width: 100%;
-        margin: 0 !important;
-    }
-    
-    .dialog-actions-count-2,
-    .dialog-actions-count-3,
-    .dialog-actions-count-4,
-    .dialog-actions-count-5 {
-        justify-content: stretch;
     }
 }
 
-/* Enhanced button styling for distributed layout */
-.dialog-actions-distributed > .btn {
-    min-width: 120px;
-    flex: 0 1 auto;
+/* Dark Mode Enhancements for Student Info Card */
+[data-theme="dark"] .scan-message.success {
+  background: rgba(52, 208, 88, 0.1);
+  color: var(--success-color);
+  border: 1px solid rgba(52, 208, 88, 0.3);
 }
 
-/* Adaptive gap based on button count */
-.dialog-actions-distributed {
-    gap: 0.75rem; /* Default gap */
+[data-theme="dark"] .scan-message.error {
+  background: rgba(248, 81, 73, 0.1);
+  color: var(--danger-color);
+  border: 1px solid rgba(248, 81, 73, 0.3);
 }
 
-/* 1 button: no gap needed, center or right align */
-.dialog-actions-count-1 {
-    gap: 0;
-    justify-content: flex-end;
+[data-theme="dark"] .scan-input:focus {
+  box-shadow: 0 0 0 3px rgba(91, 160, 242, 0.2);
 }
 
-/* 2 buttons: larger gap for better separation */
-.dialog-actions-count-2 {
-    gap: 2rem; /* Larger gap for clear left/right separation */
+[data-theme="dark"] .student-info-card {
+  background: var(--card-background);
+  border-color: var(--border-color);
+  color: var(--text-color);
 }
 
-/* 3 buttons: medium gap for balanced spacing */
-.dialog-actions-count-3 {
-    gap: 1.5rem; /* Medium gap for left-center-right */
+[data-theme="dark"] .student-info-card h3,
+[data-theme="dark"] .student-info-card h4 {
+  color: var(--primary-color);
 }
 
-/* 4 buttons: smaller gap, more compact */
-.dialog-actions-count-4 {
-    gap: 1rem; /* Smaller gap as buttons get closer */
+[data-theme="dark"] .student-info-item {
+  border-bottom-color: var(--border-color);
+  color: var(--text-color);
 }
 
-/* 5+ buttons: minimal gap, compact layout */
-.dialog-actions-count-5 {
-    gap: 0.5rem; /* Minimal gap for many buttons */
+[data-theme="dark"] .student-info-label {
+  color: var(--text-muted);
 }
 
-/* Alternative: Dynamic gap calculation using CSS custom properties */
-.dialog-actions-distributed.adaptive-gap {
-    --button-count: 1;
-    --max-gap: 2rem;
-    --min-gap: 0.5rem;
-    gap: calc(var(--max-gap) - ((var(--button-count) - 1) * 0.3rem));
+[data-theme="dark"] .timestamp-item {
+  background: var(--card-background);
+  border-bottom-color: var(--border-color);
+  color: var(--text-color);
 }
 
-/* Override gap for specific button counts when using adaptive-gap class */
-.dialog-actions-distributed.adaptive-gap.dialog-actions-count-1 { --button-count: 1; }
-.dialog-actions-distributed.adaptive-gap.dialog-actions-count-2 { --button-count: 2; }
-.dialog-actions-distributed.adaptive-gap.dialog-actions-count-3 { --button-count: 3; }
-.dialog-actions-distributed.adaptive-gap.dialog-actions-count-4 { --button-count: 4; }
-.dialog-actions-distributed.adaptive-gap.dialog-actions-count-5 { --button-count: 5; }
-
-/* Special handling for single button in distributed mode */
-.dialog-actions-distributed.dialog-actions-count-1 {
-    justify-content: flex-end;
+[data-theme="dark"] .timestamp-item:hover {
+  background: var(--background-light);
 }
 
-/* Print styles enhancements */
+[data-theme="dark"] .timestamp-item span {
+  color: var(--text-color);
+}
+
+/* Dark Theme Dialog Improvements */
+[data-theme="dark"] dialog {
+  background: var(--card-background);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="dark"] dialog::backdrop {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+[data-theme="dark"] .dialog-close {
+  color: var(--text-color);
+  background: transparent;
+  border: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .dialog-close:hover {
+  background: var(--background-light);
+  color: var(--danger-color);
+  border-color: var(--danger-color);
+}
+
+/* Form elements in dialogs */
+[data-theme="dark"] dialog input,
+[data-theme="dark"] dialog textarea,
+[data-theme="dark"] dialog select {
+  background: var(--background-light);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] dialog input:focus,
+[data-theme="dark"] dialog textarea:focus,
+[data-theme="dark"] dialog select:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(91, 160, 242, 0.2);
+}
+
+[data-theme="dark"] dialog label {
+  color: var(--text-color);
+}
+
+[data-theme="dark"] dialog h1,
+[data-theme="dark"] dialog h2,
+[data-theme="dark"] dialog h3,
+[data-theme="dark"] dialog h4 {
+  color: var(--text-color);
+}
+
+[data-theme="dark"] dialog p {
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .dialog-actions {
+  background: var(--card-background);
+  border-color: var(--border-color);
+}
+
+/* Dark Mode Enhancements for Setup Dialogs */
+[data-theme="dark"] .class-select-label {
+  background: var(--background-color);
+  border-color: var(--border-color);
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .class-select-label:hover {
+  background: var(--background-light);
+  border-color: var(--primary-color);
+}
+
+[data-theme="dark"] .result.success {
+  background: rgba(52, 208, 88, 0.1);
+  border-color: var(--success-color);
+  color: var(--success-color);
+}
+
+[data-theme="dark"] .result.error {
+  background: rgba(248, 81, 73, 0.1);
+  border-color: var(--danger-color);
+  color: var(--danger-color);
+}
+
+/* Dark Mode for Replacement Tags */
+[data-theme="dark"] .replacement-tag {
+  background: var(--background-color);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .replacement-tag:hover {
+  background: var(--background-light);
+  border-color: var(--primary-color);
+}
+
+/* Class Selection Grid - Improved Design */
+.class-selection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--background-light);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-light);
+}
+
+.class-checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--card-background);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.class-checkbox-item:hover {
+  border-color: var(--primary-color);
+  box-shadow: 0 2px 8px rgba(74, 144, 226, 0.1);
+}
+
+.class-checkbox-item-replacement {
+  background: linear-gradient(135deg, var(--info-bg), var(--background-light));
+  border-color: var(--info-color);
+  opacity: 0.8;
+}
+
+.class-checkbox {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--primary-color);
+}
+
+.class-checkbox-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  cursor: pointer;
+  margin: 0;
+  font-weight: 500;
+}
+
+.class-name {
+  color: var(--text-color);
+  font-size: 0.95rem;
+}
+
+.class-count {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
+.select-buttons {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.btn-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+}
+
+/* Dark Mode for Class Selection */
+[data-theme="dark"] .class-selection-grid {
+  background: var(--background-color);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .class-checkbox-item {
+  background: var(--card-background);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .class-checkbox-item:hover {
+  border-color: var(--primary-color);
+  box-shadow: 0 2px 8px rgba(91, 160, 242, 0.2);
+}
+
+[data-theme="dark"] .class-checkbox-item-replacement {
+  background: linear-gradient(135deg, var(--background-light), var(--background-color));
+  border-color: var(--primary-color);
+}

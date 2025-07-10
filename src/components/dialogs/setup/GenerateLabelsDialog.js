@@ -23,8 +23,9 @@ const GenerateLabelsDialog = ({
         {
             label: loading.labels ? 'Generiere...' : 'Generieren',
             variant: 'success',
+            position: 'right',
             onClick: handleGenerateLabels,
-            disabled: loading.labels
+            disabled: loading.labels || (selectedClasses.length === 0 && replacementAmount <= 0)
         }
     ];
 
@@ -39,64 +40,77 @@ const GenerateLabelsDialog = ({
         >
             <p>Füge Ersatz-IDs hinzu, welche später Schülern zugeordnet werden, welche ihren Zettel verloren haben</p>
 
-            <label className="form-label">Ersatz-IDs hinzufügen:</label>
-            <input
-                type="number"
-                value={replacementAmount}
-                onChange={(e) => setReplacementAmount(e.target.value)}
-                className="form-input"
-            />
-
-            <label className="form-label">Klassen auswählen:</label>
-            <div className="select-buttons">
-                <button onClick={handleSelectAll} className="select-button">Alle auswählen</button>
-                <button onClick={handleDeselectAll} className="select-button">Alle abwählen</button>
+            <div className="form-group">
+                <label className="form-label">Ersatz-IDs hinzufügen:</label>
+                <input
+                    type="number"
+                    value={replacementAmount}
+                    onChange={(e) => setReplacementAmount(e.target.value)}
+                    className="form-input"
+                    min="0"
+                    placeholder="Anzahl Ersatz-Etiketten"
+                />
             </div>
 
-            <div className="class-checkboxes" style={{ color: 'grey' }}>
-                <label className="class-select-label">
-                    <input
-                        type="checkbox"
-                        value="Erstatz"
-                        checked={replacementAmount > 0}
-                        disabled={true}
-                        onChange={handleClassSelection}
-                    />
-                    Ersatz
-                </label>
-                <div className="new-line"></div>
-
-                {classes.map((klasse, index) => (
-                    <React.Fragment key={klasse}>
-                        <label className="class-select-label">
+            <div className="form-group">
+                <label className="form-label">Klassen auswählen:</label>
+                
+                <div className="select-buttons">
+                    <button onClick={handleSelectAll} className="btn btn-secondary btn-sm">
+                        Alle auswählen
+                    </button>
+                    <button onClick={handleDeselectAll} className="btn btn-secondary btn-sm">
+                        Alle abwählen
+                    </button>
+                </div>
+                
+                <div className="class-selection-grid">
+                    {replacementAmount > 0 && (
+                        <div className="class-checkbox-item class-checkbox-item-replacement">
                             <input
                                 type="checkbox"
+                                id="ersatz-checkbox"
+                                checked={true}
+                                disabled={true}
+                                className="class-checkbox"
+                            />
+                            <label htmlFor="ersatz-checkbox" className="class-checkbox-label">
+                                <span className="class-name">Ersatz</span>
+                                <span className="class-count">({replacementAmount})</span>
+                            </label>
+                        </div>
+                    )}
+
+                    {classes.map((klasse) => (
+                        <div key={klasse} className="class-checkbox-item">
+                            <input
+                                type="checkbox"
+                                id={`class-${klasse}`}
                                 value={klasse}
                                 checked={selectedClasses.includes(klasse)}
                                 onChange={handleClassSelection}
+                                className="class-checkbox"
                             />
-                            {klasse}
-                        </label>
-                    </React.Fragment>
-                ))}
+                            <label htmlFor={`class-${klasse}`} className="class-checkbox-label">
+                                <span className="class-name">{klasse}</span>
+                            </label>
+                        </div>
+                    ))}
+                </div>
             </div>
-            {message.download && <p className="message success">{message.download}</p>}
-            {loading.labels && <div className="progress-bar" />}
-            <div className="dialog-actions">
-                <button
-                    onClick={() => dialogRef.current.close()}
-                    className="btn btn-secondary"
-                >
-                    Abbrechen
-                </button>
-                <button
-                    onClick={handleGenerateLabels}
-                    disabled={loading.labels}
-                    className="btn btn-primary"
-                >
-                    Generieren
-                </button>
-            </div>
+            
+            {message.download && (
+                <div className="alert alert-success">
+                    {message.download}
+                </div>
+            )}
+            
+            {loading.labels && (
+                <div className="loading-container">
+                    <div className="loading-spinner"></div>
+                    <span>Etiketten werden generiert...</span>
+                </div>
+            )}
         </BaseDialog>
     );
 };

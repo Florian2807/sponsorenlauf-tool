@@ -1269,13 +1269,11 @@ dialog select {
 }
 
 [data-theme="dark"] .grade-input {
-  background: var(--background-light);
   color: var(--text-color);
   border-color: var(--border-color);
 }
 
 [data-theme="dark"] .class-input {
-  background: var(--background-light);
   color: var(--text-color);
   border-color: var(--border-color);
 }
@@ -1293,10 +1291,6 @@ dialog select {
 [data-theme="dark"] .example-row {
   background: var(--card-background);
   color: var(--text-color);
-}
-
-[data-theme="dark"] .example-row:nth-child(even) {
-  background: var(--background-light);
 }
 
 /* ClassTeacher Dialog specific styles */
@@ -1454,13 +1448,6 @@ dialog select {
   color: var(--text-color);
 }
 
-[data-theme="dark"] .timestamp-item:hover {
-  background: var(--background-light);
-}
-
-[data-theme="dark"] .timestamp-item span {
-  color: var(--text-color);
-}
 
 /* Dark Theme Dialog Improvements */
 [data-theme="dark"] dialog {
@@ -1481,7 +1468,6 @@ dialog select {
 }
 
 [data-theme="dark"] .dialog-close:hover {
-  background: var(--background-light);
   color: var(--danger-color);
   border-color: var(--danger-color);
 }
@@ -1490,7 +1476,6 @@ dialog select {
 [data-theme="dark"] dialog input,
 [data-theme="dark"] dialog textarea,
 [data-theme="dark"] dialog select {
-  background: var(--background-light);
   color: var(--text-color);
   border: 1px solid var(--border-color);
 }
@@ -1530,7 +1515,6 @@ dialog select {
 }
 
 [data-theme="dark"] .class-select-label:hover {
-  background: var(--background-light);
   border-color: var(--primary-color);
 }
 
@@ -1554,7 +1538,6 @@ dialog select {
 }
 
 [data-theme="dark"] .replacement-tag:hover {
-  background: var(--background-light);
   border-color: var(--primary-color);
 }
 

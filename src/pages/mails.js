@@ -196,9 +196,11 @@ export default function Home() {
                 Hier werden die Klassenlisten mit gelaufenen Rundern der Schüler generiert und an die jeweiligen Klassenlehrer versendet.
             </p>
             {!Object.keys(teacherData.files).length && (
-                <button className="btn" onClick={() => sendMailsPopup.current.showModal()}>
-                    Mail versenden
-                </button>
+                <div className="text-center">
+                    <button className="btn btn-primary btn-lg" onClick={() => sendMailsPopup.current.showModal()}>
+                        Mail versenden
+                    </button>
+                </div>
             )}
 
             <SendMailsDialog
@@ -212,14 +214,14 @@ export default function Home() {
             />
 
             {Object.keys(teacherData.files).length > 0 && (
-                <div>
-                    <h2>Lehrer E-Mails</h2>
+                <div className="section">
+                    <h2 className="section-title">Lehrer E-Mails</h2>
                     {Object.keys(teacherData.classTeacher).map((className) => (
                         <div key={className} className="class-container">
                             <div className="class-title">{className}</div>
                             <div className="email-fields">
                                 {teacherData.classTeacher[className]?.map((teacher, index) => (
-                                    <div key={index} style={{ display: 'flex', alignItems: 'center' }}>
+                                    <div key={index} className="d-flex align-center gap-2 mb-2">
                                         <span className="email-index">{index + 1}.</span>
                                         <select
                                             value={teacher.id || ''}
@@ -238,19 +240,30 @@ export default function Home() {
                             </div>
                         </div>
                     ))}
-                    <h2>Mail-Inhalt</h2>
-                    <textarea
-                        value={fileData.mailText}
-                        onChange={(e) => setFileData((prev) => ({ ...prev, mailText: e.target.value }))}
-                        className="form-textarea"
-                    />
-                    <br />
-                    <button onClick={handleSendEmails} className="btn btn-primary">E-Mails senden</button>
+                    <h2 className="section-title mt-4">Mail-Inhalt</h2>
+                    <div className="form-group">
+                        <textarea
+                            value={fileData.mailText}
+                            onChange={(e) => setFileData((prev) => ({ ...prev, mailText: e.target.value }))}
+                            className="form-textarea"
+                            rows="10"
+                        />
+                    </div>
+                    <div className="form-actions">
+                        <button onClick={handleSendEmails} className="btn btn-success" disabled={status.sendMailLoading}>
+                            {status.sendMailLoading ? 'E-Mails werden gesendet...' : 'E-Mails senden'}
+                        </button>
+                    </div>
                 </div>
             )}
 
-            {status.sendMailLoading && <div className="progress-bar" />}
-            {status.message && <p className="message-info">{status.message}</p>}
+            {status.sendMailLoading && (
+                <div className="loading-container">
+                    <div className="loading-spinner"></div>
+                    <p>E-Mails werden gesendet...</p>
+                </div>
+            )}
+            {status.message && <div className="message-info mt-3">{status.message}</div>}
         </div>
     );
 }

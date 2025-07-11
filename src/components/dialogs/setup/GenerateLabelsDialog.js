@@ -34,7 +34,6 @@ const GenerateLabelsDialog = ({
             dialogRef={dialogRef}
             title="Etiketten generieren"
             actions={actions}
-            actionLayout="split"
             size="large"
             showDefaultClose={false}
         >

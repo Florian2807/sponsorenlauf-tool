@@ -29,7 +29,6 @@ const ClassTeacherDialog = ({
             dialogRef={dialogRef}
             title="Klassenlehrer Konfigurieren"
             actions={actions}
-            actionLayout="split"
             size="large"
             showDefaultClose={false}
         >

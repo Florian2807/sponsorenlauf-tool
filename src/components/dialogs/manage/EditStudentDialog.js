@@ -44,7 +44,6 @@ const EditStudentDialog = ({
             dialogRef={dialogRef}
             title="Schüler bearbeiten"
             actions={actions}
-            actionLayout="split"
             size="large"
             showDefaultClose={false}
         >

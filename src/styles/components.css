@@ -289,7 +289,6 @@ dialog input,
 dialog select,
 dialog textarea {
   padding: 0.75rem;
-  margin-bottom: 1rem;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   font-size: 1rem;
@@ -638,8 +637,6 @@ dialog select {
 
 /* Class Structure Dialog */
 .class-structure-container {
-  max-height: 70vh;
-  overflow-y: auto;
   margin: 1.5rem 0;
   padding: 0.5rem;
 }
@@ -1655,4 +1652,17 @@ dialog select {
 [data-theme="dark"] .class-checkbox-item-replacement {
   background: linear-gradient(135deg, var(--background-light), var(--background-color));
   border-color: var(--primary-color);
+}
+
+/* Email Index Styles */
+.email-index {
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+    margin-right: 0.5rem;
+    min-width: 1.5rem;
+}
+
+/* Dark Mode Support für Email Index */
+[data-theme="dark"] .email-index {
+    color: var(--text-muted);
 }

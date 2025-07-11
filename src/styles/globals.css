@@ -995,3 +995,458 @@ textarea:focus {
     --border-light: #555555;
   }
 }
+
+/* Dark Mode Support für alle Formularelemente */
+[data-theme="dark"] .form-control,
+[data-theme="dark"] input[type="text"],
+[data-theme="dark"] input[type="number"],
+[data-theme="dark"] input[type="email"],
+[data-theme="dark"] input[type="password"],
+[data-theme="dark"] .input {
+  background-color: var(--background-light);
+  color: var(--text-color);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .form-control:focus,
+[data-theme="dark"] input[type="text"]:focus,
+[data-theme="dark"] input[type="number"]:focus,
+[data-theme="dark"] input[type="email"]:focus,
+[data-theme="dark"] input[type="password"]:focus,
+[data-theme="dark"] .input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(91, 160, 242, 0.2);
+}
+
+[data-theme="dark"] .form-control:disabled,
+[data-theme="dark"] input:disabled {
+  background-color: var(--background-color);
+  color: var(--text-muted);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .form-select,
+[data-theme="dark"] select,
+[data-theme="dark"] .select {
+  background-color: var(--background-light);
+  color: var(--text-color);
+  border-color: var(--border-color);
+  background-image: url('data:image/svg+xml;utf8,<svg fill="none" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5H7z" fill="%23e6edf3"/></svg>');
+}
+
+[data-theme="dark"] .form-select:focus,
+[data-theme="dark"] select:focus,
+[data-theme="dark"] .select:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(91, 160, 242, 0.2);
+}
+
+[data-theme="dark"] .form-textarea,
+[data-theme="dark"] textarea,
+[data-theme="dark"] .textarea {
+  background-color: var(--background-light);
+  color: var(--text-color);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .form-textarea:focus,
+[data-theme="dark"] textarea:focus,
+[data-theme="dark"] .textarea:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(91, 160, 242, 0.2);
+}
+
+[data-theme="dark"] label,
+[data-theme="dark"] .form-label {
+  color: var(--text-color);
+}
+
+/* Dark Mode Support für spezielle Formularelemente */
+[data-theme="dark"] input[type="file"] {
+  background-color: var(--background-light);
+  color: var(--text-color);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] input[type="file"]:hover {
+  background-color: var(--background-color);
+}
+
+/* Dark Mode Support für Mails und Donations spezifische Elemente */
+[data-theme="dark"] .message-info {
+  background: var(--info-bg);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .loading-container p {
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .section {
+  background: var(--card-background);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .class-container {
+  background: var(--card-background);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .class-title {
+  color: var(--primary-color);
+  border-bottom-color: var(--border-color);
+}
+
+[data-theme="dark"] .email-fields {
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .email-index {
+  color: var(--text-muted);
+}
+
+[data-theme="dark"] .form-group {
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .form-actions {
+  border-top-color: var(--border-color);
+}
+
+/* Dark Mode Support für Donations spezifische Elemente */
+[data-theme="dark"] .switch-container {
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .input-wrapper {
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .suggestions {
+  background: var(--card-background);
+  border-color: var(--border-color);
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .suggestion-item {
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .suggestion-item:hover,
+[data-theme="dark"] .suggestion-item.highlighted {
+  background: var(--background-light);
+}
+
+/* Optimierte Donations-Seite Styles */
+.mode-toggle {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.mode-label {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-color);
+  margin-left: 1rem;
+}
+
+.mode-description {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin: 0.5rem 0 0 0;
+  font-style: italic;
+}
+
+.donation-form {
+  background: var(--card-background);
+  padding: 2rem;
+  border-radius: var(--radius-large);
+  border: 2px solid var(--border-light);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 2rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 768px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
+.student-search {
+  position: relative;
+}
+
+.has-selection {
+  border-color: var(--success-color) !important;
+  background: rgba(40, 167, 69, 0.1) !important;
+}
+
+.selected-student {
+  margin-top: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: rgba(40, 167, 69, 0.1);
+  color: var(--success-color);
+  border-radius: var(--radius);
+  font-weight: 500;
+  border: 1px solid var(--success-color);
+}
+
+.student-class {
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-left: 0.5rem;
+}
+
+.suggestions-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--card-background);
+  border: 2px solid var(--border-color);
+  border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  box-shadow: var(--shadow-lg, 0 10px 25px rgba(0, 0, 0, 0.15));
+  max-height: 250px;
+  overflow-y: auto;
+  z-index: 1000;
+}
+
+.suggestion-item {
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.suggestion-item:hover,
+.suggestion-item.highlighted {
+  background: var(--primary-light);
+  color: var(--primary-color);
+}
+
+.student-name {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text-color);
+}
+
+.student-details {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+.suggestion-item:hover .student-name,
+.suggestion-item.highlighted .student-name {
+  color: var(--primary-color);
+}
+
+.amount-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.amount-input {
+  padding-right: 2.5rem !important;
+  text-align: right;
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+.currency-symbol {
+  position: absolute;
+  right: 1rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.form-hint {
+  display: block;
+  margin-top: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.student-info-card {
+  background: var(--card-background);
+  border-radius: var(--radius-large);
+  box-shadow: var(--shadow-md, 0 6px 12px rgba(0, 0, 0, 0.15));
+  border: 1px solid var(--border-color);
+  margin-top: 2rem;
+  overflow: hidden;
+}
+
+.student-header {
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+  color: white;
+  padding: 1.5rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.student-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.student-class-badge {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  padding: 2rem;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: var(--background-light);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-light);
+}
+
+.info-item.difference {
+  grid-column: 1 / -1;
+  background: var(--warning-bg);
+  border-color: var(--warning-color);
+}
+
+.info-label {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.info-value {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+.info-value.expected {
+  color: var(--primary-color);
+}
+
+.info-value.received {
+  color: var(--success-color);
+}
+
+.info-value.positive {
+  color: var(--success-color);
+}
+
+.info-value.negative {
+  color: var(--danger-color);
+}
+
+.donations-details {
+  padding: 0 2rem 2rem;
+}
+
+.donation-section {
+  margin-bottom: 2rem;
+}
+
+.donation-section h3 {
+  margin: 0 0 1rem 0;
+  padding: 0.75rem 1rem;
+  background: var(--background-light);
+  border-radius: var(--radius);
+  color: var(--text-color);
+  font-size: 1.1rem;
+  border-left: 4px solid var(--primary-color);
+}
+
+.donation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.donation-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  transition: all 0.2s ease;
+}
+
+.donation-item:hover {
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+.donation-item.expected {
+  border-left: 4px solid var(--primary-color);
+}
+
+.donation-item.received {
+  border-left: 4px solid var(--success-color);
+}
+
+.donation-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.donation-info .amount {
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: var(--text-color);
+}
+
+.donation-info .date {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* Dark Mode für optimierte Donations-Seite */
+[data-theme="dark"] .suggestion-item:hover,
+[data-theme="dark"] .suggestion-item.highlighted {
+  background: var(--primary-color);
+  color: white;
+}
+
+[data-theme="dark"] .suggestion-item:hover .student-name,
+[data-theme="dark"] .suggestion-item.highlighted .student-name {
+  color: white;
+}
+
+[data-theme="dark"] .selected-student {
+  background: rgba(52, 208, 88, 0.2);
+  border-color: var(--success-color);
+}
+
+[data-theme="dark"] .donation-item {
+  background: var(--background-light);
+}

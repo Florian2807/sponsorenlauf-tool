@@ -13,8 +13,13 @@ const SendMailsDialog = ({
     const actions = [
         {
             label: 'Abbrechen',
-            position: 'left',
             onClick: () => dialogRef.current.close()
+        },
+        {
+            label: 'Login',
+            onClick: () => handleLogin(),
+            variant: 'success',
+            disabled: !fileData.email || !fileData.password,
         },
         {
             label: 'Weiter',
@@ -29,12 +34,11 @@ const SendMailsDialog = ({
             dialogRef={dialogRef}
             title="Mails mit Tabellen versenden"
             actions={actions}
-            actionLayout="split"
             size="large"
             showDefaultClose={false}
         >
-            <div className="send-mails-content">
-                <h3>Microsoft Login</h3>
+            <div className="form">
+                <h3 className="section-title">Microsoft Login</h3>
 
                 <div className="form-group">
                     <label className="form-label">E-Mail Adresse:</label>
@@ -46,7 +50,7 @@ const SendMailsDialog = ({
                         onChange={(e) => setFileData((prev) => ({ ...prev, email: e.target.value }))}
                         disabled={credentialsCorrect}
                         required
-                        className="form-input"
+                        className="form-control"
                     />
                 </div>
 
@@ -60,7 +64,7 @@ const SendMailsDialog = ({
                         onChange={(e) => setFileData((prev) => ({ ...prev, password: e.target.value }))}
                         disabled={credentialsCorrect}
                         required
-                        className="form-input"
+                        className="form-control"
                     />
                 </div>
 
@@ -73,17 +77,24 @@ const SendMailsDialog = ({
                         value={fileData.senderName}
                         onChange={(e) => setFileData((prev) => ({ ...prev, senderName: e.target.value }))}
                         required
-                        className="form-input"
+                        className="form-control"
                     />
                 </div>
 
-                <div className="login-section">
-                    <button className="btn btn-secondary" onClick={handleLogin}>Login</button>
-                    {status.loginLoading && <div className="loading-spinner" />}
-                    {status.loginMessage && <p className="message">{status.loginMessage}</p>}
-                </div>
+                {status.loginLoading && (
+                    <div className="loading-container">
+                        <div className="loading-spinner"></div>
+                        <p>Login wird verarbeitet...</p>
+                    </div>
+                )}
+                {status.loginMessage && <div className="message-info">{status.loginMessage}</div>}
 
-                {status.uploadLoading && <div className="loading-spinner" />}
+                {status.uploadLoading && (
+                    <div className="loading-container">
+                        <div className="loading-spinner"></div>
+                        <p>Daten werden verarbeitet...</p>
+                    </div>
+                )}
             </div>
         </BaseDialog>
     );

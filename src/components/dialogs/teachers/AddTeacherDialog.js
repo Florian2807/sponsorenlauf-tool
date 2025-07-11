@@ -33,7 +33,6 @@ const AddTeacherDialog = ({
             dialogRef={dialogRef}
             title="Neuen Lehrer hinzufügen"
             actions={actions}
-            actionLayout="split"
             size="large"
             showDefaultClose={false}
         >

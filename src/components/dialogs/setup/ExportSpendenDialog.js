@@ -30,8 +30,7 @@ const ExportSpendenDialog = ({
             dialogRef={dialogRef}
             title="Spenden Auswertungen downloaden"
             actions={actions}
-            actionLayout="default"
-            size='xl'
+            size='large'
             showDefaultClose={false}
         >
             {loading.downloadResults && <div className="progress-bar" />}

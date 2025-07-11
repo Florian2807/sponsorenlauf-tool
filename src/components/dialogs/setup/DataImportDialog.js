@@ -146,8 +146,11 @@ const DataImportDialog = ({ dialogRef, onImportSuccess, onClose }) => {
 
     const actions = [
         {
+            label: 'Abbrechen',
+            onClick: () => dialogRef.current.close()
+        },
+        {
             label: 'Zurücksetzen',
-            position: 'left',
             onClick: resetForm,
             variant: 'secondary'
         },
@@ -167,7 +170,6 @@ const DataImportDialog = ({ dialogRef, onImportSuccess, onClose }) => {
             onClose={handleClose}
             size="xl"
             actions={actions}
-            actionLayout="split"
             showDefaultClose={false}
         >
             {/* Method Selector */}

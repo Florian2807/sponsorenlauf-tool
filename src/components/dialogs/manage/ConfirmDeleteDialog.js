@@ -28,7 +28,6 @@ const ConfirmDeleteDialog = ({
             dialogRef={dialogRef}
             title="Bestätigen Sie das Löschen"
             actions={actions}
-            actionLayout="split"
             showDefaultClose={false}
         >
             <p>Möchten Sie diesen Schüler wirklich löschen?</p>

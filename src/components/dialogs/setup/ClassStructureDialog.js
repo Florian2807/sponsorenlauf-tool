@@ -32,8 +32,7 @@ const ClassStructureDialog = ({
             dialogRef={dialogRef}
             title="Klassenstruktur verwalten"
             actions={actions}
-            actionLayout="split"
-            size="xl"
+            size="large"
             showDefaultClose={false}
         >
             <p>Verwalten Sie die Jahrgänge und deren Klassen.</p>

@@ -18,6 +18,11 @@ const EditTeacherDialog = ({
 }) => {
     const actions = [
         {
+            label: 'Abbrechen',
+            position: 'left',
+            onClick: () => dialogRef.current.close()
+        },
+        {
             label: 'Lehrer löschen',
             variant: 'danger',
             position: 'left',
@@ -35,7 +40,7 @@ const EditTeacherDialog = ({
             dialogRef={dialogRef}
             title="Lehrer bearbeiten"
             actions={actions}
-            actionLayout="split"
+            size="large"
             showDefaultClose={false}
         >
             <div className="form-group">

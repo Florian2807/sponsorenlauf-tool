@@ -23,7 +23,6 @@ const ConfirmDeleteAllDialog = ({
             dialogRef={dialogRef}
             title="Bestätigen Sie das Löschen"
             actions={actions}
-            actionLayout="split"
             showDefaultClose={false}
         >
             <p>Möchten Sie wirklich alle Schüler löschen?</p>

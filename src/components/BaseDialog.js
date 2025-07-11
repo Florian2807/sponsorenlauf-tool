@@ -9,7 +9,6 @@ const BaseDialog = ({
     size = 'medium',
     actions = null,
     showDefaultClose = true,
-    actionLayout = 'default' // 'default' (auto-distribute based on count), 'split' (left/right for 2 buttons), 'right' (align right)
 }) => {
     const handleClose = () => {
         if (onClose) {
@@ -32,7 +31,7 @@ const BaseDialog = ({
             // Determine action layout class based on count and layout preference
             let actionClass = 'dialog-actions';
 
-            if (actionLayout === 'split' && actionCount === 2) {
+            if (actionCount === 2) {
                 // Special handling for split layout with exactly 2 actions
                 actionClass += ' dialog-actions-split';
                 const leftActions = actions.filter(action => action.position === 'left');
@@ -86,8 +85,6 @@ const BaseDialog = ({
                 // Auto-distribute actions based on count
                 if (actionCount >= 2) {
                     actionClass += ` dialog-actions-distributed dialog-actions-count-${Math.min(actionCount, 5)}`;
-                } else if (actionLayout === 'right') {
-                    actionClass += ' dialog-actions-right';
                 }
 
                 return (

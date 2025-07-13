@@ -178,7 +178,7 @@ export default function Teachers() {
                 data: newTeacher,
                 errorContext: 'Beim Hinzufügen des Lehrers'
             });
-            await fetchTeachers();
+            fetchTeachers();
             addTeacherPopup.current.close();
             setNewTeacher({
                 id: '',
@@ -252,7 +252,6 @@ export default function Teachers() {
                 allPossibleClasses={allPossibleClasses}
                 confirmDeletePopup={confirmDeletePopup}
                 editTeacher={editTeacher}
-                loading={loading}
             />
 
             <AddTeacherDialog
@@ -261,7 +260,6 @@ export default function Teachers() {
                 addTeacherChangeField={addTeacherChangeField}
                 allPossibleClasses={allPossibleClasses}
                 addTeacherSubmit={addTeacherSubmit}
-                loading={loading}
             />
 
             <ConfirmDeleteTeacherDialog

@@ -1,74 +1,98 @@
 import nodemailer from 'nodemailer';
+import { handleMethodNotAllowed, handleError, handleSuccess, handleValidationError } from '../../utils/apiHelpers.js';
+import { validateEmail } from '../../utils/validation.js';
+
+const createTransporter = (email, password) => {
+  return nodemailer.createTransporter({
+    service: 'Outlook365',
+    auth: { user: email, pass: password }
+  });
+};
+
+const sendClassEmail = async (transporter, className, teacherData, classFileBase64, mailText, senderName, senderEmail) => {
+  if (!classFileBase64 || !teacherData.length) {
+    return;
+  }
+
+  const teacherEmails = teacherData.map(teacher => teacher.email);
+
+  const mailOptions = {
+    from: `${senderName} <${senderEmail}>`,
+    to: teacherEmails[0],
+    cc: teacherEmails.slice(1).join(', '),
+    bcc: senderEmail,
+    subject: `Sponsorenlauf ${new Date().getFullYear()} - Schülerliste Klasse ${className}`,
+    text: mailText,
+    attachments: [
+      {
+        filename: `${className}.xlsx`,
+        content: Buffer.from(classFileBase64, 'base64'),
+        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      },
+    ],
+  };
+
+  await transporter.sendMail(mailOptions);
+  // Rate limiting to avoid overwhelming the email server
+  await new Promise(resolve => setTimeout(resolve, 2000));
+};
+
+const validateEmailData = (teacherData, teacherFiles, email, password, senderName, mailText) => {
+  const errors = [];
+
+  if (!teacherData || !teacherFiles) {
+    errors.push('Lehrerlisten oder Dateien fehlen');
+  }
+
+  if (!email || !password) {
+    errors.push('E-Mail-Anmeldedaten sind erforderlich');
+  }
+
+  if (email && !validateEmail(email)) {
+    errors.push('Ungültige E-Mail-Adresse');
+  }
+
+  if (!senderName?.trim()) {
+    errors.push('Sendername ist erforderlich');
+  }
+
+  if (!mailText?.trim()) {
+    errors.push('E-Mail-Text ist erforderlich');
+  }
+
+  return errors;
+};
 
 export default async function handler(req, res) {
-    if (req.method === 'POST') {
-        const { teacherEmails: teacherData, teacherFiles, senderName, mailText, email, password } = req.body;
+  if (req.method !== 'POST') {
+    return handleMethodNotAllowed(res, ['POST']);
+  }
 
-        console.log('teacherData', teacherData);
-        if (!teacherData || !teacherFiles || !email || !password) {
-            return res.status(400).json({ message: 'Lehrerlisten, Dateien oder Anmeldedaten fehlen' });
-        }
+  try {
+    const {
+      teacherEmails: teacherData,
+      teacherFiles,
+      senderName,
+      mailText,
+      email,
+      password
+    } = req.body;
 
-        try {
-            const transporter = nodemailer.createTransport({
-                service: 'Outlook365',
-                auth: {
-                    user: email,
-                    pass: password,
-                },
-            });
-
-            const sendMailPromises = Object.entries(teacherData).map(async ([className, data]) => {
-                const classFileBase64 = teacherFiles[className];
-
-                if (!classFileBase64 || !data.length) {
-                    console.warn(`Keine Datei oder Mailadresse für ${className} gefunden.`);
-                    return;
-                }
-
-                const teacherEmail = data.map((teacher) => teacher.email);
-
-                console.log(`Sende E-Mail an ${teacherEmail.join(', ')}`);
-
-                const mailOptions = {
-                    from: `${senderName} <${email}>`,
-                    to: teacherEmail[0],
-                    cc: teacherEmail.slice(1).join(', '),
-                    bcc: email,
-                    subject: `Sponsorenlauf ${new Date().getFullYear()} - Schülerliste Klasse ${className}`,
-                    text: mailText,
-                    attachments: [
-                        {
-                            filename: `${className}.xlsx`,
-                            content: Buffer.from(classFileBase64, 'base64'),
-                            contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                        },
-                    ],
-                };
-
-                await transporter.sendMail(mailOptions);
-                await new Promise((resolve) => setTimeout(resolve, 2000));
-            });
-
-            await Promise.all(sendMailPromises);
-
-            res.status(200).json({ message: 'E-Mails wurden erfolgreich versendet' });
-        } catch (error) {
-            res.status(500).json({ message: 'Fehler beim Senden der E-Mails', error });
-        }
-    } else if (req.method === 'POST' && req.url.endsWith('/auth')) {
-        const { email, password } = req.body;
-        try {
-            const transporter = nodemailer.createTransport({
-                service: 'Outlook365',
-                auth: { user: email, pass: password }
-            });
-            await transporter.verify();
-            res.status(200).json({ success: true, message: 'Login erfolgreich' });
-        } catch (error) {
-            res.status(401).json({ success: false, message: 'Login fehlgeschlagen' });
-        }
-    } else {
-        res.status(405).json({ message: 'Methode nicht erlaubt' });
+    const validationErrors = validateEmailData(teacherData, teacherFiles, email, password, senderName, mailText);
+    if (validationErrors.length > 0) {
+      return handleValidationError(res, validationErrors);
     }
+
+    const transporter = createTransporter(email, password);
+
+    const sendPromises = Object.entries(teacherData).map(([className, data]) =>
+      sendClassEmail(transporter, className, data, teacherFiles[className], mailText, senderName, email)
+    );
+
+    await Promise.all(sendPromises);
+
+    return handleSuccess(res, null, 'E-Mails wurden erfolgreich versendet');
+  } catch (error) {
+    return handleError(res, error, 500, 'Fehler beim Senden der E-Mails');
+  }
 }

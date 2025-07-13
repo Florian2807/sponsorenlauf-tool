@@ -1,72 +1,54 @@
-import sqlite3 from 'sqlite3';
+import { dbAll } from '../../utils/database.js';
+import { handleMethodNotAllowed, handleError, handleSuccess } from '../../utils/apiHelpers.js';
 import config from '../../../data/config.json';
 
-const db = new sqlite3.Database('./data/database.db');
+const loadStudentsForStatistics = async () => {
+  const query = `
+    SELECT 
+      s.*,
+      COUNT(r.id) as rounds,
+      COALESCE(ed.total_expected, 0) as expected_donations,
+      COALESCE(rd.total_received, 0) as received_donations
+    FROM students s
+    LEFT JOIN rounds r ON s.id = r.student_id
+    LEFT JOIN (
+      SELECT student_id, SUM(amount) as total_expected 
+      FROM expected_donations 
+      GROUP BY student_id
+    ) ed ON s.id = ed.student_id
+    LEFT JOIN (
+      SELECT student_id, SUM(amount) as total_received 
+      FROM received_donations 
+      GROUP BY student_id
+    ) rd ON s.id = rd.student_id
+    GROUP BY s.id
+  `;
 
-const loadStudentsFromDB = () => {
-  return new Promise((resolve, reject) => {
-    // Lade Studenten und ihre Daten aus den separaten Tabellen
-    db.all(`
-      SELECT 
-        s.*,
-        COUNT(r.id) as rounds,
-        COALESCE(ed.total_expected, 0) as expected_donations,
-        COALESCE(rd.total_received, 0) as received_donations
-      FROM students s
-      LEFT JOIN rounds r ON s.id = r.student_id
-      LEFT JOIN (
-        SELECT student_id, SUM(amount) as total_expected 
-        FROM expected_donations 
-        GROUP BY student_id
-      ) ed ON s.id = ed.student_id
-      LEFT JOIN (
-        SELECT student_id, SUM(amount) as total_received 
-        FROM received_donations 
-        GROUP BY student_id
-      ) rd ON s.id = rd.student_id
-      GROUP BY s.id
-    `, (err, rows) => {
-      if (err) {
-        reject(err);
-      } else {
-        // Lade alle Timestamps für jeden Studenten
-        const studentIds = rows.map(row => row.id);
+  const rows = await dbAll(query);
+  if (rows.length === 0) return [];
 
-        if (studentIds.length === 0) {
-          resolve([]);
-          return;
-        }
+  const studentIds = rows.map(row => row.id);
+  const placeholders = studentIds.map(() => '?').join(',');
 
-        db.all(`
-          SELECT student_id, timestamp 
-          FROM rounds 
-          WHERE student_id IN (${studentIds.map(() => '?').join(',')})
-          ORDER BY student_id, timestamp DESC
-        `, studentIds, (err, roundsData) => {
-          if (err) {
-            reject(err);
-          } else {
-            const roundsMap = roundsData.reduce((acc, { student_id, timestamp }) => {
-              if (!acc[student_id]) {
-                acc[student_id] = [];
-              }
-              acc[student_id].push(timestamp);
-              return acc;
-            }, {});
+  const roundsData = await dbAll(`
+    SELECT student_id, timestamp 
+    FROM rounds 
+    WHERE student_id IN (${placeholders})
+    ORDER BY student_id, timestamp DESC
+  `, studentIds);
 
-            const students = rows.map(row => ({
-              ...row,
-              timestamps: roundsMap[row.id] || [],
-              rounds: (roundsMap[row.id] || []).length,
-              spenden: row.expected_donations // Kompatibilität
-            }));
+  const roundsMap = roundsData.reduce((acc, { student_id, timestamp }) => {
+    if (!acc[student_id]) acc[student_id] = [];
+    acc[student_id].push(timestamp);
+    return acc;
+  }, {});
 
-            resolve(students);
-          }
-        });
-      }
-    });
-  });
+  return rows.map(row => ({
+    ...row,
+    timestamps: roundsMap[row.id] || [],
+    rounds: (roundsMap[row.id] || []).length,
+    spenden: row.expected_donations // Kompatibilität
+  }));
 };
 
 const calculateStatistics = (students) => {
@@ -135,16 +117,15 @@ const calculateStatistics = (students) => {
 };
 
 export default async function handler(req, res) {
-  if (req.method === 'GET') {
-    try {
-      const students = await loadStudentsFromDB();
-      const statistics = calculateStatistics(students);
-      return res.status(200).json(statistics);
-    } catch (error) {
-      return res.status(500).json({ error: 'Fehler beim Abrufen der Daten' });
-    }
-  } else {
-    res.setHeader('Allow', ['GET']);
-    return res.status(405).end(`Method ${req.method} Not Allowed`);
+  if (req.method !== 'GET') {
+    return handleMethodNotAllowed(res, ['GET']);
+  }
+
+  try {
+    const students = await loadStudentsForStatistics();
+    const statistics = calculateStatistics(students);
+    return handleSuccess(res, statistics, 'Statistiken erfolgreich berechnet');
+  } catch (error) {
+    return handleError(res, error, 500, 'Fehler beim Berechnen der Statistiken');
   }
 }

@@ -10,7 +10,6 @@ const GenerateLabelsDialog = ({
     classes,
     selectedClasses,
     handleClassSelection,
-    message,
     loading,
     handleGenerateLabels
 }) => {
@@ -97,12 +96,6 @@ const GenerateLabelsDialog = ({
                     ))}
                 </div>
             </div>
-
-            {message.download && (
-                <div className="alert alert-success">
-                    {message.download}
-                </div>
-            )}
 
             {loading.labels && (
                 <div className="loading-container">

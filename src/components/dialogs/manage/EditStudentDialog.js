@@ -14,7 +14,8 @@ const EditStudentDialog = ({
     setNewReplacement,
     addReplacementPopup,
     confirmDeletePopup,
-    editStudent
+    editStudent,
+    loading = false
 }) => {
     const handleInputChange = (field, value) => {
         setEditForm(prev => ({ ...prev, [field]: value }));
@@ -24,18 +25,21 @@ const EditStudentDialog = ({
         {
             label: 'Abbrechen',
             position: 'left',
-            onClick: () => dialogRef.current.close()
+            onClick: () => dialogRef.current.close(),
+            disabled: loading
         },
         {
             label: 'Schüler löschen',
             position: 'left',
             variant: 'danger',
-            onClick: () => confirmDeletePopup.current.showModal()
+            onClick: () => confirmDeletePopup.current.showModal(),
+            disabled: loading
         },
         {
-            label: 'Speichern',
+            label: loading ? 'Speichere...' : 'Speichern',
             variant: 'success',
-            onClick: editStudent
+            onClick: editStudent,
+            disabled: loading || !editForm.vorname || !editForm.nachname
         }
     ];
 
@@ -98,24 +102,6 @@ const EditStudentDialog = ({
                 </select>
             </div>
 
-            <div>
-                <h3>Gelaufene Runden: {selectedStudent?.timestamps.length}</h3>
-                <h3>Timestamps:</h3>
-                <ul className="timestamp-list">
-                    {selectedStudent?.timestamps.map((timestamp, index) => (
-                        <li key={index} className="timestamp-item">
-                            <span>{formatDate(new Date(timestamp))}</span>
-                            <button
-                                className="delete-timestamp-btn"
-                                onClick={() => deleteTimestamp(index)}
-                            >
-                                Löschen
-                            </button>
-                        </li>
-                    ))}
-                </ul>
-            </div>
-
             <h3>Ersatz-IDs:</h3>
             <div className="replacement-container">
                 {selectedStudent?.replacements.map((replacement, index) => (
@@ -123,7 +109,8 @@ const EditStudentDialog = ({
                         <span className="replacement-text">{replacement}</span>
                         <button
                             className="delete-replacement-btn"
-                            onClick={() => deleteReplacement(index)}
+                            onClick={() => deleteReplacement(replacement)}
+                            title="Ersatz-ID löschen"
                         >
                             <span className="delete-icon">&times;</span>
                         </button>
@@ -140,6 +127,24 @@ const EditStudentDialog = ({
                 >
                     ➕
                 </button>
+            </div>
+
+            <div>
+                <h3>Gelaufene Runden: {selectedStudent?.timestamps.length}</h3>
+                <h3>Timestamps:</h3>
+                <ul className="timestamp-list">
+                    {selectedStudent?.timestamps.map((timestamp, index) => (
+                        <li key={index} className="timestamp-item">
+                            <span>{formatDate(new Date(timestamp))}</span>
+                            <button
+                                className="delete-timestamp-btn"
+                                onClick={() => deleteTimestamp(index)}
+                            >
+                                Löschen
+                            </button>
+                        </li>
+                    ))}
+                </ul>
             </div>
 
         </BaseDialog>

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import config from '../../data/config.json';
 import { formatCurrency, API_ENDPOINTS, downloadFile } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
+import { useGlobalError } from '../contexts/ErrorContext';
 
 const classOrder = Object.values(config.availableClasses).flat();
 
@@ -31,6 +32,7 @@ export default function Statistics() {
   });
 
   const { request, loading, error } = useApi();
+  const { showError } = useGlobalError();
 
   useEffect(() => {
     const fetchStatistics = async () => {
@@ -38,11 +40,11 @@ export default function Statistics() {
         const data = await request(API_ENDPOINTS.STATISTICS);
         setStats(data);
       } catch (error) {
-        console.error('Fehler beim Abrufen der Statistiken:', error);
+        showError(error, 'Beim Abrufen der Statistiken');
       }
     };
     fetchStatistics();
-  }, [request]);
+  }, [request, showError]);
 
   const handleExport = useCallback(async () => {
     try {
@@ -51,7 +53,7 @@ export default function Statistics() {
       });
       downloadFile(response, 'class_statistics.zip');
     } catch (error) {
-      console.error('Fehler beim Export der Excel-Dateien:', error);
+      showError(error, 'Beim Export der Excel-Dateien');
     }
   }, [request]);
 
@@ -62,41 +64,46 @@ export default function Statistics() {
     });
   }, []);
 
-  const sortedData = useCallback((data, sortConfig) => {
-    if (!sortConfig.key) return data;
+  const sortData = useCallback((data, config) => {
+    if (!config.key) return data;
     return [...data].sort((a, b) => {
-      if (sortConfig.key === 'klasse') {
+      const { key, direction } = config;
+
+      if (key === 'klasse') {
         const indexA = classOrder.indexOf(a.klasse);
         const indexB = classOrder.indexOf(b.klasse);
-        return sortConfig.direction === 'ascending' ? indexA - indexB : indexB - indexA;
-      } else if (typeof a[sortConfig.key] === 'number' && typeof b[sortConfig.key] === 'number') {
-        return sortConfig.direction === 'ascending' ? a[sortConfig.key] - b[sortConfig.key] : b[sortConfig.key] - a[sortConfig.key];
-      } else if (typeof a[sortConfig.key] === 'string' && typeof b[sortConfig.key] === 'string') {
-        return sortConfig.direction === 'ascending'
-          ? a[sortConfig.key].localeCompare(b[sortConfig.key])
-          : b[sortConfig.key].localeCompare(a[sortConfig.key]);
-      } else {
-        return 0;
+        return direction === 'ascending' ? indexA - indexB : indexB - indexA;
       }
+
+      if (typeof a[key] === 'number' && typeof b[key] === 'number') {
+        return direction === 'ascending' ? a[key] - b[key] : b[key] - a[key];
+      }
+
+      if (typeof a[key] === 'string' && typeof b[key] === 'string') {
+        return direction === 'ascending'
+          ? a[key].localeCompare(b[key])
+          : b[key].localeCompare(a[key]);
+      }
+
+      return 0;
     });
   }, []);
 
   const getSortIndicator = useCallback((section, key) => {
-    if (sortConfig[section].key === key) {
-      return sortConfig[section].direction === 'ascending' ? '▲' : '▼';
-    }
-    return '';
+    return sortConfig[section].key === key
+      ? (sortConfig[section].direction === 'ascending' ? '▲' : '▼')
+      : '';
   }, [sortConfig]);
 
-  const sortedClassStats = useMemo(() => sortedData(stats.classStats, sortConfig.classStats), [stats.classStats, sortConfig.classStats, sortedData]);
-  const sortedTopStudentsByRounds = useMemo(() => sortedData(stats.topStudentsByRounds, sortConfig.topStudentsByRounds), [stats.topStudentsByRounds, sortConfig.topStudentsByRounds, sortedData]);
-  const sortedTopStudentsByMoney = useMemo(() => sortedData(stats.topStudentsByMoney, sortConfig.topStudentsByMoney), [stats.topStudentsByMoney, sortConfig.topStudentsByMoney, sortedData]);
+  const sortedClassStats = useMemo(() => sortData(stats.classStats, sortConfig.classStats), [stats.classStats, sortConfig.classStats, sortData]);
+  const sortedTopStudentsByRounds = useMemo(() => sortData(stats.topStudentsByRounds, sortConfig.topStudentsByRounds), [stats.topStudentsByRounds, sortConfig.topStudentsByRounds, sortData]);
+  const sortedTopStudentsByMoney = useMemo(() => sortData(stats.topStudentsByMoney, sortConfig.topStudentsByMoney), [stats.topStudentsByMoney, sortConfig.topStudentsByMoney, sortData]);
   const sortedTopClassesOfGrades = useMemo(() => {
     return Object.keys(stats.topClassesOfGrades).reduce((acc, grade) => {
-      acc[grade] = sortedData(stats.topClassesOfGrades[grade], sortConfig.topClassesOfGrades);
+      acc[grade] = sortData(stats.topClassesOfGrades[grade], sortConfig.topClassesOfGrades);
       return acc;
     }, {});
-  }, [stats.topClassesOfGrades, sortConfig.topClassesOfGrades, sortedData]);
+  }, [stats.topClassesOfGrades, sortConfig.topClassesOfGrades, sortData]);
 
   return (
     <div className="page-container-wide">
@@ -315,5 +322,3 @@ export default function Statistics() {
     </div>
   );
 }
-
-// Entferne die doppelte formatCurrency Funktion da sie jetzt in constants.js ist

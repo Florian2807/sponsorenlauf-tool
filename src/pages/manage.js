@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getNextId, API_ENDPOINTS } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
+import { useGlobalError } from '../contexts/ErrorContext';
 import { useSortableTable } from '../hooks/useSortableTable';
 import { useSearch } from '../hooks/useSearch';
 import EditStudentDialog from '../components/dialogs/manage/EditStudentDialog';
@@ -27,7 +28,8 @@ export default function Manage() {
   const [message, setMessage] = useState('');
   const [availableClasses, setAvailableClasses] = useState([]);
 
-  const { request, loading, error } = useApi();
+  const { request, loading } = useApi();
+  const { showError, showSuccess } = useGlobalError();
   const { sortData, sortedData } = useSortableTable(students, availableClasses);
   const { searchTerm, setSearchTerm, filteredData } = useSearch(sortedData);
 
@@ -46,18 +48,18 @@ export default function Manage() {
       const data = await request(API_ENDPOINTS.CLASSES);
       setAvailableClasses(data);
     } catch (error) {
-      console.error('Error fetching available classes:', error);
+      showError(error, 'Beim Laden der verfügbaren Klassen');
     }
-  }, [request]);
+  }, [request, showError]);
 
   const fetchStudents = useCallback(async () => {
     try {
       const data = await request(API_ENDPOINTS.STUDENTS);
       setStudents(data);
     } catch (error) {
-      console.error('Error fetching students:', error);
+      showError(error, 'Beim Laden der Schülerdaten');
     }
-  }, [request]);
+  }, [request, showError]);
 
   const editStudentClick = useCallback((student) => {
     setSelectedStudent(student);
@@ -80,36 +82,101 @@ export default function Manage() {
   }, [selectedStudent]);
 
   const addReplacementID = useCallback(async () => {
-    if (!selectedStudent || selectedStudent.replacements.includes(newReplacement)) {
-      setMessage('Ersatz-ID ist bereits vergeben');
-      return;
-    }
-
-    try {
-      const data = await request(`/api/checkReplacement/${newReplacement}`);
-      if (data.success) {
-        setSelectedStudent(prev => ({
-          ...prev,
-          replacements: [...prev.replacements, newReplacement]
-        }));
-        addReplacementPopup.current.close();
-        setMessage('');
-      } else {
-        setMessage(data.message);
-      }
-    } catch (error) {
-      console.error('Error adding replacement:', error);
-    }
-  }, [request, selectedStudent, newReplacement]);
-
-  const deleteReplacement = useCallback((indexToRemove) => {
     if (!selectedStudent) return;
 
-    setSelectedStudent(prev => ({
-      ...prev,
-      replacements: prev.replacements.filter((_, index) => index !== indexToRemove)
-    }));
-  }, [selectedStudent]);
+    try {
+      if (newReplacement.trim()) {
+        // Spezifische Ersatz-ID verwenden
+        const data = await request('/api/addReplacements', {
+          method: 'POST',
+          data: {
+            customId: newReplacement.trim().replace(new RegExp(`^(${new Date().getFullYear()}-|E)`, 'gi'), ''),
+            studentId: selectedStudent.id
+          }
+        });
+
+        if (data?.newReplacements?.length > 0) {
+          // Sofortige UI-Aktualisierung ohne Reload
+          setSelectedStudent(prev => ({
+            ...prev,
+            replacements: [...(prev.replacements || []), ...data.newReplacements]
+          }));
+
+          // Update auch in der Hauptliste
+          setStudents(prev => prev.map(student =>
+            student.id === selectedStudent.id
+              ? { ...student, replacements: [...(student.replacements || []), ...data.newReplacements] }
+              : student
+          ));
+
+          addReplacementPopup.current.close();
+          setNewReplacement('');
+          setMessage('');
+        }
+      } else {
+        // Automatische Ersatz-ID erstellen
+        const data = await request('/api/addReplacements', {
+          method: 'POST',
+          data: {
+            amount: 1,
+            studentId: selectedStudent.id
+          }
+        });
+
+        if (data?.newReplacements?.length > 0) {
+          // Sofortige UI-Aktualisierung ohne Reload
+          setSelectedStudent(prev => ({
+            ...prev,
+            replacements: [...(prev.replacements || []), ...data.newReplacements]
+          }));
+
+          // Update auch in der Hauptliste
+          setStudents(prev => prev.map(student =>
+            student.id === selectedStudent.id
+              ? { ...student, replacements: [...(student.replacements || []), ...data.newReplacements] }
+              : student
+          ));
+
+          addReplacementPopup.current.close();
+          setNewReplacement('');
+          setMessage('');
+        }
+      }
+    } catch (error) {
+      if (error.status === 409) {
+        setMessage('Diese Ersatz-ID ist bereits vergeben');
+      } else {
+        showError(error, 'Beim Erstellen der Ersatz-ID');
+      }
+    }
+  }, [request, selectedStudent, newReplacement, showError]);
+
+  const deleteReplacement = useCallback(async (replacementId) => {
+    if (!selectedStudent) return;
+
+    try {
+      await request('/api/addReplacements', {
+        method: 'DELETE',
+        data: { replacementId }
+      });
+
+      // Sofortige UI-Aktualisierung ohne Reload
+      setSelectedStudent(prev => ({
+        ...prev,
+        replacements: prev.replacements.filter(id => id !== replacementId)
+      }));
+
+      // Update auch in der Hauptliste
+      setStudents(prev => prev.map(student =>
+        student.id === selectedStudent.id
+          ? { ...student, replacements: student.replacements.filter(id => id !== replacementId) }
+          : student
+      ));
+
+    } catch (error) {
+      showError(error, 'Beim Löschen der Ersatz-ID');
+    }
+  }, [request, selectedStudent, showError]);
 
   const editStudent = useCallback(async (e) => {
     e.preventDefault();
@@ -123,20 +190,23 @@ export default function Manage() {
     try {
       const data = await request(`/api/students/${selectedStudent.id}`, {
         method: 'PUT',
-        data: updatedStudent
+        data: updatedStudent,
+        errorContext: 'Beim Speichern der Schüleränderungen'
       });
 
-      if (data.success) {
+      if (data?.success !== false) {
+        // Update beide States synchron
         setStudents(prev => prev.map(student =>
           student.id === selectedStudent.id ? updatedStudent : student
         ));
-        setSelectedStudent(null);
-        editStudentPopup.current.close();
+        setSelectedStudent(updatedStudent);
+        editStudentPopup.current?.close();
+        showSuccess('Schüler erfolgreich gespeichert', 'Schüler bearbeiten');
       }
     } catch (error) {
-      console.error('Error saving changes:', error);
+      // Fehler wird automatisch über useApi gehandelt
     }
-  }, [request, selectedStudent, editForm]);
+  }, [request, selectedStudent, editForm, showSuccess]);
 
   const deleteStudent = useCallback(async () => {
     if (!selectedStudent) return;
@@ -145,11 +215,11 @@ export default function Manage() {
       await request(`/api/students/${selectedStudent.id}`, { method: 'DELETE' });
       setStudents(prev => prev.filter(student => student.id !== selectedStudent.id));
       setSelectedStudent(null);
-      editStudentPopup.current.close();
+      editStudentPopup.current?.close();
     } catch (error) {
-      console.error('Error deleting student:', error);
+      showError(error, 'Beim Löschen des Schülers');
     }
-  }, [request, selectedStudent]);
+  }, [request, selectedStudent, showError]);
 
   const addStudentClick = () => {
     setNewStudent({
@@ -176,9 +246,10 @@ export default function Manage() {
     try {
       await request(`/api/students/${newStudent.id}`, {
         method: 'POST',
-        data: newStudent
+        data: newStudent,
+        errorContext: 'Beim Hinzufügen des Schülers'
       });
-      fetchStudents();
+      await fetchStudents();
       addStudentPopup.current.close();
       setNewStudent({
         id: '',
@@ -191,12 +262,11 @@ export default function Manage() {
         spenden: null,
         spendenKonto: null
       });
+      showSuccess('Schüler erfolgreich hinzugefügt', 'Schüler hinzufügen');
     } catch (error) {
-      console.error('Error adding student:', error);
+      // Fehler wird automatisch über useApi gehandelt
     }
-  }, [request, newStudent, fetchStudents]);
-
-  const filteredStudents = filteredData;
+  }, [request, newStudent, fetchStudents, showSuccess]);
 
   return (
     <div className="page-container-wide">
@@ -226,7 +296,7 @@ export default function Manage() {
           </tr>
         </thead>
         <tbody>
-          {filteredStudents.map((student) => (
+          {filteredData.map((student) => (
             <tr key={student.id}>
               <td>{student.id}</td>
               <td>{student.klasse}</td>
@@ -255,6 +325,7 @@ export default function Manage() {
         addReplacementPopup={addReplacementPopup}
         confirmDeletePopup={confirmDeletePopup}
         editStudent={editStudent}
+        loading={loading}
       />
 
       <AddReplacementDialog
@@ -271,6 +342,7 @@ export default function Manage() {
         addStudentChangeField={addStudentChangeField}
         availableClasses={availableClasses}
         addStudentSubmit={addStudentSubmit}
+        loading={loading}
       />
 
       <ConfirmDeleteDialog

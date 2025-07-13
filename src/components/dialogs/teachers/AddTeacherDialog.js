@@ -6,25 +6,27 @@ const AddTeacherDialog = ({
     newTeacher,
     addTeacherChangeField,
     allPossibleClasses,
-    addTeacherSubmit
+    addTeacherSubmit,
+    loading = false
 }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
         addTeacherSubmit(e);
-        dialogRef.current.close();
     };
 
     const actions = [
         {
             label: 'Abbrechen',
             position: 'left',
-            onClick: () => dialogRef.current.close()
+            onClick: () => dialogRef.current.close(),
+            disabled: loading
         },
         {
-            label: 'Hinzufügen',
+            label: loading ? 'Wird hinzugefügt...' : 'Hinzufügen',
             variant: 'success',
             type: 'submit',
-            onClick: handleSubmit
+            onClick: handleSubmit,
+            disabled: loading || !newTeacher.vorname || !newTeacher.nachname
         }
     ];
 
@@ -86,7 +88,7 @@ const AddTeacherDialog = ({
                     placeholder="vorname.nachname@schuladresse.de"
                     value={newTeacher.email}
                     onChange={addTeacherChangeField}
-                    className="form-select"
+                    className="form-input"
                     required
                 />
             </form>

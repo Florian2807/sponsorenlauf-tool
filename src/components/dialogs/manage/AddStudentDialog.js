@@ -6,25 +6,27 @@ const AddStudentDialog = ({
     newStudent,
     addStudentChangeField,
     availableClasses,
-    addStudentSubmit
+    addStudentSubmit,
+    loading = false
 }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
         addStudentSubmit(e);
-        dialogRef.current.close();
     };
 
     const actions = [
         {
             label: 'Abbrechen',
             position: 'left',
-            onClick: () => dialogRef.current.close()
+            onClick: () => dialogRef.current.close(),
+            disabled: loading
         },
         {
-            label: 'Hinzufügen',
+            label: loading ? 'Wird hinzugefügt...' : 'Hinzufügen',
             variant: 'success',
             type: 'submit',
-            onClick: handleSubmit
+            onClick: handleSubmit,
+            disabled: loading || !newStudent.vorname || !newStudent.nachname
         }
     ];
 

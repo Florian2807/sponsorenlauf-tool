@@ -28,13 +28,14 @@ const AddReplacementDialog = ({
             actions={actions}
             showDefaultClose={false}
         >
-            <p>Füge eine Ersatz-ID zum Schüler hinzu</p>
+            <p>Geben Sie eine spezifische Ersatz-ID ein oder lassen Sie das Feld leer für eine automatische ID:</p>
             <input
-                type="number"
+                type="text"
                 name="replacement"
                 value={newReplacement}
-                onChange={(e) => setNewReplacement(e.target.value)}
-                required
+                onChange={(e) => {
+                    setNewReplacement(e.target.value);
+                }}
             />
             {message && <p className="errorMessage">{message}</p>}
         </BaseDialog>

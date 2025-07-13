@@ -1,16 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { formatDate, timeAgo, API_ENDPOINTS } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
+import { useGlobalError } from '../contexts/ErrorContext';
 
 export default function Show() {
   const [id, setID] = useState('');
   const [savedID, setSavedID] = useState('');
   const [currentTimestamp, setCurrentTimestamp] = useState(null);
-  const [message, setMessage] = useState('');
-  const [messageType, setMessageType] = useState('');
   const [studentInfo, setStudentInfo] = useState(null);
 
   const { request, loading, error } = useApi();
+  const { showError, showSuccess } = useGlobalError();
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -26,19 +26,18 @@ export default function Show() {
     const cleanedId = cleanId(id);
 
     try {
-      const data = await request(`/api/students/${cleanedId}`);
+      const data = await request(`/api/students/${cleanedId}`, {
+        errorContext: 'Beim Laden der Schülerdaten'
+      });
       setStudentInfo(data);
       setCurrentTimestamp(new Date());
       setID('');
-      setMessage('');
-      setMessageType('');
     } catch (error) {
       setID('');
       setStudentInfo(null);
-      setMessage('Schüler nicht gefunden');
-      setMessageType('error');
+      showError('Schüler nicht gefunden', 'Schülersuche');
     }
-  }, [id, cleanId, request]);
+  }, [id, cleanId, request, showError]);
 
   const handleDeleteTimestamp = useCallback(async (selectedStudent, indexToRemove) => {
     const updatedTimestamps = selectedStudent.timestamps.filter((_, index) => index !== indexToRemove);
@@ -47,17 +46,18 @@ export default function Show() {
     try {
       await request(`/api/students/${cleanedId}`, {
         method: 'PUT',
-        data: { timestamps: updatedTimestamps }
+        data: { timestamps: updatedTimestamps },
+        errorContext: 'Beim Löschen des Zeitstempels'
       });
       setStudentInfo(prevStudentInfo => ({
         ...prevStudentInfo,
         timestamps: updatedTimestamps,
       }));
+      showSuccess('Zeitstempel erfolgreich gelöscht', 'Zeitstempel löschen');
     } catch (error) {
-      setMessage('Fehler beim Löschen des Zeitstempels');
-      setMessageType('error');
+      // Fehler wird automatisch über useApi gehandelt
     }
-  }, [cleanId, savedID, request]);
+  }, [cleanId, savedID, request, showSuccess]);
 
   return (
     <div className="page-container">
@@ -75,9 +75,6 @@ export default function Show() {
         />
         <button type="submit" className="btn">Anzeigen</button>
       </form>
-      {message && (
-        <p className={`message ${messageType === 'success' ? 'message-success' : 'message-error'}`}>{message}</p>
-      )}
       {studentInfo && (
         <div className="student-info">
           <h2>Schüler-Informationen</h2>

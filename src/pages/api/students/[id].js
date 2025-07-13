@@ -1,318 +1,136 @@
-import sqlite3 from 'sqlite3';
-
-const db = new sqlite3.Database('./data/database.db');
-
-const saveStudent = (id, vorname, nachname, klasse, geschlecht = null) => {
-  return new Promise((resolve, reject) => {
-    db.run(
-      `INSERT INTO students (id, vorname, nachname, geschlecht, klasse) 
-       VALUES (?, ?, ?, ?, ?)`,
-      [id, vorname, nachname, geschlecht, klasse],
-      function (err) {
-        if (err) reject(err);
-        resolve();
-      }
-    );
-  });
-};
-
-const getStudentById = (id) => {
-  return new Promise((resolve, reject) => {
-    db.get(`SELECT * FROM students WHERE id = ?`, [id], async (err, row) => {
-      if (err) reject(err);
-      if (row) {
-        row.replacements = await getReplacementByStudentId(id);
-        row.timestamps = await getRoundsForStudent(id);
-        row.expectedDonations = await getExpectedDonationsForStudent(id);
-        row.receivedDonations = await getReceivedDonationsForStudent(id);
-
-        // Für Backward-Kompatibilität
-        row.spenden = row.expectedDonations.reduce((sum, donation) => sum + donation.amount, 0);
-        row.spendenKonto = row.receivedDonations.map(donation => donation.amount);
-
-        resolve(row);
-      } else {
-        resolve(null);
-      }
-    });
-  });
-};
-
-const getReplacementByStudentId = (studentId) => {
-  return new Promise((resolve, reject) => {
-    db.all(`SELECT id FROM replacements WHERE studentID = ?`, [studentId], (err, rows) => {
-      if (err) reject(err);
-      resolve(rows.map(row => row.id));
-    });
-  });
-};
-
-const getRoundsForStudent = (studentId) => {
-  return new Promise((resolve, reject) => {
-    db.all(
-      'SELECT timestamp FROM rounds WHERE student_id = ? ORDER BY timestamp DESC',
-      [studentId],
-      (err, rows) => {
-        if (err) reject(err);
-        resolve(rows.map(row => row.timestamp));
-      }
-    );
-  });
-};
-
-const getExpectedDonationsForStudent = (studentId) => {
-  return new Promise((resolve, reject) => {
-    db.all(
-      'SELECT id, amount, created_at FROM expected_donations WHERE student_id = ? ORDER BY created_at DESC',
-      [studentId],
-      (err, rows) => {
-        if (err) reject(err);
-        resolve(rows);
-      }
-    );
-  });
-};
-
-const getReceivedDonationsForStudent = (studentId) => {
-  return new Promise((resolve, reject) => {
-    db.all(
-      'SELECT id, amount, created_at FROM received_donations WHERE student_id = ? ORDER BY created_at DESC',
-      [studentId],
-      (err, rows) => {
-        if (err) reject(err);
-        resolve(rows);
-      }
-    );
-  });
-};
-
-const updateStudent = (id, vorname, nachname, geschlecht, klasse) => {
-  return new Promise((resolve, reject) => {
-    db.run(
-      `UPDATE students 
-       SET vorname = ?, nachname = ?, geschlecht = ?, klasse = ?
-       WHERE id = ?`,
-      [vorname, nachname, geschlecht, klasse, id],
-      function (err) {
-        if (err) reject(err);
-        resolve();
-      }
-    );
-  });
-};
-
-const updateRoundsForStudent = (studentId, timestamps) => {
-  return new Promise((resolve, reject) => {
-    db.serialize(() => {
-      // Lösche alle bestehenden Runden für diesen Studenten
-      db.run('DELETE FROM rounds WHERE student_id = ?', [studentId], (err) => {
-        if (err) reject(err);
-      });
-
-      // Füge die neuen Runden hinzu
-      if (timestamps && timestamps.length > 0) {
-        const stmt = db.prepare('INSERT INTO rounds (timestamp, student_id) VALUES (?, ?)');
-        timestamps.forEach(timestamp => {
-          stmt.run(timestamp, studentId);
-        });
-        stmt.finalize((err) => {
-          if (err) reject(err);
-          resolve();
-        });
-      } else {
-        resolve();
-      }
-    });
-  });
-};
-
-const deleteRoundByIndex = (studentId, timestamps, indexToRemove) => {
-  return new Promise((resolve, reject) => {
-    if (indexToRemove < 0 || indexToRemove >= timestamps.length) {
-      reject(new Error('Invalid index'));
-      return;
-    }
-
-    const timestampToRemove = timestamps[indexToRemove];
-
-    db.run(
-      'DELETE FROM rounds WHERE student_id = ? AND timestamp = ? LIMIT 1',
-      [studentId, timestampToRemove],
-      function (err) {
-        if (err) reject(err);
-        resolve();
-      }
-    );
-  });
-};
-
-const updateReplacement = (studentID, replacementIDs = []) => {
-  return new Promise((resolve, reject) => {
-    db.serialize(() => {
-      db.run(`DELETE FROM replacements WHERE studentID = ?`, [studentID], (err) => {
-        if (err) reject(err);
-      });
-
-      replacementIDs.forEach(replacement => {
-        db.run(`INSERT INTO replacements (studentID, id) VALUES (?, ?)`, [studentID, replacement], (err) => {
-          if (err) reject(err);
-        });
-      });
-
-      resolve();
-    });
-  });
-};
-
-const deleteStudent = (id) => {
-  return new Promise((resolve, reject) => {
-    db.serialize(() => {
-      db.run(`DELETE FROM students WHERE id = ?`, [id], (err) => {
-        if (err) reject(err);
-      });
-
-      db.run(`DELETE FROM replacements WHERE studentID = ?`, [id], (err) => {
-        if (err) reject(err);
-      });
-
-      // Lösche auch alle Runden für diesen Studenten
-      db.run(`DELETE FROM rounds WHERE student_id = ?`, [id], (err) => {
-        if (err) reject(err);
-      });
-
-      // Lösche auch alle Spenden für diesen Studenten
-      db.run(`DELETE FROM expected_donations WHERE student_id = ?`, [id], (err) => {
-        if (err) reject(err);
-      });
-
-      db.run(`DELETE FROM received_donations WHERE student_id = ?`, [id], (err) => {
-        if (err) reject(err);
-      });
-
-      resolve();
-    });
-  });
-};
+import {
+  getStudentById,
+  createStudent,
+  updateStudent,
+  deleteStudent,
+  updateRounds,
+  updateReplacements,
+  deleteRoundByIndex
+} from '../../../utils/studentService.js';
+import { validateStudent } from '../../../utils/validation.js';
+import {
+  handleMethodNotAllowed,
+  handleError,
+  handleSuccess,
+  handleNotFound,
+  handleValidationError
+} from '../../../utils/apiHelpers.js';
+import { dbGet } from '../../../utils/database.js';
 
 export default async function handler(req, res) {
-  let { id } = req.query;
+  try {
+    const { id: rawId } = req.query;
+    let id;
 
-  if (id.startsWith('E')) {
-    try {
-      const row = await new Promise((resolve, reject) => {
-        db.get('SELECT studentID FROM replacements WHERE id = ?', [id.replace('E', '')], (err, row) => {
-          if (err) reject(err);
-          resolve(row);
-        });
-      });
-      id = row.studentID;
-    } catch (error) {
-      return res.status(500).json({ error: 'Fehler beim Abrufen der Ersatz-ID' });
-    }
-  } if (req.method === 'GET') {
-    try {
-      const student = await getStudentById(id);
-      if (student) {
-        // timestamps, expectedDonations, receivedDonations und Kompatibilitätsdaten werden bereits von getStudentById geladen
-        res.status(200).json(student);
-      } else {
-        res.status(404).json({ error: 'Schüler nicht gefunden' });
-      }
-    } catch (error) {
-      res.status(500).json({ error: 'Fehler beim Abrufen der Daten' });
-    }
-
-  } else if (req.method === 'POST') {
-    const { vorname, nachname, klasse, geschlecht, timestamps, spenden, spendenKonto, replacements } = req.body;
-
-    if (!id || !vorname || !nachname || !klasse) {
-      return res.status(400).json({ error: 'ID, Vorname, Nachname und Klasse sind erforderlich' });
-    }
-
-    // Validate geschlecht if provided
-    if (geschlecht && !['männlich', 'weiblich', 'divers'].includes(geschlecht)) {
-      return res.status(400).json({ error: 'Ungültiges Geschlecht. Erlaubt: männlich, weiblich, divers' });
-    }
-
-    try {
-      await saveStudent(id, vorname, nachname, klasse, geschlecht || null);
-
-      // Speichere die Runden in der separaten Tabelle
-      if (timestamps && timestamps.length > 0) {
-        await updateRoundsForStudent(id, timestamps);
-      }
-
-      if (replacements) {
-        await updateReplacement(id, replacements);
-      }
-
-      res.status(201).json({
-        id, vorname, nachname, klasse, geschlecht: geschlecht || null, timestamps: timestamps || []
-      });
-    } catch (error) {
-      res.status(500).json({ error: 'Fehler beim Speichern des Schülers' });
-    }
-  } else if (req.method === 'PUT') {
-    const { vorname, nachname, klasse, geschlecht, timestamps, spenden, spendenKonto, replacements } = req.body;
-
-    try {
-      const student = await getStudentById(id);
-      if (!student) {
-        return res.status(404).json({ error: 'Schüler nicht gefunden' });
-      }
-
-      // Validate geschlecht if provided
-      if (geschlecht && !['männlich', 'weiblich', 'divers'].includes(geschlecht)) {
-        return res.status(400).json({ error: 'Ungültiges Geschlecht. Erlaubt: männlich, weiblich, divers' });
-      }
-
-      await updateStudent(
-        id,
-        vorname !== undefined ? vorname : student.vorname,
-        nachname !== undefined ? nachname : student.nachname,
-        geschlecht !== undefined ? geschlecht : student.geschlecht,
-        klasse !== undefined ? klasse : student.klasse
+    if (rawId.startsWith('E')) {
+      const replacement = await dbGet(
+        'SELECT studentID FROM replacements WHERE id = ?',
+        [parseInt(rawId.replace('E', ''), 10)]
       );
+      console.log(replacement)
 
-      // Aktualisiere Runden wenn sie übermittelt wurden
-      if (timestamps !== undefined) {
-        await updateRoundsForStudent(id, timestamps);
+      if (!replacement) {
+        return handleNotFound(res, 'Ersatz-ID');
       }
-
-      if (replacements) await updateReplacement(id, replacements);
-
-      res.status(200).json({ success: true });
-    } catch (error) {
-      res.status(500).json({ error: 'Fehler beim Aktualisieren des Schülers' });
+      id = replacement.studentID;
+    } else {
+      // Normale ID validierung
+      id = parseInt(rawId, 10);
+      if (isNaN(id) || id <= 0) {
+        return handleError(res, new Error('Ungültige ID'), 400);
+      }
     }
-  } else if (req.method === 'DELETE') {
-    const { deleteRoundIndex } = req.body;
 
-    try {
+    if (req.method === 'GET') {
       const student = await getStudentById(id);
       if (!student) {
-        return res.status(404).json({ error: 'Schüler nicht gefunden' });
+        return handleNotFound(res, 'Schüler');
+      }
+      return handleSuccess(res, student, 'Schüler erfolgreich abgerufen');
+
+    } else if (req.method === 'POST') {
+      const { vorname, nachname, klasse, geschlecht, timestamps, replacements } = req.body;
+
+      const validationErrors = validateStudent({ vorname, nachname, klasse, geschlecht });
+      if (validationErrors.length > 0) {
+        return handleValidationError(res, validationErrors);
       }
 
-      // Wenn deleteRoundIndex angegeben ist, lösche nur diese eine Runde
+      const existingStudent = await getStudentById(id);
+      if (existingStudent) {
+        return handleError(res, new Error('Schüler mit dieser ID existiert bereits'), 409);
+      }
+
+      await createStudent({ id, vorname, nachname, klasse, geschlecht });
+
+      if (timestamps?.length > 0) {
+        await updateRounds(id, timestamps);
+      }
+
+      if (replacements?.length > 0) {
+        await updateReplacements(id, replacements);
+      }
+
+      return handleSuccess(res, {
+        id, vorname, nachname, klasse, geschlecht: geschlecht || null, timestamps: timestamps || []
+      }, 'Schüler erfolgreich erstellt', 201);
+
+    } else if (req.method === 'PUT') {
+      const { vorname, nachname, klasse, geschlecht, timestamps, replacements } = req.body;
+
+      const student = await getStudentById(id);
+      if (!student) {
+        return handleNotFound(res, 'Schüler');
+      }
+
+      const updatedData = {
+        vorname: vorname !== undefined ? vorname : student.vorname,
+        nachname: nachname !== undefined ? nachname : student.nachname,
+        klasse: klasse !== undefined ? klasse : student.klasse,
+        geschlecht: geschlecht !== undefined ? geschlecht : student.geschlecht
+      };
+
+      const validationErrors = validateStudent(updatedData);
+      if (validationErrors.length > 0) {
+        return handleValidationError(res, validationErrors);
+      }
+
+      await updateStudent(id, updatedData);
+
+      if (timestamps !== undefined) {
+        await updateRounds(id, timestamps);
+      }
+
+      if (replacements !== undefined) {
+        await updateReplacements(id, replacements);
+      }
+
+      return handleSuccess(res, null, 'Schüler erfolgreich aktualisiert');
+
+    } else if (req.method === 'DELETE') {
+      const { deleteRoundIndex } = req.body;
+
+      const student = await getStudentById(id);
+      if (!student) {
+        return handleNotFound(res, 'Schüler');
+      }
+
       if (deleteRoundIndex !== undefined) {
         const timestamps = student.timestamps;
-        if (deleteRoundIndex >= 0 && deleteRoundIndex < timestamps.length) {
-          await deleteRoundByIndex(id, timestamps, deleteRoundIndex);
-          res.status(200).json({ success: true, message: 'Runde gelöscht' });
-        } else {
-          res.status(400).json({ error: 'Ungültiger Index' });
+        if (deleteRoundIndex < 0 || deleteRoundIndex >= timestamps.length) {
+          return handleError(res, new Error('Ungültiger Index'), 400);
         }
+        await deleteRoundByIndex(id, timestamps, deleteRoundIndex);
+        return handleSuccess(res, null, 'Runde erfolgreich gelöscht');
       } else {
-        // Lösche den gesamten Studenten
         await deleteStudent(id);
-        res.status(200).json({ success: true });
+        return handleSuccess(res, null, 'Schüler erfolgreich gelöscht');
       }
-    } catch (error) {
-      res.status(500).json({ error: 'Fehler beim Löschen' });
+
+    } else {
+      return handleMethodNotAllowed(res, ['GET', 'POST', 'PUT', 'DELETE']);
     }
-  } else {
-    res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE']);
-    res.status(405).end(`Method ${req.method} Not Allowed`);
+  } catch (error) {
+    return handleError(res, error, 500, 'Fehler bei der Schülerverarbeitung');
   }
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { API_ENDPOINTS } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
+import { useGlobalError } from '../contexts/ErrorContext';
 
 export default function AddDonations() {
     const [students, setStudents] = useState([]);
@@ -15,6 +16,7 @@ export default function AddDonations() {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const { request, loading } = useApi();
+    const { showError } = useGlobalError();
     const searchInputRef = useRef(null);
     const amountInputRef = useRef(null);
     const dropdownRef = useRef(null);
@@ -65,7 +67,7 @@ export default function AddDonations() {
             const data = await request(API_ENDPOINTS.STUDENTS);
             setStudents(data);
         } catch (error) {
-            console.error('Fehler beim Laden der Schüler:', error);
+            showError(error, 'Beim Laden der Schüler');
             setMessage('Fehler beim Laden der Schülerdaten.');
         }
     };
@@ -186,7 +188,7 @@ export default function AddDonations() {
             setTimeout(() => searchInputRef.current?.focus(), 100);
 
         } catch (error) {
-            console.error('Fehler beim Hinzufügen der Spende:', error);
+            showError(error, 'Beim Hinzufügen der Spende');
             setMessage('Fehler beim Hinzufügen der Spende.');
         } finally {
             setIsSubmitting(false);
@@ -198,7 +200,7 @@ export default function AddDonations() {
             const response = await request(`/api/students/${studentId}`);
             setStudentInfo(response);
         } catch (error) {
-            console.error('Fehler beim Laden der Schüler-Info:', error);
+            showError(error, 'Beim Laden der Schüler-Info');
         }
     };
 
@@ -215,7 +217,7 @@ export default function AddDonations() {
             setMessage('Spende erfolgreich gelöscht.');
             await fetchStudentInfo(studentInfo.id);
         } catch (error) {
-            console.error('Fehler beim Löschen der Spende:', error);
+            showError(error, 'Beim Löschen der Spende');
             setMessage('Fehler beim Löschen der Spende.');
         }
     };

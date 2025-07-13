@@ -1,232 +1,195 @@
 import excel from 'exceljs';
-import sqlite3 from 'sqlite3';
+import { dbAll } from '../../utils/database.js';
+import { handleMethodNotAllowed, handleError } from '../../utils/apiHelpers.js';
 
-const db = new sqlite3.Database('./data/database.db');
+/**
+ * Holt Schülerdaten mit Spenden-Informationen
+ * @param {boolean} groupByClass Ob nach Klassen gruppiert werden soll
+ * @returns {Promise<Object|Array>} Schülerdaten
+ */
+const getStudentsData = async (groupByClass = false) => {
+  const rows = await dbAll(`
+    SELECT 
+      s.klasse, 
+      s.vorname, 
+      s.nachname,
+      COUNT(r.id) as rounds,
+      COALESCE(ed.total_expected, 0) as expected_amount,
+      COALESCE(rd.total_received, 0) as received_amount
+    FROM students s
+    LEFT JOIN rounds r ON s.id = r.student_id
+    LEFT JOIN (
+      SELECT student_id, SUM(amount) as total_expected 
+      FROM expected_donations 
+      GROUP BY student_id
+    ) ed ON s.id = ed.student_id
+    LEFT JOIN (
+      SELECT student_id, SUM(amount) as total_received 
+      FROM received_donations 
+      GROUP BY student_id
+    ) rd ON s.id = rd.student_id
+    GROUP BY s.id, s.klasse, s.vorname, s.nachname, ed.total_expected, rd.total_received
+    ORDER BY s.klasse, s.nachname
+  `);
 
-const getClassData = () => {
-  return new Promise((resolve, reject) => {
-    db.all(`
-      SELECT 
-        s.klasse, 
-        s.vorname, 
-        s.nachname,
-        COUNT(r.id) as rounds,
-        COALESCE(ed.total_expected, 0) as expected_amount,
-        COALESCE(rd.total_received, 0) as received_amount
-      FROM students s
-      LEFT JOIN rounds r ON s.id = r.student_id
-      LEFT JOIN (
-        SELECT student_id, SUM(amount) as total_expected 
-        FROM expected_donations 
-        GROUP BY student_id
-      ) ed ON s.id = ed.student_id
-      LEFT JOIN (
-        SELECT student_id, SUM(amount) as total_received 
-        FROM received_donations 
-        GROUP BY student_id
-      ) rd ON s.id = rd.student_id
-      GROUP BY s.id, s.klasse, s.vorname, s.nachname, ed.total_expected, rd.total_received
-      ORDER BY s.klasse, s.nachname
-    `, (err, rows) => {
-      if (err) {
-        reject(err);
-      } else {
-        const groupedByClass = rows.reduce((acc, row) => {
-          if (!acc[row.klasse]) {
-            acc[row.klasse] = [];
-          }
-          acc[row.klasse].push({
-            vorname: row.vorname,
-            nachname: row.nachname,
-            rounds: row.rounds,
-            spenden: row.expected_amount,
-            spendenKonto: row.received_amount,
-            differenz: row.received_amount - row.expected_amount
-          });
+  if (!groupByClass) {
+    return rows;
+  }
 
-          return acc;
-        }, {});
-
-        resolve(groupedByClass);
-      }
+  return rows.reduce((acc, row) => {
+    if (!acc[row.klasse]) {
+      acc[row.klasse] = [];
+    }
+    acc[row.klasse].push({
+      vorname: row.vorname,
+      nachname: row.nachname,
+      rounds: row.rounds,
+      spenden: row.expected_amount,
+      spendenKonto: row.received_amount,
+      differenz: row.received_amount - row.expected_amount
     });
-  });
+    return acc;
+  }, {});
 };
 
-const getAllStudentsData = () => {
-  return new Promise((resolve, reject) => {
-    db.all(`
-      SELECT 
-        s.id, 
-        s.klasse, 
-        s.vorname, 
-        s.nachname,
-        COUNT(r.id) as rounds,
-        COALESCE(ed.total_expected, 0) as expected_amount,
-        COALESCE(rd.total_received, 0) as received_amount
-      FROM students s
-      LEFT JOIN rounds r ON s.id = r.student_id
-      LEFT JOIN (
-        SELECT student_id, SUM(amount) as total_expected 
-        FROM expected_donations 
-        GROUP BY student_id
-      ) ed ON s.id = ed.student_id
-      LEFT JOIN (
-        SELECT student_id, SUM(amount) as total_received 
-        FROM received_donations 
-        GROUP BY student_id
-      ) rd ON s.id = rd.student_id
-      GROUP BY s.id, s.klasse, s.vorname, s.nachname, ed.total_expected, rd.total_received
-    `, (err, rows) => {
-      if (err) {
-        reject(err);
-      } else {
-        // Füge kompatible Struktur hinzu
-        const studentsWithCompatibility = rows.map(row => ({
-          ...row,
-          spenden: row.expected_amount,
-          spendenKonto: row.received_amount,
-          timestamps: { length: row.rounds }
-        }));
-        resolve(studentsWithCompatibility);
-      }
-    });
-  });
-};
-
+/**
+ * Sortiert Schüler nach Klassenreihenfolge
+ * @param {Array} students Schülerdaten
+ * @param {Array} classOrder Gewünschte Klassenreihenfolge
+ * @returns {Array} Sortierte Schülerdaten
+ */
 const sortStudentsByClass = (students, classOrder) => {
   return students.sort((a, b) => {
-    const classA = a.klasse.match(/(\d+|EF|Q1|Q2)([a-f]?)/);
-    const classB = b.klasse.match(/(\d+|EF|Q1|Q2)([a-f]?)/);
+    const aIndex = classOrder.indexOf(a.klasse.replace(/[^0-9A-Za-z]/g, ''));
+    const bIndex = classOrder.indexOf(b.klasse.replace(/[^0-9A-Za-z]/g, ''));
 
-    if (!classA || !classB) {
-      return 0;
-    }
-
-    const gradeA = classOrder.indexOf(classA[1]);
-    const gradeB = classOrder.indexOf(classB[1]);
-
-    if (gradeA === gradeB) {
-      if (classA[2] === classB[2]) {
-        return a.nachname.localeCompare(b.nachname);
-      }
-      return (classA[2] || '').localeCompare(classB[2] || '');
+    if (aIndex !== -1 && bIndex !== -1) {
+      return aIndex - bIndex;
+    } else if (aIndex !== -1) {
+      return -1;
+    } else if (bIndex !== -1) {
+      return 1;
     } else {
-      return gradeA - gradeB;
+      return a.klasse.localeCompare(b.klasse);
     }
   });
 };
 
+/**
+ * Erstellt ein Excel-Workbook für alle Schüler
+ * @param {Array} students Schülerdaten
+ * @returns {Object} Excel Workbook
+ */
 const createWorkbook = (students) => {
   const workbook = new excel.Workbook();
-  const worksheet = workbook.addWorksheet('Schüler');
+  const worksheet = workbook.addWorksheet('Alle Schüler');
 
-  worksheet.columns = [
-    { header: 'ID', key: 'id', width: 5 },
-    { header: 'Klasse', key: 'klasse', width: 10 },
-    { header: 'Vorname', key: 'vorname', width: 20 },
-    { header: 'Nachname', key: 'nachname', width: 20 },
-    { header: 'Runden', key: 'runden', width: 10 },
-    { header: 'erwartete Spenden', key: 'spenden', width: 20, style: { numFmt: '_-* #,##0.00 €_-;_-* -#,##0.00 €_-;_-* "-"?? €_-;_-@_-' } },
-    { header: 'erhaltene Spenden', key: 'spendenKonto', width: 20, style: { numFmt: '_-* #,##0.00 €_-;_-* -#,##0.00 €_-;_-* "-"?? €_-;_-@_-' } },
-    { header: 'Differenz', key: 'differenz', width: 20, style: { numFmt: '_-* #,##0.00 €_-;_-* -#,##0.00 €_-;_-* "-"?? €_-;_-@_-' } }
-  ];
+  // Header
+  worksheet.addRow(['Vorname', 'Nachname', 'Klasse', 'Runden', 'Erwartete Spenden (€)', 'Erhaltene Spenden (€)', 'Differenz (€)']);
 
+  // Daten
   students.forEach(student => {
     const differenz = student.received_amount - student.expected_amount;
-
-    const row = worksheet.addRow({
-      id: student.id,
-      klasse: student.klasse,
-      vorname: student.vorname,
-      nachname: student.nachname,
-      runden: student.rounds || 0,
-      spenden: student.expected_amount || 0,
-      spendenKonto: student.received_amount || 0,
-      differenz: differenz
-    });
-
-    if (differenz < 0) {
-      row.getCell('differenz').font = { color: { argb: 'FFFF0000' } }; // Rot
-    }
-
-    if (student.spenden !== 0 && differenz === 0) {
-      row.getCell('differenz').fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'A1BA66' }
-      };
-    }
+    worksheet.addRow([
+      student.vorname,
+      student.nachname,
+      student.klasse,
+      student.rounds,
+      student.expected_amount,
+      student.received_amount,
+      differenz
+    ]);
   });
 
-  worksheet.getRow(1).eachCell((cell) => {
-    cell.font = { bold: true };
-    cell.numFmt = null;
+  // Formatierung
+  const headerRow = worksheet.getRow(1);
+  headerRow.font = { bold: true };
+  headerRow.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'CCCCCC' }
+  };
+
+  // Auto-Breite für Spalten
+  worksheet.columns.forEach(column => {
+    column.width = 15;
   });
 
   return workbook;
 };
 
+/**
+ * Erstellt Excel-Workbooks für alle Klassen
+ * @param {Object} classData Klassendaten
+ * @param {Array} classOrder Klassenreihenfolge
+ * @returns {Object} Excel Workbook
+ */
 const createClassWorkbooks = (classData, classOrder) => {
   const workbook = new excel.Workbook();
 
-  const sortedClassData = Object.keys(classData).sort((a, b) => {
-    const classA = a.match(/(\d+|EF|Q1|Q2)([a-f]?)/);
-    const classB = b.match(/(\d+|EF|Q1|Q2)([a-f]?)/);
+  // Sortiere Klassen nach gewünschter Reihenfolge
+  const sortedClasses = Object.keys(classData).sort((a, b) => {
+    const aIndex = classOrder.indexOf(a.replace(/[^0-9A-Za-z]/g, ''));
+    const bIndex = classOrder.indexOf(b.replace(/[^0-9A-Za-z]/g, ''));
 
-    if (!classA || !classB) {
-      return 0;
-    }
-
-    const gradeA = classOrder.indexOf(classA[1]);
-    const gradeB = classOrder.indexOf(classB[1]);
-
-    if (gradeA === gradeB) {
-      return (classA[2] || '').localeCompare(classB[2] || '');
+    if (aIndex !== -1 && bIndex !== -1) {
+      return aIndex - bIndex;
+    } else if (aIndex !== -1) {
+      return -1;
+    } else if (bIndex !== -1) {
+      return 1;
     } else {
-      return gradeA - gradeB;
+      return a.localeCompare(b);
     }
   });
 
-  sortedClassData.forEach(klasse => {
-    const students = classData[klasse];
-    const worksheet = workbook.addWorksheet(klasse);
+  sortedClasses.forEach(className => {
+    const students = classData[className];
+    const worksheet = workbook.addWorksheet(className);
 
-    worksheet.mergeCells('A1:G1');
-    worksheet.getCell('A1').value = 'Sponsorenlauf 2024';
-    worksheet.getCell('A1').font = { size: 24, bold: true };
-    worksheet.getCell('A1').alignment = { vertical: 'middle', horizontal: 'center' };
+    // Header
+    const headerRow = worksheet.addRow(['Vorname', 'Nachname', 'Runden', 'Erwartete Spenden (€)', 'Erhaltene Spenden (€)', 'Differenz (€)']);
+    headerRow.font = { bold: true };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'CCCCCC' }
+    };
 
-    worksheet.mergeCells('A2:G2');
-    worksheet.getCell('A2').value = `Klasse: ${klasse}`;
-    worksheet.getCell('A2').font = { size: 18, bold: true };
-    worksheet.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
-
-    worksheet.addRow(["Vorname", "Nachname", "Runden", "erwartet", "erhalten", "Differenz", "Notizen"]);
-    worksheet.columns = [
-      { key: 'vorname', width: 15 },
-      { key: 'nachname', width: 15 },
-      { key: 'rounds', width: 10 },
-      { key: 'spenden', width: 10, style: { numFmt: '_-* #,##0.00 €_-;_-* -#,##0.00 €_-;_-* "-"?? €_-;_-@_-' } },
-      { key: 'spendenKonto', width: 10, style: { numFmt: '_-* #,##0.00 €_-;_-* -#,##0.00 €_-;_-* "-"?? €_-;_-@_-' } },
-      { key: 'differenz', width: 10, style: { numFmt: '_-* #,##0.00 €_-;_-* -#,##0.00 €_-;_-* "-"?? €_-;_-@_-' } },
-      { key: 'notizen', width: 20 }
-    ];
-
-    worksheet.pageSetup.printArea = `A1:G${students.length + 1}`;
-
+    // Daten
     students.forEach(student => {
-      worksheet.addRow({
-        vorname: student.vorname,
-        nachname: student.nachname,
-        rounds: student.rounds,
-        spenden: student.spenden,
-        spendenKonto: student.spendenKonto,
-        differenz: student.differenz,
-        notizen: ""
-      });
+      worksheet.addRow([
+        student.vorname,
+        student.nachname,
+        student.rounds,
+        student.spenden,
+        student.spendenKonto,
+        student.differenz
+      ]);
     });
 
+    // Summen-Zeile
+    const totalRow = worksheet.addRow([
+      'Gesamt',
+      '',
+      students.reduce((sum, student) => sum + student.rounds, 0),
+      students.reduce((sum, student) => sum + student.spenden, 0),
+      students.reduce((sum, student) => sum + student.spendenKonto, 0),
+      students.reduce((sum, student) => sum + student.differenz, 0)
+    ]);
+    totalRow.font = { bold: true };
+    totalRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFFFCC' }
+    };
+
+    // Formatierung
+    worksheet.columns.forEach(column => {
+      column.width = 15;
+    });
+
+    // Rahmen für alle Zellen
     worksheet.eachRow({ includeEmpty: true }, (row) => {
       row.eachCell({ includeEmpty: true }, (cell) => {
         cell.border = {
@@ -238,7 +201,8 @@ const createClassWorkbooks = (classData, classOrder) => {
       });
     });
 
-    worksheet.getRow(3).eachCell((cell) => {
+    // Header-Rahmen verstärken
+    worksheet.getRow(1).eachCell((cell) => {
       cell.border = {
         top: { style: 'medium' },
         left: { style: 'medium' },
@@ -247,6 +211,7 @@ const createClassWorkbooks = (classData, classOrder) => {
       };
     });
 
+    // Zeilenhöhe
     worksheet.eachRow((row) => {
       row.height = 20;
     });
@@ -256,12 +221,16 @@ const createClassWorkbooks = (classData, classOrder) => {
 };
 
 export default async function handler(req, res) {
+  if (req.method !== 'GET') {
+    return handleMethodNotAllowed(res, ['GET']);
+  }
+
   const requestedType = req.query.requestedType ?? 'xlsx';
   const classOrder = ['5', '6', '7', '8', '9', '10', 'EF', 'Q1', 'Q2'];
 
   try {
     if (requestedType === 'allstudents') {
-      const studentData = await getAllStudentsData();
+      const studentData = await getStudentsData(false);
       const sortedStudents = sortStudentsByClass(studentData, classOrder);
       const workbook = createWorkbook(sortedStudents);
 
@@ -271,7 +240,7 @@ export default async function handler(req, res) {
       await workbook.xlsx.write(res);
       res.end();
     } else if (requestedType === 'classes') {
-      const classData = await getClassData();
+      const classData = await getStudentsData(true);
       const workbook = createClassWorkbooks(classData, classOrder);
 
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -280,10 +249,9 @@ export default async function handler(req, res) {
       await workbook.xlsx.write(res);
       res.end();
     } else {
-      res.status(400).json({ error: 'Ungültiger requestedType-Parameter.' });
+      return handleError(res, new Error('Ungültiger requestedType-Parameter'), 400);
     }
   } catch (error) {
-    console.error('Fehler beim Generieren der Excel-Datei:', error);
-    res.status(500).json({ error: 'Fehler beim Generieren der Excel-Datei.' });
+    return handleError(res, error, 500, 'Fehler beim Generieren der Excel-Datei');
   }
 }

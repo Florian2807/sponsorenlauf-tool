@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import BaseDialog from '../../BaseDialog';
 import { useApi } from '../../../hooks/useApi';
+import { useGlobalError } from '../../../contexts/ErrorContext';
 
 
 const DataImportDialog = ({ dialogRef, onImportSuccess, onClose }) => {
@@ -9,10 +10,10 @@ const DataImportDialog = ({ dialogRef, onImportSuccess, onClose }) => {
         { vorname: '', nachname: '', geschlecht: 'männlich', klasse: '' }
     ]);
     const [excelFile, setExcelFile] = useState(null);
-    const [importResult, setImportResult] = useState(null);
     const [isImporting, setIsImporting] = useState(false);
     const fileInputRef = useRef(null);
     const { request } = useApi();
+    const { showError, showSuccess } = useGlobalError();
 
     const addManualRow = () => {
         setManualData([...manualData, { vorname: '', nachname: '', geschlecht: 'männlich', klasse: '' }]);
@@ -33,27 +34,18 @@ const DataImportDialog = ({ dialogRef, onImportSuccess, onClose }) => {
     const handleFileSelect = (e) => {
         const file = e.target.files[0];
         setExcelFile(file);
-        setImportResult(null);
     };
 
-    const validateManualData = () => {
+    const submitManualImport = async () => {
         const errors = [];
         manualData.forEach((row, index) => {
             if (!row.vorname.trim()) errors.push(`Zeile ${index + 1}: Vorname fehlt`);
             if (!row.nachname.trim()) errors.push(`Zeile ${index + 1}: Nachname fehlt`);
             if (!row.klasse.trim()) errors.push(`Zeile ${index + 1}: Klasse fehlt`);
         });
-        return errors;
-    };
 
-    const submitManualImport = async () => {
-        const errors = validateManualData();
         if (errors.length > 0) {
-            setImportResult({
-                success: false,
-                message: 'Validierungsfehler',
-                errors: errors
-            });
+            showError(errors.join('\n'), 'Validierungsfehler beim manuellen Import');
             return;
         }
 
@@ -61,27 +53,16 @@ const DataImportDialog = ({ dialogRef, onImportSuccess, onClose }) => {
         try {
             const response = await request('/api/importStudents', {
                 method: 'POST',
-                body: JSON.stringify({ students: manualData }),
-                headers: { 'Content-Type': 'application/json' }
+                data: JSON.stringify({ students: manualData }),
+                headers: { 'Content-Type': 'application/json' },
+                errorContext: 'Beim manuellen Import von Schülern'
             });
-
-            if (response.success) {
-                setImportResult({
-                    success: true,
-                    message: `${response.insertedCount} Schüler erfolgreich hinzugefügt`
-                });
-                onImportSuccess(response.insertedCount);
-            } else {
-                setImportResult({
-                    success: false,
-                    message: response.message || 'Import fehlgeschlagen'
-                });
-            }
+            resetForm();
+            dialogRef.current.close();
+            showSuccess(`${response.count} Schüler erfolgreich hinzugefügt`, 'Manueller Import');
+            onImportSuccess(response.count);
         } catch (error) {
-            setImportResult({
-                success: false,
-                message: 'Fehler beim Import: ' + error.message
-            });
+            // Fehler wird automatisch über useApi gehandelt
         } finally {
             setIsImporting(false);
         }
@@ -89,10 +70,7 @@ const DataImportDialog = ({ dialogRef, onImportSuccess, onClose }) => {
 
     const submitExcelImport = async () => {
         if (!excelFile) {
-            setImportResult({
-                success: false,
-                message: 'Bitte wählen Sie eine Excel-Datei aus'
-            });
+            showError('Bitte wählen Sie eine Excel-Datei aus', 'Excel-Import');
             return;
         }
 
@@ -103,27 +81,18 @@ const DataImportDialog = ({ dialogRef, onImportSuccess, onClose }) => {
         try {
             const response = await request('/api/uploadExcel', {
                 method: 'POST',
-                body: formData
+                data: formData,
+                errorContext: 'Beim Excel-Import'
             });
 
             if (response.success) {
-                setImportResult({
-                    success: true,
-                    message: `${response.insertedCount} Schüler erfolgreich hinzugefügt`
-                });
+                resetForm();
+                dialogRef.current.close();
+                showSuccess(`${response.insertedCount} Schüler erfolgreich hinzugefügt`, 'Excel-Import');
                 onImportSuccess(response.insertedCount);
-            } else {
-                setImportResult({
-                    success: false,
-                    message: response.message || 'Import fehlgeschlagen',
-                    errors: response.errors
-                });
             }
         } catch (error) {
-            setImportResult({
-                success: false,
-                message: 'Fehler beim Import: ' + error.message
-            });
+            // Fehler wird automatisch über useApi gehandelt
         } finally {
             setIsImporting(false);
         }
@@ -133,7 +102,6 @@ const DataImportDialog = ({ dialogRef, onImportSuccess, onClose }) => {
         setImportMethod('manual');
         setManualData([{ vorname: '', nachname: '', geschlecht: 'männlich', klasse: '' }]);
         setExcelFile(null);
-        setImportResult(null);
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
@@ -341,25 +309,6 @@ const DataImportDialog = ({ dialogRef, onImportSuccess, onClose }) => {
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
-
-            {/* Import Result */}
-            {importResult && (
-                <div className={`result ${importResult.success ? 'success' : 'error'}`}>
-                    <div className="result-message">
-                        {importResult.message}
-                    </div>
-                    {importResult.errors && (
-                        <div className="error-list">
-                            <strong>Fehler:</strong>
-                            <ul>
-                                {importResult.errors.map((error, index) => (
-                                    <li key={index}>{error}</li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
                 </div>
             )}
         </BaseDialog>

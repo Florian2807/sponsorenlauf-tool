@@ -11,34 +11,27 @@ export const useSortableTable = (data, availableClasses = []) => {
     };
 
     const sortedData = useMemo(() => {
-        const sorted = [...data];
-        sorted.sort((a, b) => {
+        return [...data].sort((a, b) => {
             const aValue = a[sortField];
             const bValue = b[sortField];
 
             if (sortField === 'klasse' && availableClasses.length > 0) {
-                const aClass = availableClasses.indexOf(aValue);
-                const bClass = availableClasses.indexOf(bValue);
-                return sortDirection === 'asc' ? aClass - bClass : bClass - aClass;
+                const aIndex = availableClasses.indexOf(aValue);
+                const bIndex = availableClasses.indexOf(bValue);
+                return sortDirection === 'asc' ? aIndex - bIndex : bIndex - aIndex;
             }
 
             if (sortField === 'id') {
-                return sortDirection === 'asc'
-                    ? parseInt(aValue) - parseInt(bValue)
-                    : parseInt(bValue) - parseInt(aValue);
+                const aNum = parseInt(aValue);
+                const bNum = parseInt(bValue);
+                return sortDirection === 'asc' ? aNum - bNum : bNum - aNum;
             }
 
             if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
             if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
             return 0;
         });
-        return sorted;
     }, [data, sortField, sortDirection, availableClasses]);
 
-    return {
-        sortField,
-        sortDirection,
-        sortData,
-        sortedData
-    };
+    return { sortField, sortDirection, sortData, sortedData };
 };

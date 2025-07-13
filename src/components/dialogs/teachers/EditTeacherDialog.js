@@ -14,24 +14,28 @@ const EditTeacherDialog = ({
     setEditEmail,
     allPossibleClasses,
     confirmDeletePopup,
-    editTeacher
+    editTeacher,
+    loading = false
 }) => {
     const actions = [
         {
             label: 'Abbrechen',
             position: 'left',
-            onClick: () => dialogRef.current.close()
+            onClick: () => dialogRef.current.close(),
+            disabled: loading
         },
         {
             label: 'Lehrer löschen',
             variant: 'danger',
             position: 'left',
-            onClick: () => confirmDeletePopup.current.showModal()
+            onClick: () => confirmDeletePopup.current.showModal(),
+            disabled: loading
         },
         {
-            label: 'Speichern',
+            label: loading ? 'Speichere...' : 'Speichern',
             variant: 'success',
-            onClick: editTeacher
+            onClick: editTeacher,
+            disabled: loading || !editVorname || !editNachname
         }
     ];
 

@@ -1,101 +1,88 @@
-import sqlite3 from 'sqlite3';
-const db = new sqlite3.Database('./data/database.db');
-
-const getStudentById = (id) => {
-  return new Promise((resolve, reject) => {
-    db.get('SELECT * FROM students WHERE id = ?', [id], (err, row) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(row);
-      }
-    });
-  });
-};
-
-const addRoundForStudent = (studentId, timestamp) => {
-  return new Promise((resolve, reject) => {
-    db.run(
-      'INSERT INTO rounds (timestamp, student_id) VALUES (?, ?)',
-      [timestamp, studentId],
-      function (err) {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(this.lastID);
-        }
-      }
-    );
-  });
-};
-
-const getRoundsForStudent = (studentId) => {
-  return new Promise((resolve, reject) => {
-    db.all(
-      'SELECT timestamp FROM rounds WHERE student_id = ? ORDER BY timestamp DESC',
-      [studentId],
-      (err, rows) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(rows.map(row => row.timestamp));
-        }
-      }
-    );
-  });
-};
+import { getStudentById } from '../../utils/studentService.js';
+import { dbGet, dbRun, dbAll } from '../../utils/database.js';
+import {
+  handleMethodNotAllowed,
+  handleError,
+  handleSuccess,
+  handleValidationError,
+  validateRequiredFields
+} from '../../utils/apiHelpers.js';
+import { validateStudentId, validateTimestamp } from '../../utils/validation.js';
 
 export default async function handler(req, res) {
-  if (req.method === 'POST') {
+  if (req.method !== 'POST') {
+    return handleMethodNotAllowed(res, ['POST']);
+  }
+
+  try {
+    const missing = validateRequiredFields(req, ['id']);
+    if (missing.length > 0) {
+      return handleValidationError(res, ['Schüler-ID ist erforderlich']);
+    }
+
     let { id, date } = req.body;
 
-    if (!id) {
-      return res.status(400).json({ error: 'ID ist erforderlich' });
+    if (!validateStudentId(id)) {
+      return handleValidationError(res, ['Ungültige Schüler-ID']);
     }
 
-    if (id.startsWith('E')) {
-      try {
-        const row = await new Promise((resolve, reject) => {
-          db.get('SELECT studentID FROM replacements WHERE id = ?', [id.replace('E', '')], (err, row) => {
-            if (err) {
-              reject(err);
-            } else {
-              resolve(row);
-            }
-          });
-        });
-        id = row.studentID;
-      } catch (error) {
-        return res.status(500).json({ error: 'Fehler beim Abrufen der Ersatz-ID' });
+    // Behandle Ersatz-IDs (E-prefix)
+    if (typeof id === 'string' && id.startsWith('E')) {
+      id = await resolveReplacementId(id);
+      if (!id) {
+        return handleError(res, new Error('Ersatz-ID nicht gefunden'), 404);
       }
     }
 
-    try {
-      const student = await getStudentById(id);
-
-      if (!student) {
-        return res.status(404).json({ error: 'Schüler nicht gefunden' });
-      }
-
-      const newTimestamp = new Date(date).toISOString();
-
-      // Füge die neue Runde in die rounds Tabelle ein
-      await addRoundForStudent(id, newTimestamp);
-
-      // Lade alle Runden für diesen Studenten
-      const timestamps = await getRoundsForStudent(id);
-
-      return res.status(200).json({
-        success: true,
-        message: 'Runde erfolgreich gezählt!',
-        timestamps,
-      });
-    } catch (error) {
-      console.error(error);
-      return res.status(500).json({ error: 'Fehler beim Hinzufügen der Runde' });
+    const student = await getStudentById(id);
+    if (!student) {
+      return handleError(res, new Error('Schüler nicht gefunden'), 404);
     }
-  } else {
-    res.setHeader('Allow', ['POST']);
-    return res.status(405).end(`Method ${req.method} Not Allowed`);
+
+    const timestamp = date ? new Date(date).toISOString() : new Date().toISOString();
+
+    if (!validateTimestamp(timestamp)) {
+      return handleValidationError(res, ['Ungültiger Zeitstempel']);
+    }
+
+    // Füge neue Runde hinzu
+    await dbRun(
+      'INSERT INTO rounds (timestamp, student_id) VALUES (?, ?)',
+      [timestamp, id]
+    );
+
+    // Lade alle Runden für diesen Studenten
+    const timestamps = await getRoundsByStudentId(id);
+
+    return handleSuccess(res, { timestamps }, 'Runde erfolgreich gezählt');
+  } catch (error) {
+    return handleError(res, error, 500, 'Fehler beim Hinzufügen der Runde');
   }
+}
+
+/**
+ * Löst eine Ersatz-ID zur entsprechenden Schüler-ID auf
+ * @param {string} replacementId Ersatz-ID (z.B. "E1")
+ * @returns {Promise<number|null>} Schüler-ID oder null
+ */
+async function resolveReplacementId(replacementId) {
+  const numericId = replacementId.replace('E', '');
+  const row = await dbGet(
+    'SELECT studentID FROM replacements WHERE id = ?',
+    [numericId]
+  );
+  return row ? row.studentID : null;
+}
+
+/**
+ * Hilfsfunktion um Runden für einen Schüler zu laden
+ * @param {number} studentId Schüler-ID
+ * @returns {Promise<Array>} Array von Zeitstempeln
+ */
+async function getRoundsByStudentId(studentId) {
+  const rows = await dbAll(
+    'SELECT timestamp FROM rounds WHERE student_id = ? ORDER BY timestamp DESC',
+    [studentId]
+  );
+  return rows.map(row => row.timestamp);
 }

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { API_ENDPOINTS, downloadFile } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
 import { useAsyncOperation } from '../hooks/useAsyncOperation';
+import { useGlobalError } from '../contexts/ErrorContext';
 import GenerateLabelsDialog from '../components/dialogs/setup/GenerateLabelsDialog';
 import ExportSpendenDialog from '../components/dialogs/setup/ExportSpendenDialog';
 import ConfirmDeleteAllDialog from '../components/dialogs/setup/ConfirmDeleteAllDialog';
@@ -10,7 +11,6 @@ import DataImportDialog from '../components/dialogs/setup/DataImportDialog';
 
 export default function Setup() {
     const [file, setFile] = useState(null);
-    const [message, setMessage] = useState({ download: '', upload: '', replacement: '', delete: '' });
     const [insertedCount, setInsertedCount] = useState(0);
     const [replacementAmount, setReplacementAmount] = useState(0);
     const [classes, setClasses] = useState([]);
@@ -18,6 +18,7 @@ export default function Setup() {
     const [classStructure, setClassStructure] = useState({});
     const [tempClassStructure, setTempClassStructure] = useState({});
     const { request } = useApi();
+    const { showError, showSuccess } = useGlobalError();
     const { loading, executeAsync, setLoadingState } = useAsyncOperation({
         upload: false,
         labels: false,
@@ -36,9 +37,9 @@ export default function Setup() {
             const data = await request('/api/getClasses');
             setClasses(data);
         } catch (error) {
-            console.error('Fehler beim Abrufen der Klassen:', error);
+            showError(error, 'Beim Abrufen der Klassen');
         }
-    }, [request]);
+    }, [request, showError]);
 
     const fetchClassStructure = useCallback(async () => {
         try {
@@ -46,7 +47,7 @@ export default function Setup() {
             setClassStructure(data);
             setSelectedClasses(Object.values(data).flat());
         } catch (error) {
-            console.error('Fehler beim Abrufen der Klassenstruktur:', error);
+            showError(error, 'Beim Abrufen der Klassenstruktur');
         }
     }, [request]);
 
@@ -55,13 +56,8 @@ export default function Setup() {
         fetchClassStructure();
     }, [fetchClasses, fetchClassStructure]);
 
-    const updateMessage = (updates = {}) => {
-        setMessage(prev => ({ ...prev, ...updates }));
-    };
-
     const handleImportSuccess = (count) => {
         setInsertedCount(count);
-        updateMessage({ upload: `Import erfolgreich! ${count} Schüler hinzugefügt.` });
         dataImportPopup.current.close();
         fetchClasses(); // Refresh classes in case new ones were added
     };
@@ -71,15 +67,14 @@ export default function Setup() {
     };
 
     const handleGenerateLabels = useCallback(async () => {
-        updateMessage({ download: 'Etiketten werden generiert...' });
-
         const generateOperation = async () => {
             const response = await request(API_ENDPOINTS.GENERATE_LABELS, {
                 responseType: 'blob',
                 params: {
                     replacementAmount,
                     selectedClasses: selectedClasses.join(',')
-                }
+                },
+                errorContext: 'Beim Generieren der Etiketten'
             });
             return response;
         };
@@ -87,30 +82,32 @@ export default function Setup() {
         try {
             const response = await executeAsync(generateOperation, 'labels');
             downloadFile(response, 'labels.pdf');
-            updateMessage({ download: 'Etiketten erfolgreich generiert und heruntergeladen.' });
+            showSuccess('Etiketten erfolgreich generiert und heruntergeladen.', 'Etiketten-Generierung');
         } catch (error) {
-            console.error('Fehler:', error);
-            updateMessage({ download: 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.' });
+            // Fehler wird automatisch über useApi gehandelt
         }
-    }, [replacementAmount, selectedClasses, request, executeAsync]);
+    }, [replacementAmount, selectedClasses, request, executeAsync, showSuccess]);
 
     const handleDeleteAllStudents = useCallback(async () => {
         try {
-            const data = await request(API_ENDPOINTS.DELETE_ALL_STUDENTS, { method: 'DELETE' });
-            updateMessage({ delete: 'Alle Schüler wurden erfolgreich gelöscht.' });
+            const data = await request(API_ENDPOINTS.DELETE_ALL_STUDENTS, { 
+                method: 'DELETE',
+                errorContext: 'Beim Löschen aller Schüler'
+            });
+            showSuccess('Alle Schüler wurden erfolgreich gelöscht.', 'Schüler löschen');
         } catch (error) {
-            console.error('Fehler:', error);
-            updateMessage({ delete: 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.' });
+            // Fehler wird automatisch über useApi gehandelt
         } finally {
             confirmDeletePopup.current.close();
         }
-    }, [request]);
+    }, [request, showSuccess]);
 
     const downloadResults = useCallback(async (type) => {
         const downloadOperation = async () => {
             const response = await request(API_ENDPOINTS.EXPORT_SPENDEN, {
                 responseType: 'blob',
-                params: { requestedType: type }
+                params: { requestedType: type },
+                errorContext: 'Beim Herunterladen der Excel-Datei'
             });
             return response;
         };
@@ -119,11 +116,11 @@ export default function Setup() {
             const response = await executeAsync(downloadOperation, 'downloadResults');
             const filename = type === 'allstudents' ? 'Auswertung_Gesamt.xlsx' : 'Auswertung_Klassen.xlsx';
             downloadFile(response, filename);
+            showSuccess(`${filename} erfolgreich heruntergeladen.`, 'Excel-Export');
         } catch (error) {
-            console.error('Fehler:', error);
-            updateMessage({ download: 'Fehler beim Herunterladen der Excel-Datei.' });
+            // Fehler wird automatisch über useApi gehandelt
         }
-    }, [request, executeAsync]);
+    }, [request, executeAsync, showSuccess]);
 
     const handleClassSelection = (e) => {
         const value = e.target.value;
@@ -203,20 +200,20 @@ export default function Setup() {
         try {
             const data = await request(API_ENDPOINTS.CLASS_STRUCTURE, {
                 method: 'PUT',
-                data: { availableClasses: tempClassStructure }
+                data: { availableClasses: tempClassStructure },
+                errorContext: 'Beim Speichern der Klassenstruktur'
             });
 
             if (data.success) {
                 setClassStructure(tempClassStructure);
                 setSelectedClasses(Object.values(tempClassStructure).flat());
-                updateMessage({ upload: 'Klassenstruktur erfolgreich gespeichert.' });
+                showSuccess('Klassenstruktur erfolgreich gespeichert.', 'Klassenstruktur');
                 classStructurePopup.current.close();
             }
         } catch (error) {
-            console.error('Fehler beim Speichern der Klassenstruktur:', error);
-            updateMessage({ upload: 'Fehler beim Speichern der Klassenstruktur.' });
+            // Fehler wird automatisch über useApi gehandelt
         }
-    }, [request, tempClassStructure]);
+    }, [request, tempClassStructure, showSuccess]);
 
     return (
         <div className="page-container-extra-wide">
@@ -268,12 +265,6 @@ export default function Setup() {
                                 <span className="setup-btn-text">Alle Schüler löschen</span>
                             </button>
                         </div>
-                        {(message.delete || message.upload) && (
-                            <div className="setup-messages">
-                                {message.delete && <div className="setup-message">{message.delete}</div>}
-                                {message.upload && <div className="setup-message">{message.upload}</div>}
-                            </div>
-                        )}
                     </div>
                 </div>
 
@@ -341,7 +332,6 @@ export default function Setup() {
                 classes={classes}
                 selectedClasses={selectedClasses}
                 handleClassSelection={handleClassSelection}
-                message={message}
                 loading={loading}
                 handleGenerateLabels={handleGenerateLabels}
             />
@@ -372,7 +362,6 @@ export default function Setup() {
                 removeClassFromGrade={removeClassFromGrade}
                 addClassToGrade={addClassToGrade}
                 addGrade={addGrade}
-                message={message}
                 saveClassStructure={saveClassStructure}
             />
         </div >

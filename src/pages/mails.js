@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import JSZip from 'jszip';
 import { API_ENDPOINTS } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
+import { useGlobalError } from '../contexts/ErrorContext';
 import SendMailsDialog from '../components/dialogs/mails/SendMailsDialog';
 
 export default function Home() {
@@ -25,79 +26,82 @@ export default function Home() {
         loginMessage: ''
     });
     const [credentialsCorrect, setCredentialsCorrect] = useState(false);
+    const { request } = useApi();
+    const { showError, showSuccess } = useGlobalError();
     const sendMailsPopup = useRef(null);
 
     useEffect(() => {
         const fetchAllTeachers = async () => {
             try {
-                const response = await fetch('/api/getAllTeachers');
-                if (response.ok) {
-                    const data = await response.json();
-                    const classTeacher = {};
+                const data = await request('/api/getAllTeachers');
+                const classTeacher = {};
 
-                    data.forEach((teacher) => {
-                        if (!teacher.klasse) return;
-                        if (!classTeacher[teacher.klasse]) {
-                            classTeacher[teacher.klasse] = [];
-                        }
-                        classTeacher[teacher.klasse].push({ id: teacher.id, name: `${teacher.nachname}, ${teacher.vorname}`, email: teacher.email });
-                    });
+                data.forEach((teacher) => {
+                    if (!teacher.klasse) return;
+                    if (!classTeacher[teacher.klasse]) {
+                        classTeacher[teacher.klasse] = [];
+                    }
+                    classTeacher[teacher.klasse].push({ id: teacher.id, name: `${teacher.nachname}, ${teacher.vorname}`, email: teacher.email });
+                });
 
-                    Object.keys(classTeacher).forEach((className) => {
-                        if (classTeacher[className].length < 2) {
-                            classTeacher[className].push({ id: null, name: null, email: '' });
-                        }
-                    });
+                Object.keys(classTeacher).forEach((className) => {
+                    if (classTeacher[className].length < 2) {
+                        classTeacher[className].push({ id: null, name: null, email: '' });
+                    }
+                });
 
-                    setTeacherData((prev) => ({ ...prev, allTeachers: data, classTeacher }));
-                } else {
-                    console.error('Fehler beim Laden aller Lehrer');
-                }
+                setTeacherData((prev) => ({ ...prev, allTeachers: data, classTeacher }));
             } catch (error) {
-                console.error('Fehler beim Laden aller Lehrer:', error);
+                showError(error, 'Beim Laden aller Lehrer');
             }
         };
 
         fetchAllTeachers();
-    }, []);
+    }, [request, showError]);
 
     const handleLogin = async () => {
         try {
             setStatus((prev) => ({ ...prev, loginLoading: true }));
-            const response = await fetch('/api/mail-auth', {
+            const data = await request('/api/mail-auth', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+                data: {
                     email: fileData.email,
                     password: fileData.password
-                }),
+                },
+                errorContext: 'Beim Login'
             });
-            const data = await response.json();
+
             if (data.success) {
                 setCredentialsCorrect(true);
+                showSuccess('Login erfolgreich', 'E-Mail-Authentifizierung');
             }
             setStatus((prev) => ({
                 ...prev,
                 loginLoading: false,
-                loginMessage: data.success ? 'Login erfolgreich' : 'Login fehlgeschlagen. Überprüfen Sie Ihre Zugangsdaten.'
+                loginMessage: data.success ? 'Login erfolgreich' : 'Login fehlgeschlagen'
             }));
         } catch (error) {
-            setStatus((prev) => ({ ...prev, loginLoading: false, loginMessage: 'Fehler beim Login: ' + error.message }));
+            // Fehler wird automatisch über useApi gehandelt
+            setStatus((prev) => ({
+                ...prev,
+                loginLoading: false,
+                loginMessage: 'Fehler beim Login'
+            }));
         }
     };
 
     const fetchFileFromApi = async () => {
         try {
-            const response = await fetch('/api/exportExcel');
-            if (response.ok) {
-                return await response.blob();
-            } else {
-                setStatus((prev) => ({ ...prev, message: 'Fehler beim Abrufen der Datei von der API', uploadLoading: false }));
-            }
+            const response = await request('/api/exportExcel', {
+                responseType: 'blob',
+                errorContext: 'Beim Abrufen der Datei von der API'
+            });
+            return response;
         } catch (error) {
-            setStatus((prev) => ({ ...prev, message: `API Fehler: ${error.message}`, uploadLoading: false }));
+            // Fehler wird automatisch über useApi gehandelt
+            setStatus((prev) => ({ ...prev, message: 'Fehler beim Abrufen der Datei', uploadLoading: false }));
+            return null;
         }
-        return null;
     };
 
     const handleUpload = async (e) => {
@@ -107,7 +111,8 @@ export default function Home() {
         const zipFile = await fetchFileFromApi();
 
         if (!zipFile) {
-            setStatus((prev) => ({ ...prev, message: 'Bitte wähle eine ZIP-Datei aus.', uploadLoading: false }));
+            showError('Bitte wähle eine ZIP-Datei aus.', 'Datei-Upload');
+            setStatus((prev) => ({ ...prev, uploadLoading: false }));
             return;
         }
 
@@ -124,10 +129,12 @@ export default function Home() {
             );
 
             setTeacherData((prev) => ({ ...prev, files: extractedFiles }));
-            setStatus((prev) => ({ ...prev, message: 'Datei erfolgreich verarbeitet!', uploadLoading: false }));
+            showSuccess('Datei erfolgreich verarbeitet!', 'Datei-Upload');
+            setStatus((prev) => ({ ...prev, uploadLoading: false }));
             sendMailsPopup.current.close();
         } catch (error) {
-            setStatus((prev) => ({ ...prev, message: `Fehler beim Verarbeiten der Datei: ${error.message}`, uploadLoading: false }));
+            // Fehler wird automatisch über useApi gehandelt
+            setStatus((prev) => ({ ...prev, uploadLoading: false }));
         }
     };
 
@@ -158,7 +165,7 @@ export default function Home() {
 
     const handleSendEmails = async () => {
         if (!Object.keys(teacherData.files || {}).length) {
-            setStatus((prev) => ({ ...prev, message: 'Bitte lade zuerst eine ZIP-Datei hoch.' }));
+            showError('Bitte lade zuerst eine ZIP-Datei hoch.', 'E-Mail-Versand');
             return;
         }
 
@@ -169,23 +176,24 @@ export default function Home() {
                 filteredClassTeacher[className] = teacherData.classTeacher[className].filter((teacher) => teacher.id);
             });
 
-            const response = await fetch('/api/send-mails', {
+            const data = await request('/api/send-mails', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+                data: {
                     teacherEmails: filteredClassTeacher,
                     teacherFiles: teacherData.files,
                     mailText: fileData.mailText,
                     email: fileData.email,
                     password: fileData.password,
                     senderName: fileData.senderName
-                })
+                },
+                errorContext: 'Beim Senden der E-Mails'
             });
 
-            const data = await response.json();
-            setStatus((prev) => ({ ...prev, message: data.message, sendMailLoading: false }));
+            showSuccess(data.message, 'E-Mail-Versand');
+            setStatus((prev) => ({ ...prev, sendMailLoading: false }));
         } catch (error) {
-            setStatus((prev) => ({ ...prev, message: `Fehler beim Senden der E-Mails: ${error.message}`, sendMailLoading: false }));
+            // Fehler wird automatisch über useApi gehandelt
+            setStatus((prev) => ({ ...prev, sendMailLoading: false }));
         }
     };
 
@@ -263,7 +271,6 @@ export default function Home() {
                     <p>E-Mails werden gesendet...</p>
                 </div>
             )}
-            {status.message && <div className="message-info mt-3">{status.message}</div>}
         </div>
     );
 }

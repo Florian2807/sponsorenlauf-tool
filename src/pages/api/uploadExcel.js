@@ -1,131 +1,83 @@
-import sqlite3 from 'sqlite3';
+import { getMaxStudentId, createStudent } from '../../utils/studentService.js';
+import { validateStudent } from '../../utils/validation.js';
+import { handleError, handleValidationError, handleSuccess } from '../../utils/apiHelpers.js';
 import multer from 'multer';
 import ExcelJS from 'exceljs';
 
 const upload = multer({ storage: multer.memoryStorage() });
-
 const uploadMiddleware = upload.single('file');
 
-const getMaxId = (db) => {
-  return new Promise((resolve, reject) => {
-    db.get(`SELECT MAX(id) as maxId FROM students`, [], (err, row) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(row.maxId || 0);
-      }
-    });
-  });
-};
+const parseExcelFile = async (buffer) => {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
+  const worksheet = workbook.worksheets[0];
 
-const insertStudent = (db, student, newId) => {
-  return new Promise((resolve, reject) => {
-    const insertQuery = `INSERT INTO students (id, vorname, nachname, geschlecht, klasse) VALUES (?, ?, ?, ?, ?)`;
-    db.run(
-      insertQuery,
-      [newId, student.vorname, student.nachname, student.geschlecht, student.klasse],
-      (err) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve();
-        }
+  const data = [];
+  const errors = [];
+
+  worksheet.eachRow((row, rowNumber) => {
+    if (rowNumber > 1) { // Skip header row
+      const vorname = row.getCell(1).value?.toString()?.trim();
+      const nachname = row.getCell(2).value?.toString()?.trim();
+      const geschlecht = row.getCell(3).value?.toString()?.trim();
+      const klasse = row.getCell(4).value?.toString()?.trim();
+
+      const student = { vorname, nachname, geschlecht, klasse };
+      const validationErrors = validateStudent(student, rowNumber - 1);
+
+      if (validationErrors.length > 0) {
+        errors.push(...validationErrors);
+      } else {
+        data.push({
+          vorname,
+          nachname,
+          geschlecht: geschlecht?.toLowerCase(),
+          klasse
+        });
       }
-    );
+    }
   });
+
+  return { data, errors };
 };
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method not allowed' });
+    return handleMethodNotAllowed(res, ['POST']);
   }
 
   uploadMiddleware(req, res, async (err) => {
     if (err) {
-      return res.status(500).json({ message: 'Error uploading file' });
+      return handleError(res, err, 500, 'Fehler beim Hochladen der Datei');
     }
 
     try {
-      const buffer = req.file.buffer;
+      if (!req.file) {
+        return handleValidationError(res, ['Keine Datei hochgeladen']);
+      }
 
-      const workbook = new ExcelJS.Workbook();
-      await workbook.xlsx.load(buffer);
-      const worksheet = workbook.worksheets[0];
+      const { data, errors } = await parseExcelFile(req.file.buffer);
 
-      const data = [];
-      const errors = [];
-
-      worksheet.eachRow((row, rowNumber) => {
-        if (rowNumber > 1) {
-          // Expected Excel column order: Vorname, Nachname, Geschlecht, Klasse
-          const vorname = row.getCell(1).value?.toString()?.trim();
-          const nachname = row.getCell(2).value?.toString()?.trim();
-          const geschlecht = row.getCell(3).value?.toString()?.trim();
-          const klasse = row.getCell(4).value?.toString()?.trim();
-
-          // Validate all required fields are present
-          const rowErrors = [];
-          if (!vorname) rowErrors.push('Vorname fehlt');
-          if (!nachname) rowErrors.push('Nachname fehlt');
-          if (!geschlecht) rowErrors.push('Geschlecht fehlt');
-          if (!klasse) rowErrors.push('Klasse fehlt');
-
-          // Validate geschlecht value
-          if (geschlecht && !['männlich', 'weiblich', 'divers'].includes(geschlecht.toLowerCase())) {
-            rowErrors.push(`Ungültiges Geschlecht: "${geschlecht}". Erlaubt: männlich, weiblich, divers`);
-          }
-
-          if (rowErrors.length > 0) {
-            errors.push(`Zeile ${rowNumber}: ${rowErrors.join(', ')}`);
-          } else {
-            data.push({
-              vorname,
-              nachname,
-              geschlecht: geschlecht.toLowerCase(),
-              klasse
-            });
-          }
-        }
-      });
-
-      // If there are validation errors, return them
       if (errors.length > 0) {
-        return res.status(400).json({
-          message: 'Validierungsfehler in Excel-Datei',
-          errors: errors
-        });
+        return handleValidationError(res, errors);
       }
 
-      // If no data rows found
       if (data.length === 0) {
-        return res.status(400).json({
-          message: 'Keine gültigen Datenzeilen in Excel-Datei gefunden'
-        });
+        return handleValidationError(res, ['Keine gültigen Datenzeilen in Excel-Datei gefunden']);
       }
 
-      const db = new sqlite3.Database('./data/database.db');
+      const maxId = await getMaxStudentId();
 
-      const maxId = await getMaxId(db);
-      let insertedCount = 0;
-
-      for (let i = 0; i < data.length; i++) {
-        const newId = maxId + i + 1;
-        await insertStudent(db, data[i], newId);
-        insertedCount++;
-      }
-
-      db.close((err) => {
-        if (err) {
-          console.error('Fehler beim Schließen der Datenbank:', err.message);
-          return res.status(500).json({ message: 'Error closing database' });
-        } else {
-          console.log('Datenbankverbindung geschlossen.');
-          res.status(200).json({ message: 'Data successfully inserted', count: insertedCount });
-        }
+      const insertPromises = data.map(async (student, index) => {
+        const newId = maxId + index + 1;
+        return createStudent({ id: newId, ...student });
       });
+
+      await Promise.all(insertPromises);
+
+      return handleSuccess(res, { count: data.length }, `${data.length} Schüler erfolgreich importiert`);
     } catch (error) {
-      console.error('Fehler beim Verarbeiten der Datei:', error);
-      res.status(500).json({ message: 'Error processing file' });
+      return handleError(res, error, 500, 'Fehler beim Verarbeiten der Excel-Datei');
     }
   });
 }

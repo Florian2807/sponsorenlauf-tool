@@ -1,20 +1,15 @@
-import sqlite3 from 'sqlite3';
+import { getClasses } from '../../utils/classService.js';
+import { handleMethodNotAllowed, handleError, handleSuccess } from '../../utils/apiHelpers.js';
 
-const db = new sqlite3.Database('./data/database.db');
+export default async function handler(req, res) {
+    if (req.method !== 'GET') {
+        return handleMethodNotAllowed(res, ['GET']);
+    }
 
-export default function handler(req, res) {
-    if (req.method === 'GET') {
-        db.all('SELECT DISTINCT klasse FROM students', [], (err, rows) => {
-            if (err) {
-                console.error('Fehler beim Abrufen der Klassen:', err);
-                return res.status(500).json({ message: 'Fehler beim Abrufen der Klassen.' });
-            }
-
-            const classes = rows.map(row => row.klasse);
-            res.status(200).json(classes);
-        });
-    } else {
-        res.setHeader('Allow', ['GET']);
-        res.status(405).end(`Method ${req.method} Not Allowed`);
+    try {
+        const classes = await getClasses();
+        return handleSuccess(res, classes, 'Klassen erfolgreich abgerufen');
+    } catch (error) {
+        return handleError(res, error, 500, 'Fehler beim Abrufen der Klassen');
     }
 }

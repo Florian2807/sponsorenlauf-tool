@@ -63,20 +63,9 @@ export const timeAgo = (now, pastDate) => {
     const diffInMonths = Math.floor(diffInDays / 30);
     if (diffInMonths < 12) return `vor ${diffInMonths} Monaten`;
 
-    const diffInYears = Math.floor(diffInMonths / 12);
-    return `vor ${diffInYears} Jahren`;
+    return `vor ${Math.floor(diffInMonths / 12)} Jahren`;
 };
 
 export const getNextId = (items) => {
     return Math.max(...items.map(item => parseInt(item.id, 10)), 0) + 1;
-};
-
-// Validierungsfunktionen
-export const validateEmail = (email) => {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email);
-};
-
-export const validateRequired = (value) => {
-    return value && value.trim().length > 0;
 };

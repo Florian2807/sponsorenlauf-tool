@@ -10,7 +10,6 @@ const ClassStructureDialog = ({
     removeClassFromGrade,
     addClassToGrade,
     addGrade,
-    message,
     saveClassStructure
 }) => {
     const actions = [
@@ -110,8 +109,6 @@ const ClassStructureDialog = ({
                     + Jahrgang hinzufügen
                 </button>
             </div>
-
-            {message.upload && <p className="setup-message">{message.upload}</p>}
         </BaseDialog>
     );
 };

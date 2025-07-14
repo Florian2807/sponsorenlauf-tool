@@ -71,6 +71,47 @@ db.serialize(() => {
       FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
     )
   `);
+
+  // Erstelle Indizes für bessere Performance
+  console.log('Creating database indexes for better performance...');
+
+  // Index für rounds.student_id (häufigste Abfrage beim Scannen)
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_rounds_student_id 
+    ON rounds(student_id)
+  `);
+
+  // Index für rounds.timestamp (für zeitbasierte Sortierung)
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_rounds_timestamp 
+    ON rounds(timestamp)
+  `);
+
+  // Kombinierter Index für student_id + timestamp (für häufige Abfragen)
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_rounds_student_timestamp 
+    ON rounds(student_id, timestamp DESC)
+  `);
+
+  // Index für expected_donations.student_id
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_expected_donations_student_id 
+    ON expected_donations(student_id)
+  `);
+
+  // Index für received_donations.student_id
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_received_donations_student_id 
+    ON received_donations(student_id)
+  `);
+
+  // Index für replacements.studentID
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_replacements_student_id 
+    ON replacements(studentID)
+  `);
+
+  console.log('Database tables and indexes created successfully!');
 });
 
 db.close();

@@ -19,7 +19,7 @@ export default function Scan() {
   const popupRef = useRef(null);
 
   useEffect(() => {
-    inputRef.current?.focus();
+    inputRef.current.focus();
 
     const handleKeyDown = (event) => {
       if (event.key === 'Enter' && document.activeElement !== inputRef.current) {
@@ -64,30 +64,34 @@ export default function Scan() {
         data: { id: cleanedId, date: new Date() }
       });
 
-      if (response?.success !== false) { // Handle both new and old API formats
-        try {
-          const studentData = await request(`/api/students/${cleanedId}`);
-          setStudentInfo(studentData);
-          setCurrentTimestamp(new Date());
-          setMessage('Runde erfolgreich gezählt!');
-          setMessageType('success');
-          setID('');
+      if (response?.success !== false && response?.student) {
+        // API gibt jetzt direkt die vollständigen Schülerdaten zurück
+        setStudentInfo(response.student);
+        setCurrentTimestamp(new Date());
+        setMessage('Runde erfolgreich gezählt!');
+        setMessageType('success');
+        setID('');
 
-          // Auto-clear success message after 3 seconds
-          setTimeout(() => {
-            setMessage('');
-            setMessageType('');
-          }, 3000);
-        } catch (studentError) {
-          setMessage('Runde gezählt, aber Schülerdaten konnten nicht geladen werden');
-          setMessageType('warning');
-          showError(studentError, 'Beim Laden der Schülerdaten');
-        }
+        // Fokus zurück auf das Input-Feld
+        setTimeout(() => {
+          inputRef.current?.focus();
+        }, 0);
+
+        // Auto-clear success message after 3 seconds
+        setTimeout(() => {
+          setMessage('');
+          setMessageType('');
+        }, 3000);
       } else {
         setID('');
         setMessage('Fehler beim Scannen der Runde');
         setMessageType('error');
         setStudentInfo(null);
+
+        // Fokus zurück auf das Input-Feld
+        setTimeout(() => {
+          inputRef.current?.focus();
+        }, 0);
       }
     } catch (error) {
       setID('');
@@ -104,6 +108,11 @@ export default function Scan() {
         showError(error, 'Beim Speichern der Runde');
       }
       setStudentInfo(null);
+
+      // Fokus zurück auf das Input-Feld auch bei Fehlern
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 0);
     } finally {
       setIsProcessing(false);
     }

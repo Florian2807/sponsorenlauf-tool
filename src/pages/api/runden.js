@@ -54,7 +54,15 @@ export default async function handler(req, res) {
     // Lade alle Runden für diesen Studenten
     const timestamps = await getRoundsByStudentId(id);
 
-    return handleSuccess(res, { timestamps }, 'Runde erfolgreich gezählt');
+    // Erweitere die Antwort um vollständige Schülerdaten für bessere Performance
+    const fullStudentData = {
+      ...student,
+      timestamps
+    };
+
+    return handleSuccess(res, { 
+      student: fullStudentData
+    }, 'Runde erfolgreich gezählt');
   } catch (error) {
     return handleError(res, error, 500, 'Fehler beim Hinzufügen der Runde');
   }

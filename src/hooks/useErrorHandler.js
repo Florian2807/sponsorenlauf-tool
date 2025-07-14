@@ -99,7 +99,7 @@ export const useErrorHandler = () => {
         // Legacy support für bestehenden Code
         error: null,
         isErrorVisible: false,
-        dismissError: () => {},
-        clearError: () => {}
+        dismissError: () => { },
+        clearError: () => { }
     };
 };

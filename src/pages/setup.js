@@ -90,7 +90,7 @@ export default function Setup() {
 
     const handleDeleteAllStudents = useCallback(async () => {
         try {
-            const data = await request(API_ENDPOINTS.DELETE_ALL_STUDENTS, { 
+            const data = await request(API_ENDPOINTS.DELETE_ALL_STUDENTS, {
                 method: 'DELETE',
                 errorContext: 'Beim Löschen aller Schüler'
             });

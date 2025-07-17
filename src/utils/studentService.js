@@ -32,6 +32,33 @@ export const getStudentById = async (id) => {
 };
 
 /**
+ * Holt einen Schüler anhand seiner ID mit optimierten Basisdaten (ohne Timestamps)
+ * @param {number} id Schüler-ID
+ * @returns {Promise<Object|null>} Schülerdaten oder null
+ */
+export const getStudentByIdFast = async (id) => {
+    const student = await dbGet('SELECT * FROM students WHERE id = ?', [id]);
+
+    if (!student) return null;
+
+    // Lade nur die kritischen Daten ohne Timestamps für bessere Performance
+    const [replacements, roundCount, expectedDonations, receivedDonations] = await Promise.all([
+        getReplacementsByStudentId(id),
+        getRoundCountByStudentId(id), // Nur Anzahl, nicht alle Timestamps
+        getExpectedDonationsByStudentId(id),
+        getReceivedDonationsByStudentId(id)
+    ]);
+
+    return {
+        ...student,
+        replacements,
+        roundCount, // Nur die Anzahl der Runden
+        spenden: expectedDonations.reduce((sum, d) => sum + d.amount, 0),
+        spendenKonto: receivedDonations.map(d => d.amount)
+    };
+};
+
+/**
  * Erstellt einen neuen Schüler
  * @param {Object} studentData Schülerdaten
  * @returns {Promise<Object>} Ergebnis der Operation
@@ -251,6 +278,25 @@ export const deleteRoundByIndex = async (studentId, roundIndex) => {
 };
 
 /**
+ * Holt einen Schüler anhand seiner ID - ULTRA SCHNELL (nur Basisdaten für Scan)
+ * @param {number} id Schüler-ID
+ * @returns {Promise<Object|null>} Schülerdaten oder null
+ */
+export const getStudentByIdMinimal = async (id) => {
+    const student = await dbGet('SELECT * FROM students WHERE id = ?', [id]);
+
+    if (!student) return null;
+
+    // Lade nur die absolut nötigen Daten für den Scan-Prozess
+    const roundCount = await getRoundCountByStudentId(id);
+
+    return {
+        ...student,
+        roundCount // Nur die Anzahl der Runden - keine anderen Daten
+    };
+};
+
+/**
  * Hilfsfunktionen
  */
 
@@ -264,6 +310,11 @@ const getRoundsByStudentId = async (studentId) => {
     return rows.map(row => row.timestamp);
 };
 
+const getRoundCountByStudentId = async (studentId) => {
+    const result = await dbGet('SELECT COUNT(*) as count FROM rounds WHERE student_id = ?', [studentId]);
+    return result.count;
+};
+
 const getExpectedDonationsByStudentId = async (studentId) => {
     return await dbAll('SELECT amount FROM expected_donations WHERE student_id = ?', [studentId]);
 };
@@ -271,3 +322,6 @@ const getExpectedDonationsByStudentId = async (studentId) => {
 const getReceivedDonationsByStudentId = async (studentId) => {
     return await dbAll('SELECT amount FROM received_donations WHERE student_id = ? ORDER BY created_at DESC', [studentId]);
 };
+
+// Exportiere getRoundsByStudentId für die neue Timestamps-API
+export { getRoundsByStudentId };

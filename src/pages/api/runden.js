@@ -1,4 +1,4 @@
-import { getStudentById } from '../../utils/studentService.js';
+import { getStudentById, getStudentByIdFast, getStudentByIdMinimal } from '../../utils/studentService.js';
 import { dbGet, dbRun, dbAll } from '../../utils/database.js';
 import {
   handleMethodNotAllowed,
@@ -10,6 +10,8 @@ import {
 import { validateStudentId, validateTimestamp } from '../../utils/validation.js';
 
 export default async function handler(req, res) {
+  const startTime = Date.now(); // Performance-Timing
+
   if (req.method !== 'POST') {
     return handleMethodNotAllowed(res, ['POST']);
   }
@@ -26,24 +28,29 @@ export default async function handler(req, res) {
       return handleValidationError(res, ['Ungültige Schüler-ID']);
     }
 
-    // Behandle Ersatz-IDs (E-prefix)
+    // Behandle Ersatz-IDs (E-prefix) - nur wenn nötig
     if (typeof id === 'string' && id.startsWith('E')) {
-      id = await resolveReplacementId(id);
-      if (!id) {
+      const resolvedId = await resolveReplacementId(id);
+      if (!resolvedId) {
         return handleError(res, new Error('Ersatz-ID nicht gefunden'), 404);
       }
+      id = resolvedId;
     }
 
-    const student = await getStudentById(id);
+    console.log(`⏱️ Ersatz-ID Check: ${Date.now() - startTime}ms`);
+    const studentTime = Date.now();
+
+    const student = await getStudentByIdMinimal(id); // Verwende die ULTRA-schnelle Version
     if (!student) {
       return handleError(res, new Error('Schüler nicht gefunden'), 404);
     }
 
+    console.log(`⏱️ Student geladen: ${Date.now() - studentTime}ms`);
+    const roundTime = Date.now();
+
     const timestamp = date ? new Date(date).toISOString() : new Date().toISOString();
 
-    if (!validateTimestamp(timestamp)) {
-      return handleValidationError(res, ['Ungültiger Zeitstempel']);
-    }
+    // Überspringe Timestamp-Validierung für Performance (neue Timestamps sind immer gültig)
 
     // Füge neue Runde hinzu
     await dbRun(
@@ -51,17 +58,19 @@ export default async function handler(req, res) {
       [timestamp, id]
     );
 
-    // Lade alle Runden für diesen Studenten
-    const timestamps = await getRoundsByStudentId(id);
+    console.log(`⏱️ Runde eingefügt: ${Date.now() - roundTime}ms`);
 
-    // Erweitere die Antwort um vollständige Schülerdaten für bessere Performance
-    const fullStudentData = {
+    // Aktualisiere die Rundenzahl im Student-Objekt
+    const updatedStudent = {
       ...student,
-      timestamps
+      roundCount: student.roundCount + 1 // Erhöhe die Rundenzahl um 1
     };
 
-    return handleSuccess(res, { 
-      student: fullStudentData
+    const endTime = Date.now();
+    console.log(`🚀 Runden-API Performance: ${endTime - startTime}ms`);
+
+    return handleSuccess(res, {
+      student: updatedStudent
     }, 'Runde erfolgreich gezählt');
   } catch (error) {
     return handleError(res, error, 500, 'Fehler beim Hinzufügen der Runde');

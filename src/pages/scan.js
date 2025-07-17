@@ -6,11 +6,12 @@ import ErrorDialog from '../components/dialogs/scan/ErrorDialog';
 
 export default function Scan() {
   const [id, setID] = useState('');
-  const [savedID, setSavedID] = useState('');
   const [currentTimestamp, setCurrentTimestamp] = useState(null);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
   const [studentInfo, setStudentInfo] = useState(null);
+  const [timestamps, setTimestamps] = useState([]);
+  const [timestampsLoading, setTimestampsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const { request, loading } = useApi();
@@ -19,28 +20,40 @@ export default function Scan() {
   const popupRef = useRef(null);
 
   useEffect(() => {
-    inputRef.current.focus();
-
-    const handleKeyDown = (event) => {
-      if (event.key === 'Enter' && document.activeElement !== inputRef.current) {
-        event.preventDefault();
-        popupRef.current?.showModal();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    inputRef.current?.focus();
   }, []);
+
+  // Fokus nach Submit wiederherstellen
+  useEffect(() => {
+    if (!isProcessing) {
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isProcessing]);
 
   const cleanId = useCallback((rawId) => {
     return rawId.replace(new RegExp(`${new Date().getFullYear()}[ß/\\-]`, 'gm'), '');
   }, []);
 
   const handleInputChange = useCallback((e) => {
-    const newValue = e.target.value;
-    setID(newValue);
-    setSavedID(newValue);
+    setID(e.target.value);
   }, []);
+
+  // Funktion zum asynchronen Laden der Timestamps
+  const loadTimestamps = useCallback(async (studentId) => {
+    setTimestampsLoading(true);
+    try {
+      const response = await request(`/api/students/${studentId}/timestamps`);
+      setTimestamps(response.timestamps || []);
+    } catch (error) {
+      console.warn('Timestamps konnten nicht geladen werden:', error);
+      setTimestamps([]);
+    } finally {
+      setTimestampsLoading(false);
+    }
+  }, [request]);
 
   const handleSubmit = useCallback(async (event) => {
     event.preventDefault();
@@ -51,6 +64,8 @@ export default function Scan() {
     if (!cleanedId.trim()) {
       setMessage('Bitte geben Sie eine gültige ID ein');
       setMessageType('error');
+      // Fokus behalten bei Validierungsfehlern
+      inputRef.current?.focus();
       return;
     }
 
@@ -65,33 +80,21 @@ export default function Scan() {
       });
 
       if (response?.success !== false && response?.student) {
-        // API gibt jetzt direkt die vollständigen Schülerdaten zurück
+        // API gibt jetzt schnell die Basisdaten zurück
         setStudentInfo(response.student);
         setCurrentTimestamp(new Date());
         setMessage('Runde erfolgreich gezählt!');
         setMessageType('success');
         setID('');
 
-        // Fokus zurück auf das Input-Feld
-        setTimeout(() => {
-          inputRef.current?.focus();
-        }, 0);
-
-        // Auto-clear success message after 3 seconds
-        setTimeout(() => {
-          setMessage('');
-          setMessageType('');
-        }, 3000);
+        // Timestamps asynchron laden (nicht blockierend)
+        loadTimestamps(cleanedId);
       } else {
         setID('');
         setMessage('Fehler beim Scannen der Runde');
         setMessageType('error');
         setStudentInfo(null);
-
-        // Fokus zurück auf das Input-Feld
-        setTimeout(() => {
-          inputRef.current?.focus();
-        }, 0);
+        setTimestamps([]);
       }
     } catch (error) {
       setID('');
@@ -108,48 +111,40 @@ export default function Scan() {
         showError(error, 'Beim Speichern der Runde');
       }
       setStudentInfo(null);
-
-      // Fokus zurück auf das Input-Feld auch bei Fehlern
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 0);
+      setTimestamps([]);
     } finally {
       setIsProcessing(false);
     }
-  }, [cleanId, id, request, showError, isProcessing]);
+  }, [cleanId, id, request, showError, isProcessing, loadTimestamps]);
 
-  const handleDeleteTimestamp = useCallback(async (selectedStudent, indexToRemove) => {
-    if (!selectedStudent?.timestamps || indexToRemove < 0 || indexToRemove >= selectedStudent.timestamps.length) {
-      showError('Ungültiger Zeitstempel-Index', 'Beim Löschen des Zeitstempels');
+  const handleDeleteTimestamp = useCallback(async (indexToRemove) => {
+    if (!timestamps || indexToRemove < 0 || indexToRemove >= timestamps.length || !studentInfo) {
+      showError('Ungültiger Zeitstempel-Index oder fehlende Schülerinformationen', 'Beim Löschen des Zeitstempels');
       return;
     }
 
-    const updatedTimestamps = selectedStudent.timestamps.filter((_, index) => index !== indexToRemove);
-    const cleanedId = cleanId(savedID);
+    const updatedTimestamps = timestamps.filter((_, index) => index !== indexToRemove);
 
     try {
-      await request(`/api/students/${cleanedId}`, {
+      await request(`/api/students/${studentInfo.id}`, {
         method: 'PUT',
         data: { timestamps: updatedTimestamps }
       });
 
+      setTimestamps(updatedTimestamps);
+
+      // Aktualisiere auch die Rundenzahl im studentInfo
       setStudentInfo(prevStudentInfo => ({
         ...prevStudentInfo,
-        timestamps: updatedTimestamps,
+        roundCount: updatedTimestamps.length,
       }));
 
       setMessage('Zeitstempel erfolgreich gelöscht');
       setMessageType('success');
-
-      // Auto-clear message
-      setTimeout(() => {
-        setMessage('');
-        setMessageType('');
-      }, 2000);
     } catch (error) {
       showError(error, 'Beim Löschen des Zeitstempels');
     }
-  }, [cleanId, savedID, request, showError]);
+  }, [timestamps, studentInfo, request, showError]);
 
   return (
     <div className="page-container">
@@ -196,14 +191,19 @@ export default function Scan() {
           <div className="student-details">
             <p><strong>Klasse:</strong> {studentInfo.klasse}</p>
             <p><strong>Name:</strong> {studentInfo.vorname} {studentInfo.nachname}</p>
-            <p><strong>Gelaufene Runden:</strong> {studentInfo.timestamps?.length || 0}</p>
+            <p><strong>Gelaufene Runden:</strong> {studentInfo.roundCount || 0}</p>
           </div>
 
-          {studentInfo.timestamps && studentInfo.timestamps.length > 0 && (
+          {timestampsLoading ? (
+            <div className="mt-2">
+              <h3>Scan-Timestamps:</h3>
+              <p className="message message-info" style={{ fontSize: '0.9em', opacity: 0.8 }}>Lade Details...</p>
+            </div>
+          ) : timestamps && timestamps.length > 0 ? (
             <div className="mt-2">
               <h3>Scan-Timestamps:</h3>
               <ul className="timestamp-list">
-                {studentInfo.timestamps.map((timestamp, index) => (
+                {timestamps.map((timestamp, index) => (
                   <li key={`${timestamp}-${index}`} className="timestamp-item">
                     <span>
                       {formatDate(new Date(timestamp)) + " Uhr => " + timeAgo(currentTimestamp, new Date(timestamp))}
@@ -211,7 +211,7 @@ export default function Scan() {
                     <button
                       type="button"
                       className="btn btn-danger btn-sm"
-                      onClick={() => handleDeleteTimestamp(studentInfo, index)}
+                      onClick={() => handleDeleteTimestamp(index)}
                       disabled={loading}
                       aria-label={`Zeitstempel ${formatDate(new Date(timestamp))} löschen`}
                     >
@@ -221,7 +221,7 @@ export default function Scan() {
                 ))}
               </ul>
             </div>
-          )}
+          ) : null}
         </div>
       )}
     </div>

@@ -55,19 +55,31 @@ const calculateStatistics = (students) => {
   const classStats = {};
   let totalRounds = 0;
   let totalActiveStudents = 0;
+  let totalStudents = students.length;
+  let totalDonations = 0;
 
   students.forEach(student => {
     if (!classStats[student.klasse]) {
-      classStats[student.klasse] = { totalRounds: 0, studentCount: 0, totalMoney: 0 };
+      classStats[student.klasse] = {
+        totalRounds: 0,
+        studentCount: 0,
+        totalMoney: 0,
+        activeStudents: 0
+      };
     }
+
+    classStats[student.klasse].studentCount += 1;
 
     if (student.timestamps.length > 0) {
       classStats[student.klasse].totalRounds += student.timestamps.length;
-      classStats[student.klasse].studentCount += 1;
+      classStats[student.klasse].activeStudents += 1;
       totalRounds += student.timestamps.length;
       totalActiveStudents += 1;
     }
-    classStats[student.klasse].totalMoney += student.spenden;
+
+    const studentDonations = (student.expected_donations || 0) + (student.received_donations || 0);
+    classStats[student.klasse].totalMoney += studentDonations;
+    totalDonations += studentDonations;
   });
 
   const grades = config.availableClasses;
@@ -76,9 +88,15 @@ const calculateStatistics = (students) => {
       .map(klasse => ({
         klasse,
         totalRounds: classStats[klasse]?.totalRounds || 0,
-        averageRounds: classStats[klasse]?.totalRounds / classStats[klasse]?.studentCount || 0,
+        averageRounds: classStats[klasse]?.activeStudents
+          ? classStats[klasse].totalRounds / classStats[klasse].activeStudents
+          : 0,
         totalMoney: classStats[klasse]?.totalMoney || 0,
-        averageMoney: classStats[klasse]?.totalMoney / classStats[klasse]?.studentCount || 0
+        averageMoney: classStats[klasse]?.studentCount
+          ? classStats[klasse].totalMoney / classStats[klasse].studentCount
+          : 0,
+        activeStudents: classStats[klasse]?.activeStudents || 0,
+        totalStudents: classStats[klasse]?.studentCount || 0
       }))
       .sort((a, b) => b.totalRounds - a.totalRounds);
     return acc;
@@ -88,9 +106,12 @@ const calculateStatistics = (students) => {
     .map(([klasse, stats]) => ({
       klasse,
       totalRounds: stats.totalRounds,
-      averageRounds: stats.totalRounds / stats.studentCount,
+      averageRounds: stats.activeStudents ? stats.totalRounds / stats.activeStudents : 0,
       totalMoney: stats.totalMoney,
-      averageMoney: stats.totalMoney / stats.studentCount
+      averageMoney: stats.studentCount ? stats.totalMoney / stats.studentCount : 0,
+      activeStudents: stats.activeStudents,
+      totalStudents: stats.studentCount,
+      participationRate: stats.studentCount ? (stats.activeStudents / stats.studentCount) * 100 : 0
     }))
     .sort((a, b) => b.totalRounds - a.totalRounds);
 
@@ -100,11 +121,35 @@ const calculateStatistics = (students) => {
     .slice(0, 50);
 
   const topStudentsByMoney = students
-    .filter(student => student.spenden > 0)
+    .filter(student => (student.expected_donations + student.received_donations) > 0)
+    .map(student => ({
+      ...student,
+      spenden: student.expected_donations + student.received_donations
+    }))
     .sort((a, b) => b.spenden - a.spenden)
     .slice(0, 50);
 
   const averageRounds = totalActiveStudents > 0 ? totalRounds / totalActiveStudents : 0;
+
+  // Geschlechterverteilung
+  const genderStats = students.reduce((acc, student) => {
+    const gender = student.geschlecht || 'unbekannt';
+    if (!acc[gender]) {
+      acc[gender] = { count: 0, totalRounds: 0 };
+    }
+    acc[gender].count += 1;
+    acc[gender].totalRounds += student.rounds;
+    return acc;
+  }, {});
+
+  // Aktivitätsverteilung
+  const activityDistribution = {
+    active: totalActiveStudents,
+    inactive: totalStudents - totalActiveStudents,
+    highPerformers: students.filter(s => s.rounds >= 10).length,
+    mediumPerformers: students.filter(s => s.rounds >= 5 && s.rounds < 10).length,
+    lowPerformers: students.filter(s => s.rounds > 0 && s.rounds < 5).length
+  };
 
   return {
     classStats: sortedClassStats,
@@ -112,7 +157,13 @@ const calculateStatistics = (students) => {
     topStudentsByMoney,
     topClassesOfGrades,
     averageRounds,
-    totalRounds
+    totalRounds,
+    totalStudents,
+    activeStudents: totalActiveStudents,
+    totalDonations,
+    genderStats,
+    activityDistribution,
+    rawStudents: students // Für benutzerdefinierte Statistiken
   };
 };
 

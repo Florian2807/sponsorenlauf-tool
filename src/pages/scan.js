@@ -33,6 +33,23 @@ export default function Scan() {
     }
   }, [isProcessing]);
 
+  // Enter-Handler für das gesamte Dokument
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === 'Enter' && document.activeElement !== inputRef.current) {
+        event.preventDefault();
+        console.log(popupRef.current);
+        console.log(popupRef.current.showModal);
+        if (popupRef.current && popupRef.current.showModal) {
+          popupRef.current.showModal();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const cleanId = useCallback((rawId) => {
     return rawId.replace(new RegExp(`${new Date().getFullYear()}[ß/\\-]`, 'gm'), '');
   }, []);

@@ -27,7 +27,9 @@ export const getStudentById = async (id) => {
         replacements,
         timestamps: rounds,
         spenden: expectedDonations.reduce((sum, d) => sum + d.amount, 0),
-        spendenKonto: receivedDonations.map(d => d.amount)
+        spendenKonto: receivedDonations.map(d => d.amount),
+        expectedDonations: expectedDonations,
+        receivedDonations: receivedDonations
     };
 };
 
@@ -54,7 +56,9 @@ export const getStudentByIdFast = async (id) => {
         replacements,
         roundCount, // Nur die Anzahl der Runden
         spenden: expectedDonations.reduce((sum, d) => sum + d.amount, 0),
-        spendenKonto: receivedDonations.map(d => d.amount)
+        spendenKonto: receivedDonations.map(d => d.amount),
+        expectedDonations: expectedDonations,
+        receivedDonations: receivedDonations
     };
 };
 
@@ -316,11 +320,11 @@ const getRoundCountByStudentId = async (studentId) => {
 };
 
 const getExpectedDonationsByStudentId = async (studentId) => {
-    return await dbAll('SELECT amount FROM expected_donations WHERE student_id = ?', [studentId]);
+    return await dbAll('SELECT id, amount, created_at FROM expected_donations WHERE student_id = ? ORDER BY created_at DESC', [studentId]);
 };
 
 const getReceivedDonationsByStudentId = async (studentId) => {
-    return await dbAll('SELECT amount FROM received_donations WHERE student_id = ? ORDER BY created_at DESC', [studentId]);
+    return await dbAll('SELECT id, amount, created_at FROM received_donations WHERE student_id = ? ORDER BY created_at DESC', [studentId]);
 };
 
 // Exportiere getRoundsByStudentId für die neue Timestamps-API

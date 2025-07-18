@@ -1,10 +1,10 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import config from '../../data/config.json';
 import { formatCurrency, API_ENDPOINTS, downloadFile } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
 import { useGlobalError } from '../contexts/ErrorContext';
-
-const classOrder = Object.values(config.availableClasses).flat();
+import StatisticsWidget from '../components/statistics/StatisticsWidget';
+import StatisticsTable from '../components/statistics/StatisticsTable';
 
 export default function Statistics() {
   const [stats, setStats] = useState({
@@ -14,25 +14,14 @@ export default function Statistics() {
     topClassesOfGrades: {},
     averageRounds: 0,
     totalRounds: 0,
-  });
-
-  const [showSections, setShowSections] = useState({
-    classStats: false,
-    topStudentsByRounds: false,
-    topStudentsByMoney: false,
-    topClassesOfGrades: false,
-    overallStats: false,
-  });
-
-  const [sortConfig, setSortConfig] = useState({
-    classStats: { key: 'totalRounds', direction: 'descending' },
-    topStudentsByRounds: { key: 'timestamps', direction: 'descending' },
-    topStudentsByMoney: { key: 'spenden', direction: 'descending' },
-    topClassesOfGrades: { key: 'totalRounds', direction: 'descending' },
+    totalStudents: 0,
+    activeStudents: 0,
+    totalDonations: 0,
+    rawStudents: []
   });
 
   const { request, loading, error } = useApi();
-  const { showError } = useGlobalError();
+  const { showError, showSuccess } = useGlobalError();
 
   useEffect(() => {
     const fetchStatistics = async () => {
@@ -51,274 +40,169 @@ export default function Statistics() {
       const response = await request(API_ENDPOINTS.EXPORT_EXCEL, {
         responseType: 'blob'
       });
-      downloadFile(response, 'class_statistics.zip');
+      downloadFile(response, 'statistiken_export.zip');
+      showSuccess('Statistiken erfolgreich exportiert');
     } catch (error) {
       showError(error, 'Beim Export der Excel-Dateien');
     }
-  }, [request]);
+  }, [request, showError, showSuccess]);
 
-  const handleSort = useCallback((section, key) => {
-    setSortConfig((prevConfig) => {
-      const direction = prevConfig[section].key === key && prevConfig[section].direction === 'descending' ? 'ascending' : 'descending';
-      return { ...prevConfig, [section]: { key, direction } };
-    });
+  // Spalten-Definitionen für Tabellen
+  const classStatsColumns = [
+    { key: 'klasse', label: 'Klasse', sortable: true },
+    { key: 'totalRounds', label: 'Gesamt Runden', sortable: true },
+    { key: 'averageRounds', label: 'Ø Runden', sortable: true, format: (val) => val?.toFixed(2) || '0' },
+    { key: 'totalMoney', label: 'Gesamt Spenden', sortable: true, format: (val) => formatCurrency(val) },
+    { key: 'averageMoney', label: 'Ø Spenden', sortable: true, format: (val) => formatCurrency(val) }
+  ];
+
+  const studentsByRoundsColumns = [
+    { key: 'id', label: 'ID', sortable: true },
+    { key: 'klasse', label: 'Klasse', sortable: true },
+    { key: 'geschlecht', label: 'Geschlecht', sortable: true },
+    { key: 'vorname', label: 'Vorname', sortable: true },
+    { key: 'nachname', label: 'Nachname', sortable: true },
+    { key: 'rounds', label: 'Runden', sortable: true }
+  ];
+
+  const studentsByMoneyColumns = [
+    { key: 'id', label: 'ID', sortable: true },
+    { key: 'klasse', label: 'Klasse', sortable: true },
+    { key: 'geschlecht', label: 'Geschlecht', sortable: true },
+    { key: 'vorname', label: 'Vorname', sortable: true },
+    { key: 'nachname', label: 'Nachname', sortable: true },
+    { key: 'spenden', label: 'Spenden', sortable: true, format: (val) => formatCurrency(val) }
+  ];
+
+  // Enhanced search functionality - fügt nicht-gefilterte Schüler zur Suche hinzu
+  const enhanceDataWithSearch = useCallback((tableData, searchTerm, allStudents) => {
+    if (!searchTerm || !allStudents) return tableData;
+
+    // Finde Schüler, die dem Suchterm entsprechen, aber nicht in der aktuellen Liste sind
+    const currentIds = new Set(tableData.map(item => item.id));
+    const matchingMissingStudents = allStudents.filter(student => 
+      !currentIds.has(student.id) &&
+      Object.values(student).some(value =>
+        value?.toString().toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    );
+
+    // Füge gefundene Schüler zur Liste hinzu
+    if (matchingMissingStudents.length > 0) {
+      return [...tableData, ...matchingMissingStudents];
+    }
+
+    return tableData;
   }, []);
-
-  const sortData = useCallback((data, config) => {
-    if (!config.key) return data;
-    return [...data].sort((a, b) => {
-      const { key, direction } = config;
-
-      if (key === 'klasse') {
-        const indexA = classOrder.indexOf(a.klasse);
-        const indexB = classOrder.indexOf(b.klasse);
-        return direction === 'ascending' ? indexA - indexB : indexB - indexA;
-      }
-
-      if (typeof a[key] === 'number' && typeof b[key] === 'number') {
-        return direction === 'ascending' ? a[key] - b[key] : b[key] - a[key];
-      }
-
-      if (typeof a[key] === 'string' && typeof b[key] === 'string') {
-        return direction === 'ascending'
-          ? a[key].localeCompare(b[key])
-          : b[key].localeCompare(a[key]);
-      }
-
-      return 0;
-    });
-  }, []);
-
-  const getSortIndicator = useCallback((section, key) => {
-    return sortConfig[section].key === key
-      ? (sortConfig[section].direction === 'ascending' ? '▲' : '▼')
-      : '';
-  }, [sortConfig]);
-
-  const sortedClassStats = useMemo(() => sortData(stats.classStats, sortConfig.classStats), [stats.classStats, sortConfig.classStats, sortData]);
-  const sortedTopStudentsByRounds = useMemo(() => sortData(stats.topStudentsByRounds, sortConfig.topStudentsByRounds), [stats.topStudentsByRounds, sortConfig.topStudentsByRounds, sortData]);
-  const sortedTopStudentsByMoney = useMemo(() => sortData(stats.topStudentsByMoney, sortConfig.topStudentsByMoney), [stats.topStudentsByMoney, sortConfig.topStudentsByMoney, sortData]);
-  const sortedTopClassesOfGrades = useMemo(() => {
-    return Object.keys(stats.topClassesOfGrades).reduce((acc, grade) => {
-      acc[grade] = sortData(stats.topClassesOfGrades[grade], sortConfig.topClassesOfGrades);
-      return acc;
-    }, {});
-  }, [stats.topClassesOfGrades, sortConfig.topClassesOfGrades, sortData]);
 
   return (
-    <div className="page-container-wide">
-      <h1 className="page-title">Statistiken</h1>
-
-      <button className="btn" onClick={handleExport} disabled={loading}>
-        {loading ? 'Exportiere...' : 'Exportiere Excel-Tabellen'}
-      </button>
-
-      {error && <p className="message message-error">{error}</p>}
-
-      <div className="toggle-section">
-        <div
-          className="toggle-header"
-          onClick={() => setShowSections((prev) => ({ ...prev, classStats: !prev.classStats }))}
-        >
-          <span>Klassen-Statistiken</span>
-          <span className="toggle-icon">{showSections.classStats ? '▲' : '▼'}</span>
+    <div className="statistics-dashboard">
+      <div className="page-header">
+        <h1 className="page-title">📊 Statistiken Dashboard</h1>
+        <div className="page-actions">
+          <button
+            className="btn btn--secondary"
+            onClick={handleExport}
+            disabled={loading}
+          >
+            {loading ? '⏳ Exportiere...' : '📊 Excel Export'}
+          </button>
         </div>
-        {showSections.classStats && (
-          <div className="toggle-content">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th className="sortable" onClick={() => handleSort('classStats', 'klasse')}>
-                    Klasse {getSortIndicator('classStats', 'klasse')}
-                  </th>
-                  <th className="sortable" onClick={() => handleSort('classStats', 'totalRounds')}>
-                    Gesamt Runden {getSortIndicator('classStats', 'totalRounds')}
-                  </th>
-                  <th className="sortable" onClick={() => handleSort('classStats', 'averageRounds')}>
-                    Durchschnitt Runden {getSortIndicator('classStats', 'averageRounds')}
-                  </th>
-                  <th className="sortable" onClick={() => handleSort('classStats', 'totalMoney')}>
-                    Gesamt Spenden {getSortIndicator('classStats', 'totalMoney')}
-                  </th>
-                  <th className="sortable" onClick={() => handleSort('classStats', 'averageMoney')}>
-                    Durchschnitt Spenden {getSortIndicator('classStats', 'averageMoney')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedClassStats.map((stat) => (
-                  <tr key={stat.klasse}>
-                    <td>{stat.klasse}</td>
-                    <td>{stat.totalRounds ?? 0}</td>
-                    <td>{stat.averageRounds?.toFixed(2) ?? 0}</td>
-                    <td>{formatCurrency(stat.totalMoney ?? 0)}</td>
-                    <td>{formatCurrency(stat.averageMoney ?? 0)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
 
-      <div className="toggle-section">
-        <div
-          className="toggle-header"
-          onClick={() => setShowSections((prev) => ({ ...prev, topStudentsByRounds: !prev.topStudentsByRounds }))}
-        >
-          <span>Top Schüler nach Runden</span>
-          <span className="toggle-icon">{showSections.topStudentsByRounds ? '▲' : '▼'}</span>
+      {error && <div className="message message-error">{error}</div>}
+
+      {/* Haupt-Widgets */}
+      <div className="statistics-section">
+        <h2>🔢 Überblick</h2>
+        <div className="statistics-widgets-grid">
+          <StatisticsWidget
+            title="Gesamte Runden"
+            value={stats.totalRounds}
+            icon="🏃‍♂️"
+            color="primary"
+            format="number"
+          />
+          <StatisticsWidget
+            title="Aktive Schüler"
+            value={stats.activeStudents}
+            subvalue={`von ${stats.totalStudents} Schülern`}
+            icon="👥"
+            color="success"
+            format="number"
+          />
+          <StatisticsWidget
+            title="Ø Runden pro Schüler"
+            value={stats.averageRounds}
+            icon="📊"
+            color="warning"
+            format="decimal"
+          />
+          <StatisticsWidget
+            title="Gesamte Spenden"
+            value={stats.totalDonations}
+            icon="💰"
+            color="success"
+            format="currency"
+          />
         </div>
-        {showSections.topStudentsByRounds && (
-          <div className="toggle-content">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th className="sortable" onClick={() => handleSort('topStudentsByRounds', 'id')}>
-                    ID {getSortIndicator('topStudentsByRounds', 'id')}
-                  </th>
-                  <th className="sortable" onClick={() => handleSort('topStudentsByRounds', 'vorname')}>
-                    Vorname {getSortIndicator('topStudentsByRounds', 'vorname')}
-                  </th>
-                  <th className="sortable" onClick={() => handleSort('topStudentsByRounds', 'nachname')}>
-                    Nachname {getSortIndicator('topStudentsByRounds', 'nachname')}
-                  </th>
-                  <th className="sortable" onClick={() => handleSort('topStudentsByRounds', 'timestamps')}>
-                    Runden {getSortIndicator('topStudentsByRounds', 'timestamps')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedTopStudentsByRounds.map((student) => (
-                  <tr key={student.id}>
-                    <td>{student.id}</td>
-                    <td>{student.vorname}</td>
-                    <td>{student.nachname}</td>
-                    <td>{student.timestamps.length}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
 
-      <div className="toggle-section">
-        <div
-          className="toggle-header"
-          onClick={() => setShowSections((prev) => ({ ...prev, topStudentsByMoney: !prev.topStudentsByMoney }))}
-        >
-          <span>Top Schüler nach gesammeltem Geld</span>
-          <span className="toggle-icon">{showSections.topStudentsByMoney ? '▲' : '▼'}</span>
-        </div>
-        {showSections.topStudentsByMoney && (
-          <div className="toggle-content">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th className="sortable" onClick={() => handleSort('topStudentsByMoney', 'id')}>
-                    ID {getSortIndicator('topStudentsByMoney', 'id')}
-                  </th>
-                  <th className="sortable" onClick={() => handleSort('topStudentsByMoney', 'vorname')}>
-                    Vorname {getSortIndicator('topStudentsByMoney', 'vorname')}
-                  </th>
-                  <th className="sortable" onClick={() => handleSort('topStudentsByMoney', 'nachname')}>
-                    Nachname {getSortIndicator('topStudentsByMoney', 'nachname')}
-                  </th>
-                  <th className="sortable" onClick={() => handleSort('topStudentsByMoney', 'spenden')}>
-                    Gesammeltes Geld {getSortIndicator('topStudentsByMoney', 'spenden')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedTopStudentsByMoney.map((student) => (
-                  <tr key={student.id}>
-                    <td>{student.id}</td>
-                    <td>{student.vorname}</td>
-                    <td>{student.nachname}</td>
-                    <td>{formatCurrency(student.spenden)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      {/* Detailierte Statistiken */}
+      <div className="statistics-section">
+        <h2>📋 Detailierte Statistiken</h2>
+
+        <StatisticsTable
+          data={stats.classStats || []}
+          columns={classStatsColumns}
+          title="📚 Klassen-Statistiken"
+          defaultSort={{ key: 'totalRounds', direction: 'desc' }}
+          searchable={true}
+          className="statistics-table"
+        />
+
+        <StatisticsTable
+          data={stats.topStudentsByRounds || []}
+          columns={studentsByRoundsColumns}
+          title="🏆 Top Schüler nach Runden"
+          defaultSort={{ key: 'rounds', direction: 'desc' }}
+          maxRows={25}
+          searchable={true}
+          className="statistics-table"
+          allData={stats.rawStudents}
+          onSearchEnhance={enhanceDataWithSearch}
+        />
+
+        <StatisticsTable
+          data={stats.topStudentsByMoney || []}
+          columns={studentsByMoneyColumns}
+          title="Top Schüler nach Spenden"
+          defaultSort={{ key: 'spenden', direction: 'desc' }}
+          maxRows={25}
+          searchable={true}
+          className="statistics-table"
+          allData={stats.rawStudents}
+          onSearchEnhance={enhanceDataWithSearch}
+        />
       </div>
 
-      <div className="toggle-section">
-        <div
-          className="toggle-header"
-          onClick={() => setShowSections((prev) => ({ ...prev, topClassesOfGrades: !prev.topClassesOfGrades }))}
-        >
-          <span>Top Klassen jeder Stufe</span>
-          <span className="toggle-icon">{showSections.topClassesOfGrades ? '▲' : '▼'}</span>
+      {/* Klassen nach Stufen */}
+      {Object.keys(stats.topClassesOfGrades || {}).length > 0 && (
+        <div className="statistics-section">
+          <h2>🎓 Top Klassen nach Stufen</h2>
+          {Object.entries(stats.topClassesOfGrades).map(([grade, classes]) => (
+            <StatisticsTable
+              key={grade}
+              data={classes}
+              columns={classStatsColumns}
+              title={`Stufe ${grade}`}
+              defaultSort={{ key: 'totalRounds', direction: 'desc' }}
+              maxRows={10}
+              className="statistics-table"
+            />
+          ))}
         </div>
-        {showSections.topClassesOfGrades && (
-          <div className="toggle-content">
-            {Object.keys(sortedTopClassesOfGrades).map((grade) => (
-              <div key={grade} className="mb-3">
-                <h3 className="section-title">Stufe {grade}:</h3>
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th className="sortable" onClick={() => handleSort('topClassesOfGrades', 'klasse')}>
-                        Klasse {getSortIndicator('topClassesOfGrades', 'klasse')}
-                      </th>
-                      <th className="sortable" onClick={() => handleSort('topClassesOfGrades', 'totalRounds')}>
-                        Gesamt Runden {getSortIndicator('topClassesOfGrades', 'totalRounds')}
-                      </th>
-                      <th className="sortable" onClick={() => handleSort('topClassesOfGrades', 'averageRounds')}>
-                        Durchschnitt Runden {getSortIndicator('topClassesOfGrades', 'averageRounds')}
-                      </th>
-                      <th className="sortable" onClick={() => handleSort('topClassesOfGrades', 'totalMoney')}>
-                        Gesamt Spenden {getSortIndicator('topClassesOfGrades', 'totalMoney')}
-                      </th>
-                      <th className="sortable" onClick={() => handleSort('topClassesOfGrades', 'averageMoney')}>
-                        Durchschnitt Spenden {getSortIndicator('topClassesOfGrades', 'averageMoney')}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedTopClassesOfGrades[grade].map((stat) => (
-                      <tr key={stat.klasse}>
-                        <td>{stat.klasse}</td>
-                        <td>{stat.totalRounds ?? 0}</td>
-                        <td>{stat.averageRounds.toFixed(2) ?? 0}</td>
-                        <td>{formatCurrency(stat.totalMoney)}</td>
-                        <td>{formatCurrency(stat.averageMoney)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="toggle-section">
-        <div
-          className="toggle-header"
-          onClick={() => setShowSections((prev) => ({ ...prev, overallStats: !prev.overallStats }))}
-        >
-          <span>Gesamtstatistiken</span>
-          <span className="toggle-icon">{showSections.overallStats ? '▲' : '▼'}</span>
-        </div>
-        {showSections.overallStats && (
-          <div className="toggle-content">
-            <div className="stats-grid">
-              <div className="stat-card">
-                <div className="stat-value">{stats.averageRounds?.toFixed(2) ?? 0}</div>
-                <div className="stat-label">Durchschnittliche Runden pro Schüler</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-value">{stats.totalRounds}</div>
-                <div className="stat-label">Gesamtanzahl der Runden</div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }

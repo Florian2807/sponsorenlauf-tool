@@ -15,7 +15,7 @@ const DetailedDeleteDialog = ({
         receivedDonations: false
     });
 
-    const [confirmText, setConfirmText] = useState('');
+    const [confirmChecked, setConfirmChecked] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const { request } = useApi();
     const { showError, showSuccess } = useGlobalError();
@@ -32,7 +32,7 @@ const DetailedDeleteDialog = ({
                     expectedDonations: false,
                     receivedDonations: false
                 });
-                setConfirmText('');
+                setConfirmChecked(false);
             };
             dialog.addEventListener('show', handleShow);
             return () => dialog.removeEventListener('show', handleShow);
@@ -75,7 +75,7 @@ const DetailedDeleteDialog = ({
     };
 
     const isConfirmValid = () => {
-        return confirmText.toLowerCase() === 'löschen' && getSelectedCount() > 0;
+        return confirmChecked && getSelectedCount() > 0;
     };
 
     const handleDelete = async () => {
@@ -291,19 +291,19 @@ const DetailedDeleteDialog = ({
                             <p className="selected-description">{getDeleteDescription()}</p>
                         </div>
 
-                        <div className="confirmation-input">
-                            <label htmlFor="confirmText">
-                                Geben Sie <strong>"löschen"</strong> ein, um zu bestätigen:
+                        <div className="confirmation-checkbox">
+                            <label className="checkbox-confirm-label">
+                                <input
+                                    type="checkbox"
+                                    checked={confirmChecked}
+                                    onChange={(e) => setConfirmChecked(e.target.checked)}
+                                    disabled={isDeleting}
+                                    className="checkbox-confirm"
+                                />
+                                <span className="checkbox-text">
+                                    Ich bestätige, dass ich diese Daten unwiderruflich löschen möchte
+                                </span>
                             </label>
-                            <input
-                                id="confirmText"
-                                type="text"
-                                value={confirmText}
-                                onChange={(e) => setConfirmText(e.target.value)}
-                                placeholder="löschen"
-                                className="form-control"
-                                disabled={isDeleting}
-                            />
                         </div>
                     </div>
                 )}
@@ -555,43 +555,40 @@ const DetailedDeleteDialog = ({
                     font-weight: 500;
                 }
 
-                .confirmation-input {
+                .confirmation-checkbox {
                     background: var(--card-background);
                     padding: 1.25rem;
                     border-radius: 8px;
                     border: 1px solid var(--border-color);
                 }
 
-                .confirmation-input label {
-                    display: block;
-                    margin-bottom: 0.75rem;
-                    font-weight: 600;
-                    color: var(--text-color);
-                    font-size: 1rem;
-                }
-
-                .confirmation-input .form-control {
-                    width: 100%;
-                    padding: 0.75rem 1rem;
-                    border: 2px solid var(--border-color);
-                    border-radius: 8px;
-                    font-size: 1rem;
-                    font-weight: 500;
-                    background: var(--card-background);
-                    color: var(--text-color);
+                .checkbox-confirm-label {
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 0.75rem;
+                    cursor: pointer;
                     transition: all 0.3s ease;
                 }
 
-                .confirmation-input .form-control:focus {
-                    outline: none;
-                    border-color: var(--danger-color);
-                    box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.15);
-                    background: var(--card-background);
+                .checkbox-confirm-label:hover {
+                    opacity: 0.8;
                 }
 
-                .confirmation-input .form-control::placeholder {
-                    color: var(--text-muted);
-                    opacity: 0.7;
+                .checkbox-confirm {
+                    margin: 0;
+                    width: 20px;
+                    height: 20px;
+                    min-width: 20px;
+                    accent-color: var(--danger-color);
+                    cursor: pointer;
+                }
+
+                .checkbox-text {
+                    font-size: 1rem;
+                    font-weight: 500;
+                    color: var(--text-color);
+                    line-height: 1.4;
+                    user-select: none;
                 }
 
                 /* Responsive Design */

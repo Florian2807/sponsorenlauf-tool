@@ -1,8 +1,14 @@
 import { dbAll } from '../../utils/database.js';
 import { handleMethodNotAllowed, handleError, handleSuccess } from '../../utils/apiHelpers.js';
-import config from '../../../data/config.json';
+import { getSetting } from '../../utils/settingsService.js';
+
+const getDonationDisplayMode = async () => {
+  return await getSetting('donation_display_mode', 'expected');
+};
 
 const loadStudentsForStatistics = async () => {
+  const donationMode = await getDonationDisplayMode();
+  
   const query = `
     SELECT 
       s.*,
@@ -47,11 +53,14 @@ const loadStudentsForStatistics = async () => {
     ...row,
     timestamps: roundsMap[row.id] || [],
     rounds: (roundsMap[row.id] || []).length,
-    spenden: row.expected_donations // Kompatibilität
+    // Spenden je nach Modus
+    spenden: donationMode === 'expected' ? row.expected_donations : row.received_donations
   }));
 };
 
 const calculateStatistics = (students) => {
+  const donationMode = getDonationDisplayMode();
+  
   const classStats = {};
   let totalRounds = 0;
   let totalActiveStudents = 0;
@@ -77,12 +86,15 @@ const calculateStatistics = (students) => {
       totalActiveStudents += 1;
     }
 
-    const studentDonations = (student.expected_donations || 0) + (student.received_donations || 0);
+    // Verwende nur den ausgewählten Spenden-Modus
+    const studentDonations = donationMode === 'expected' 
+      ? (student.expected_donations || 0) 
+      : (student.received_donations || 0);
     classStats[student.klasse].totalMoney += studentDonations;
     totalDonations += studentDonations;
   });
 
-  const grades = config.availableClasses;
+  const grades = getSetting('class_structure', {});
   const topClassesOfGrades = Object.entries(grades).reduce((acc, [grade, classes]) => {
     acc[grade] = classes
       .map(klasse => ({
@@ -121,10 +133,17 @@ const calculateStatistics = (students) => {
     .slice(0, 50);
 
   const topStudentsByMoney = students
-    .filter(student => (student.expected_donations + student.received_donations) > 0)
+    .filter(student => {
+      const donations = donationMode === 'expected' 
+        ? student.expected_donations 
+        : student.received_donations;
+      return donations > 0;
+    })
     .map(student => ({
       ...student,
-      spenden: student.expected_donations + student.received_donations
+      spenden: donationMode === 'expected' 
+        ? student.expected_donations 
+        : student.received_donations
     }))
     .sort((a, b) => b.spenden - a.spenden)
     .slice(0, 50);

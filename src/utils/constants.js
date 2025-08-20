@@ -5,11 +5,11 @@ export const API_ENDPOINTS = {
     CLASSES: '/api/getAvailableClasses',
     CLASS_STRUCTURE: '/api/classStructure',
     STATISTICS: '/api/statistics',
-    UPLOAD_EXCEL: '/api/uploadExcel',
     GENERATE_LABELS: '/api/generate-labels',
     DELETE_ALL_STUDENTS: '/api/deleteAllStudents',
     EXPORT_EXCEL: '/api/exportExcel',
     EXPORT_SPENDEN: '/api/exportSpenden',
+    EXPORT_STATISTICS_HTML: '/api/exportStatisticsHtml',
     SEND_MAILS: '/api/send-mails',
     DONATIONS: '/api/donations'
 };

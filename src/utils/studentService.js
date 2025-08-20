@@ -301,6 +301,18 @@ export const getStudentByIdMinimal = async (id) => {
 };
 
 /**
+ * Holt die höchste Schüler-ID
+ * @returns {Promise<number>} Höchste ID
+ */
+export const getMaxStudentId = async () => {
+    const result = await dbGet('SELECT MAX(id) as maxId FROM students');
+    return result?.maxId || 0;
+};
+
+// Exportiere getRoundsByStudentId für die neue Timestamps-API
+export { getRoundsByStudentId };
+
+/**
  * Hilfsfunktionen
  */
 
@@ -326,6 +338,3 @@ const getExpectedDonationsByStudentId = async (studentId) => {
 const getReceivedDonationsByStudentId = async (studentId) => {
     return await dbAll('SELECT id, amount, created_at FROM received_donations WHERE student_id = ? ORDER BY created_at DESC', [studentId]);
 };
-
-// Exportiere getRoundsByStudentId für die neue Timestamps-API
-export { getRoundsByStudentId };

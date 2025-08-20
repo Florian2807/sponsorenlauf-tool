@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import config from '../../data/config.json';
 import { getNextId, API_ENDPOINTS } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
 import { useGlobalError } from '../contexts/ErrorContext';
@@ -12,6 +11,7 @@ import ClassTeacherDialog from '../components/dialogs/teachers/ClassTeacherDialo
 
 export default function Teachers() {
     const [teachers, setTeachers] = useState([]);
+    const [allPossibleClasses, setAllPossibleClasses] = useState([]);
     const [selectedTeacher, setSelectedTeacher] = useState(null);
     const [editVorname, setEditVorname] = useState('');
     const [editNachname, setEditNachname] = useState('');
@@ -29,7 +29,6 @@ export default function Teachers() {
     const { request, loading, error } = useApi();
     const { showError, showSuccess } = useGlobalError();
 
-    const allPossibleClasses = Object.values(config.availableClasses).flat();
     const { sortField, sortDirection, sortData, sortedData } = useSortableTable(teachers, allPossibleClasses);
     const { searchTerm, setSearchTerm, filteredData } = useSearch(sortedData);
 
@@ -40,7 +39,20 @@ export default function Teachers() {
 
     useEffect(() => {
         fetchTeachers();
+        fetchAvailableClasses();
     }, []);
+
+    const fetchAvailableClasses = async () => {
+        try {
+            const data = await request(API_ENDPOINTS.CLASS_STRUCTURE, {
+                errorContext: 'Beim Laden der Klassenstruktur'
+            });
+            const classes = Object.values(data).flat();
+            setAllPossibleClasses(classes);
+        } catch (error) {
+            // Fehler wird automatisch über useApi gehandelt
+        }
+    };
 
     const fetchTeachers = async () => {
         try {

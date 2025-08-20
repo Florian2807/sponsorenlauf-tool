@@ -3,11 +3,13 @@ import { API_ENDPOINTS, downloadFile } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
 import { useAsyncOperation } from '../hooks/useAsyncOperation';
 import { useGlobalError } from '../contexts/ErrorContext';
+import { useModuleConfig } from '../contexts/ModuleConfigContext';
 import GenerateLabelsDialog from '../components/dialogs/setup/GenerateLabelsDialog';
 import ExportSpendenDialog from '../components/dialogs/setup/ExportSpendenDialog';
-import ConfirmDeleteAllDialog from '../components/dialogs/setup/ConfirmDeleteAllDialog';
+import DetailedDeleteDialog from '../components/dialogs/setup/DetailedDeleteDialog';
 import ClassStructureDialog from '../components/dialogs/setup/ClassStructureDialog';
 import DataImportDialog from '../components/dialogs/setup/DataImportDialog';
+import ModuleSettingsDialog from '../components/dialogs/setup/ModuleSettingsDialog';
 
 export default function Setup() {
     const [file, setFile] = useState(null);
@@ -19,6 +21,7 @@ export default function Setup() {
     const [tempClassStructure, setTempClassStructure] = useState({});
     const { request } = useApi();
     const { showError, showSuccess } = useGlobalError();
+    const { isDonationsEnabled, isEmailsEnabled, isTeachersEnabled } = useModuleConfig();
     const { loading, executeAsync, setLoadingState } = useAsyncOperation({
         upload: false,
         labels: false,
@@ -27,10 +30,11 @@ export default function Setup() {
     });
 
     const generateLabelsPopup = useRef(null);
-    const confirmDeletePopup = useRef(null);
+    const detailedDeletePopup = useRef(null);
     const exportSpendenPopup = useRef(null);
     const classStructurePopup = useRef(null);
     const dataImportPopup = useRef(null);
+    const moduleSettingsPopup = useRef(null);
 
     const fetchClasses = useCallback(async () => {
         try {
@@ -88,19 +92,13 @@ export default function Setup() {
         }
     }, [replacementAmount, selectedClasses, request, executeAsync, showSuccess]);
 
-    const handleDeleteAllStudents = useCallback(async () => {
-        try {
-            const data = await request(API_ENDPOINTS.DELETE_ALL_STUDENTS, {
-                method: 'DELETE',
-                errorContext: 'Beim Löschen aller Schüler'
-            });
-            showSuccess('Alle Schüler wurden erfolgreich gelöscht.', 'Schüler löschen');
-        } catch (error) {
-            // Fehler wird automatisch über useApi gehandelt
-        } finally {
-            confirmDeletePopup.current.close();
-        }
-    }, [request, showSuccess]);
+    const handleDeleteSuccess = useCallback(() => {
+        // Nach erfolgreichem Löschen die Daten neu laden
+        fetchClasses();
+        fetchClassStructure();
+        setInsertedCount(0);
+        showSuccess('Löschvorgang erfolgreich abgeschlossen.', 'Daten gelöscht');
+    }, [fetchClasses, fetchClassStructure, showSuccess]);
 
     const downloadResults = useCallback(async (type) => {
         const downloadOperation = async () => {
@@ -117,6 +115,26 @@ export default function Setup() {
             const filename = type === 'allstudents' ? 'Auswertung_Gesamt.xlsx' : 'Auswertung_Klassen.xlsx';
             downloadFile(response, filename);
             showSuccess(`${filename} erfolgreich heruntergeladen.`, 'Excel-Export');
+        } catch (error) {
+            // Fehler wird automatisch über useApi gehandelt
+        }
+    }, [request, executeAsync, showSuccess]);
+
+
+
+    const downloadHtmlReport = useCallback(async () => {
+        const downloadOperation = async () => {
+            const response = await request(API_ENDPOINTS.EXPORT_STATISTICS_HTML, {
+                responseType: 'blob',
+                errorContext: 'Beim Erstellen des HTML-Reports'
+            });
+            return response;
+        };
+
+        try {
+            const response = await executeAsync(downloadOperation, 'downloadResults');
+            downloadFile(response, 'Sponsorenlauf_Statistiken.html');
+            showSuccess('HTML-Web-Report erfolgreich heruntergeladen.', 'HTML-Export');
         } catch (error) {
             // Fehler wird automatisch über useApi gehandelt
         }
@@ -230,14 +248,16 @@ export default function Setup() {
                     </div>
                     <div className="setup-card-content">
                         <div className="setup-actions">
-                            <button
-                                onClick={() => window.open('/teachers', '_self')}
-                                className="setup-action-btn"
-                                title="Konfiguriere die E-Mail-Adressen und Klassen der Lehrer."
-                            >
-                                <span className="setup-btn-icon">👨‍🏫</span>
-                                <span className="setup-btn-text">Lehrer Verwaltung</span>
-                            </button>
+                            {isTeachersEnabled && (
+                                <button
+                                    onClick={() => window.open('/teachers', '_self')}
+                                    className="setup-action-btn"
+                                    title="Konfiguriere die E-Mail-Adressen und Klassen der Lehrer."
+                                >
+                                    <span className="setup-btn-icon">👨‍🏫</span>
+                                    <span className="setup-btn-text">Lehrer Verwaltung</span>
+                                </button>
+                            )}
 
                             <button
                                 onClick={openClassStructurePopup}
@@ -258,11 +278,12 @@ export default function Setup() {
                             </button>
 
                             <button
-                                onClick={() => confirmDeletePopup.current.showModal()}
+                                onClick={() => detailedDeletePopup.current.showModal()}
                                 className="setup-action-btn setup-action-btn-danger"
+                                title="Erweiterte Löschoptionen - wählen Sie detailliert aus, welche Daten gelöscht werden sollen."
                             >
                                 <span className="setup-btn-icon">🗑️</span>
-                                <span className="setup-btn-text">Alle Schüler löschen</span>
+                                <span className="setup-btn-text">Daten löschen</span>
                             </button>
                         </div>
                     </div>
@@ -294,29 +315,54 @@ export default function Setup() {
                     </div>
                     <div className="setup-card-content">
                         <div className="setup-actions">
-                            <button
-                                onClick={() => window.open('/mails', '_self')}
-                                className="setup-action-btn"
-                                title="Versendet eine E-Mail mit den gelaufenen Runden aller Schüler an die jeweiligen Klassenlehrer."
-                            >
-                                <span className="setup-btn-icon">📧</span>
-                                <span className="setup-btn-text">E-Mails versenden</span>
-                            </button>
+                            {isEmailsEnabled && (
+                                <button
+                                    onClick={() => window.open('/mails', '_self')}
+                                    className="setup-action-btn"
+                                    title="Versendet eine E-Mail mit den gelaufenen Runden aller Schüler an die jeweiligen Klassenlehrer."
+                                >
+                                    <span className="setup-btn-icon">📧</span>
+                                    <span className="setup-btn-text">E-Mails versenden</span>
+                                </button>
+                            )}
 
-                            <button
-                                onClick={() => window.open('/donations', '_self')}
-                                className="setup-action-btn"
-                            >
-                                <span className="setup-btn-icon">💰</span>
-                                <span className="setup-btn-text">Spenden eintragen</span>
-                            </button>
+                            {isDonationsEnabled && (
+                                <button
+                                    onClick={() => window.open('/donations', '_self')}
+                                    className="setup-action-btn"
+                                >
+                                    <span className="setup-btn-icon">💰</span>
+                                    <span className="setup-btn-text">Spenden eintragen</span>
+                                </button>
+                            )}
 
+                            {isDonationsEnabled && (
+                                <button
+                                    onClick={() => exportSpendenPopup.current.showModal()}
+                                    className="setup-action-btn"
+                                >
+                                    <span className="setup-btn-icon">📊</span>
+                                    <span className="setup-btn-text">Spenden-Export</span>
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="setup-card">
+                    <div className="setup-card-header">
+                        <h2 className="setup-card-title">⚙️ Einstellungen</h2>
+                        <p className="setup-card-description">Konfigurieren Sie Anzeige- und Berechnungsoptionen</p>
+                    </div>
+                    <div className="setup-card-content">
+                        <div className="setup-actions">
                             <button
-                                onClick={() => exportSpendenPopup.current.showModal()}
+                                onClick={() => moduleSettingsPopup.current.showModal()}
                                 className="setup-action-btn"
+                                title="Aktivieren oder deaktivieren Sie einzelne Module der Anwendung."
                             >
-                                <span className="setup-btn-icon">📊</span>
-                                <span className="setup-btn-text">Spenden-Export</span>
+                                <span className="setup-btn-icon">🔧</span>
+                                <span className="setup-btn-text">Module verwalten</span>
                             </button>
                         </div>
                     </div>
@@ -345,12 +391,13 @@ export default function Setup() {
             <ExportSpendenDialog
                 dialogRef={exportSpendenPopup}
                 downloadResults={downloadResults}
+                downloadHtmlReport={downloadHtmlReport}
                 loading={loading}
             />
 
-            <ConfirmDeleteAllDialog
-                dialogRef={confirmDeletePopup}
-                handleDeleteAllStudents={handleDeleteAllStudents}
+            <DetailedDeleteDialog
+                dialogRef={detailedDeletePopup}
+                onDeleteSuccess={handleDeleteSuccess}
             />
 
             <ClassStructureDialog
@@ -364,6 +411,21 @@ export default function Setup() {
                 addGrade={addGrade}
                 saveClassStructure={saveClassStructure}
             />
-        </div >
+
+            <ModuleSettingsDialog
+                dialogRef={moduleSettingsPopup}
+            />
+
+            {isDonationsEnabled && (
+                <>
+                    <ExportSpendenDialog
+                        dialogRef={exportSpendenPopup}
+                        downloadResults={downloadResults}
+                        downloadHtmlReport={downloadHtmlReport}
+                        loading={loading}
+                    />
+                </>
+            )}
+        </div>
     );
 }

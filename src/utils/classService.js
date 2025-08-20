@@ -3,30 +3,33 @@
  */
 
 import { dbAll, dbRun, dbTransaction } from './database.js';
+import { getSetting, setSetting } from './settingsService.js';
 
 /**
  * Holt die Klassenstruktur (gruppiert nach Jahrgängen)
  * @returns {Promise<Object>} Klassenstruktur
  */
 export const getClassStructure = async () => {
-    const rows = await dbAll('SELECT grade, class_name FROM classes ORDER BY id, class_name');
-
-    return rows.reduce((structure, row) => {
-        if (!structure[row.grade]) {
-            structure[row.grade] = [];
-        }
-        structure[row.grade].push(row.class_name);
-        return structure;
-    }, {});
+    // Hole Klassenstruktur aus den Settings
+    const structure = await getSetting('class_structure', {});
+    return structure;
 };
 
 /**
- * Holt alle verfügbaren Klassennamen
+ * Holt alle verfügbaren Klassennamen aus der Klassenstruktur
  * @returns {Promise<Array>} Array von Klassennamen
  */
 export const getAvailableClasses = async () => {
-    const rows = await dbAll('SELECT DISTINCT class_name FROM classes ORDER BY id');
-    return rows.map(row => row.class_name);
+    const structure = await getClassStructure();
+    const classes = [];
+    
+    for (const grade in structure) {
+        if (Array.isArray(structure[grade])) {
+            classes.push(...structure[grade]);
+        }
+    }
+    
+    return classes.sort();
 };
 
 /**
@@ -34,8 +37,8 @@ export const getAvailableClasses = async () => {
  * @returns {Promise<Array>} Array von Klassennamen mit Schülern
  */
 export const getClasses = async () => {
-    const rows = await dbAll('SELECT class_name FROM classes ORDER BY grade, class_name');
-    return rows.map(row => row.class_name);
+    // Für Kompatibilität mit bestehenden Funktionen
+    return await getAvailableClasses();
 };
 
 /**
@@ -44,37 +47,17 @@ export const getClasses = async () => {
  * @returns {Promise<Object>} Ergebnis der Operation
  */
 export const updateClassStructure = async (availableClasses) => {
-    return await dbTransaction(async (db) => {
-        // Lösche alte Klassenstruktur
-        await new Promise((resolve, reject) => {
-            db.run('DELETE FROM classes', (err) => {
-                if (err) reject(err);
-                else resolve();
-            });
-        });
-
-        // Füge neue Klassenstruktur hinzu
-        const stmt = db.prepare('INSERT INTO classes (grade, class_name) VALUES (?, ?)');
-
-        for (const [grade, classes] of Object.entries(availableClasses)) {
-            for (const className of classes) {
-                await new Promise((resolve, reject) => {
-                    stmt.run(grade, className, (err) => {
-                        if (err) reject(err);
-                        else resolve();
-                    });
-                });
-            }
-        }
-
-        stmt.finalize();
-
+    try {
+        await setSetting('class_structure', availableClasses);
+        
         return {
             success: true,
             message: 'Klassenstruktur erfolgreich aktualisiert',
             availableClasses
         };
-    });
+    } catch (error) {
+        throw new Error('Fehler beim Speichern der Klassenstruktur: ' + error.message);
+    }
 };
 
 /**
@@ -98,7 +81,6 @@ export const validateClassNames = async (classNames) => {
 
     return {
         valid: errors.length === 0,
-        errors,
-        availableClasses
+        errors
     };
 };

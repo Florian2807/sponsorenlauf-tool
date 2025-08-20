@@ -38,8 +38,6 @@ export default function Scan() {
     const handleKeyDown = (event) => {
       if (event.key === 'Enter' && document.activeElement !== inputRef.current) {
         event.preventDefault();
-        console.log(popupRef.current);
-        console.log(popupRef.current.showModal);
         if (popupRef.current && popupRef.current.showModal) {
           popupRef.current.showModal();
         }

@@ -27,7 +27,6 @@ export default async function handler(req, res) {
         'SELECT studentID FROM replacements WHERE id = ?',
         [parseInt(rawId.replace('E', ''), 10)]
       );
-      console.log(replacement)
 
       if (!replacement) {
         return handleNotFound(res, 'Ersatz-ID');

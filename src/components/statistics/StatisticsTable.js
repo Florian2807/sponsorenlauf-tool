@@ -4,6 +4,7 @@ const StatisticsTable = ({
     data,
     columns,
     title,
+    description,
     defaultSort,
     maxRows = 50,
     searchable = false,
@@ -21,13 +22,11 @@ const StatisticsTable = ({
     }, [data, searchTerm, onSearchEnhance, allData]);
 
     const handleSort = (key) => {
-        const direction = sortConfig.key === key && sortConfig.direction === 'desc' ? 'asc' : 'desc';
+        let direction = 'desc';
+        if (sortConfig.key === key && sortConfig.direction === 'desc') {
+            direction = 'asc';
+        }
         setSortConfig({ key, direction });
-    };
-
-    const getSortIcon = (key) => {
-        if (sortConfig.key !== key) return '↕️';
-        return sortConfig.direction === 'desc' ? '↓' : '↑';
     };
 
     const sortedData = React.useMemo(() => {
@@ -39,13 +38,28 @@ const StatisticsTable = ({
             const bVal = b[sortConfig.key];
 
             if (typeof aVal === 'number' && typeof bVal === 'number') {
-                return sortConfig.direction === 'desc' ? bVal - aVal : aVal - bVal;
+                const primarySort = sortConfig.direction === 'desc' ? bVal - aVal : aVal - bVal;
+
+                // Sekundäre Sortierung für bessere Übersicht
+                if (primarySort === 0) {
+                    // Bei gleichen Werten: erst nach Klasse, dann nach Nachname
+                    const klasseDiff = (a.klasse || '').localeCompare(b.klasse || '');
+                    if (klasseDiff !== 0) return klasseDiff;
+                    return (a.nachname || '').localeCompare(b.nachname || '');
+                }
+                return primarySort;
             }
 
             if (typeof aVal === 'string' && typeof bVal === 'string') {
-                return sortConfig.direction === 'desc'
+                const primarySort = sortConfig.direction === 'desc'
                     ? bVal.localeCompare(aVal)
                     : aVal.localeCompare(bVal);
+
+                // Bei gleichen Werten: sekundäre Sortierung nach Runden (absteigend)
+                if (primarySort === 0 && a.rounds !== undefined && b.rounds !== undefined) {
+                    return (b.rounds || 0) - (a.rounds || 0);
+                }
+                return primarySort;
             }
 
             return 0;
@@ -68,7 +82,7 @@ const StatisticsTable = ({
         <div className={`statistics-table ${className}`}>
             <div className="statistics-table__header">
                 <h3>{title}</h3>
-                {searchable && (
+                {searchable ? (
                     <input
                         type="text"
                         placeholder="Suchen..."
@@ -76,8 +90,16 @@ const StatisticsTable = ({
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="statistics-table__search"
                     />
+                ) : (
+                    <div></div>
                 )}
+                <div></div>
             </div>
+            {description && (
+                <div className="statistics-table__description">
+                    {description}
+                </div>
+            )}
             <div className="statistics-table__wrapper">
                 <table className="table statistics-table__table">
                     <thead>
@@ -89,9 +111,6 @@ const StatisticsTable = ({
                                     onClick={column.sortable ? () => handleSort(column.key) : undefined}
                                 >
                                     {column.label}
-                                    {column.sortable && (
-                                        <span className="statistics-table__sort-icon">{getSortIcon(column.key)}</span>
-                                    )}
                                 </th>
                             ))}
                         </tr>

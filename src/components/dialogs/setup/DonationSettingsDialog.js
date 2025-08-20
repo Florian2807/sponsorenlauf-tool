@@ -5,32 +5,32 @@ import { useGlobalError } from '../../../contexts/ErrorContext';
 import { useDonationDisplayMode } from '../../../contexts/DonationDisplayModeContext';
 
 const DonationSettingsDialog = ({ dialogRef }) => {
-    const [localMode, setLocalMode] = useState('expected');
-    const [isLoading, setIsLoading] = useState(false);
-    const [initialLoad, setInitialLoad] = useState(true);
-    
-    const { request } = useApi();
-    const { showError, showSuccess } = useGlobalError();
-    const { mode: globalMode, updateMode } = useDonationDisplayMode();
+  const [localMode, setLocalMode] = useState('expected');
+  const [isLoading, setIsLoading] = useState(false);
+  const [initialLoad, setInitialLoad] = useState(true);
 
-    // Load current settings when dialog opens
-    useEffect(() => {
-        setLocalMode(globalMode);
-        setInitialLoad(false);
-    }, [globalMode]);
+  const { request } = useApi();
+  const { showError, showSuccess } = useGlobalError();
+  const { mode: globalMode, updateMode } = useDonationDisplayMode();
 
-    const handleSave = async () => {
-        try {
-            setIsLoading(true);
-            await updateMode(localMode);
-            showSuccess('Spenden-Einstellungen erfolgreich gespeichert', 'Einstellungen');
-            dialogRef.current?.close();
-        } catch (error) {
-            showError(error, 'Beim Speichern der Spenden-Einstellungen');
-        } finally {
-            setIsLoading(false);
-        }
-    };  const handleClose = () => {
+  // Load current settings when dialog opens
+  useEffect(() => {
+    setLocalMode(globalMode);
+    setInitialLoad(false);
+  }, [globalMode]);
+
+  const handleSave = async () => {
+    try {
+      setIsLoading(true);
+      await updateMode(localMode);
+      showSuccess('Spenden-Einstellungen erfolgreich gespeichert', 'Einstellungen');
+      dialogRef.current?.close();
+    } catch (error) {
+      showError(error, 'Beim Speichern der Spenden-Einstellungen');
+    } finally {
+      setIsLoading(false);
+    }
+  }; const handleClose = () => {
     dialogRef.current?.close();
   };
 
@@ -71,14 +71,14 @@ const DonationSettingsDialog = ({ dialogRef }) => {
           <div className="donation-settings-options">
             <div className="radio-group">
               <label className="radio-option">
-                                                <input
-                                    type="radio"
-                                    name="donationDisplayMode"
-                                    value="expected"
-                                    checked={localMode === 'expected'}
-                                    onChange={(e) => setLocalMode(e.target.value)}
-                                    disabled={isLoading}
-                                />
+                <input
+                  type="radio"
+                  name="donationDisplayMode"
+                  value="expected"
+                  checked={localMode === 'expected'}
+                  onChange={(e) => setLocalMode(e.target.value)}
+                  disabled={isLoading}
+                />
                 <span className="radio-label">
                   <strong>Erwartete Spenden anzeigen</strong>
                   <small className="radio-description">
@@ -89,14 +89,14 @@ const DonationSettingsDialog = ({ dialogRef }) => {
               </label>
 
               <label className="radio-option">
-                                                <input
-                                    type="radio"
-                                    name="donationDisplayMode"
-                                    value="received"
-                                    checked={localMode === 'received'}
-                                    onChange={(e) => setLocalMode(e.target.value)}
-                                    disabled={isLoading}
-                                />
+                <input
+                  type="radio"
+                  name="donationDisplayMode"
+                  value="received"
+                  checked={localMode === 'received'}
+                  onChange={(e) => setLocalMode(e.target.value)}
+                  disabled={isLoading}
+                />
                 <span className="radio-label">
                   <strong>Erhaltene Spenden anzeigen</strong>
                   <small className="radio-description">

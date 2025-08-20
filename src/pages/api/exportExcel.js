@@ -11,7 +11,7 @@ const getDonationDisplayMode = async () => {
 const getClassDataForExport = async () => {
   const donationMode = await getDonationDisplayMode();
   const donationColumn = donationMode === 'expected' ? 'ed.amount' : 'rd.amount';
-  const donationJoin = donationMode === 'expected' 
+  const donationJoin = donationMode === 'expected'
     ? 'LEFT JOIN expected_donations ed ON s.id = ed.student_id'
     : 'LEFT JOIN received_donations rd ON s.id = rd.student_id';
 
@@ -54,7 +54,7 @@ const getClassDataForExport = async () => {
 const getStatisticsData = async () => {
   const donationMode = getDonationDisplayMode();
   const donationColumn = donationMode === 'expected' ? 'ed.amount' : 'rd.amount';
-  const donationJoin = donationMode === 'expected' 
+  const donationJoin = donationMode === 'expected'
     ? 'LEFT JOIN expected_donations ed ON s.id = ed.student_id'
     : 'LEFT JOIN received_donations rd ON s.id = rd.student_id';
 

@@ -9,7 +9,7 @@ export const ModuleConfigProvider = ({ children }) => {
         emails: true,
         teachers: true
     });
-    
+
     const { request } = useApi();
 
     // Initiale Konfiguration aus Backend laden
@@ -56,9 +56,9 @@ export const ModuleConfigProvider = ({ children }) => {
     };
 
     return (
-        <ModuleConfigContext.Provider value={{ 
-            config, 
-            updateConfig, 
+        <ModuleConfigContext.Provider value={{
+            config,
+            updateConfig,
             updateModule,
             isDonationsEnabled: config.donations,
             isEmailsEnabled: config.emails,

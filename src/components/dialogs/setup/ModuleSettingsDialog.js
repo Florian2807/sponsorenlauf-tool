@@ -12,7 +12,7 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
     });
     const [localDonationMode, setLocalDonationMode] = useState('expected');
     const [isLoading, setIsLoading] = useState(false);
-    
+
     const { showError, showSuccess } = useGlobalError();
     const { config: globalConfig, updateConfig } = useModuleConfig();
     const { mode: globalDonationMode, updateMode: updateDonationMode } = useDonationDisplayMode();
@@ -79,7 +79,7 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
                 <div className="module-settings-header">
                     <h3 className="section-title">Module verwalten</h3>
                     <p className="dialog-description">
-                        Aktivieren oder deaktivieren Sie einzelne Features der Anwendung. 
+                        Aktivieren oder deaktivieren Sie einzelne Features der Anwendung.
                         Änderungen wirken sich sofort auf die gesamte Anwendung aus.
                     </p>
                 </div>
@@ -102,7 +102,7 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
                                 <span className="toggle-slider"></span>
                             </label>
                         </div>
-                        
+
                         <div className="module-card-content">
                             <div className="module-features">
                                 <h5>Enthaltene Features:</h5>
@@ -114,7 +114,7 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
                                     <li>📋 Spenden-Spalten in Tabellen</li>
                                 </ul>
                             </div>
-                            
+
                             {!localConfig.donations && (
                                 <div className="module-warning">
                                     <div className="warning-icon">⚠️</div>
@@ -124,7 +124,7 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
                                     </div>
                                 </div>
                             )}
-                            
+
                             {localConfig.donations && (
                                 <div className="module-sub-settings">
                                     <h6 className="sub-settings-title">Spenden-Anzeigemodus:</h6>
@@ -179,7 +179,7 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
                                 <span className="toggle-slider"></span>
                             </label>
                         </div>
-                        
+
                         <div className="module-card-content">
                             <div className="module-features">
                                 <h5>Enthaltene Features:</h5>
@@ -190,7 +190,7 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
                                     <li>⚙️ E-Mail-Konfiguration im Setup</li>
                                 </ul>
                             </div>
-                            
+
                             {!localConfig.emails && (
                                 <div className="module-warning">
                                     <div className="warning-icon">⚠️</div>
@@ -220,7 +220,7 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
                                 <span className="toggle-slider"></span>
                             </label>
                         </div>
-                        
+
                         <div className="module-card-content">
                             <div className="module-features">
                                 <h5>Enthaltene Features:</h5>
@@ -232,7 +232,7 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
                                     <li>📊 Lehrer-bezogene Funktionen</li>
                                 </ul>
                             </div>
-                            
+
                             {!localConfig.teachers && (
                                 <div className="module-warning">
                                     <div className="warning-icon">⚠️</div>
@@ -252,8 +252,8 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
                         <div className="info-content">
                             <strong>Hinweis zur Modul-Verwaltung:</strong>
                             <p>
-                                Diese Einstellungen steuern die Verfügbarkeit von Features in der gesamten Anwendung. 
-                                Deaktivierte Module werden sofort ausgeblendet und deren Funktionen sind nicht mehr zugänglich. 
+                                Diese Einstellungen steuern die Verfügbarkeit von Features in der gesamten Anwendung.
+                                Deaktivierte Module werden sofort ausgeblendet und deren Funktionen sind nicht mehr zugänglich.
                                 Sie können Module jederzeit wieder aktivieren.
                             </p>
                         </div>

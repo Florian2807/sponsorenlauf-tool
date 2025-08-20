@@ -14,7 +14,7 @@ const DetailedDeleteDialog = ({
         expectedDonations: false,
         receivedDonations: false
     });
-    
+
     const [confirmText, setConfirmText] = useState('');
     const [isDeleting, setIsDeleting] = useState(false);
     const { request } = useApi();
@@ -42,7 +42,7 @@ const DetailedDeleteDialog = ({
     const handleOptionChange = (option) => {
         setSelectedOptions(prev => {
             const newOptions = { ...prev, [option]: !prev[option] };
-            
+
             // Wenn Schüler gelöscht werden, müssen auch alle zugehörigen Daten gelöscht werden
             if (option === 'students' && newOptions.students) {
                 newOptions.rounds = true;
@@ -50,7 +50,7 @@ const DetailedDeleteDialog = ({
                 newOptions.expectedDonations = true;
                 newOptions.receivedDonations = true;
             }
-            
+
             return newOptions;
         });
     };
@@ -62,7 +62,7 @@ const DetailedDeleteDialog = ({
     const getDeleteDescription = () => {
         const selected = Object.keys(selectedOptions).filter(key => selectedOptions[key]);
         if (selected.length === 0) return '';
-        
+
         const descriptions = {
             students: 'Alle Schüler',
             rounds: 'Alle Runden-Daten',
@@ -70,7 +70,7 @@ const DetailedDeleteDialog = ({
             expectedDonations: 'Alle erwarteten Spenden',
             receivedDonations: 'Alle erhaltenen Spenden'
         };
-        
+
         return selected.map(key => descriptions[key]).join(', ');
     };
 
@@ -82,7 +82,7 @@ const DetailedDeleteDialog = ({
         if (!isConfirmValid() || isDeleting) return;
 
         setIsDeleting(true);
-        
+
         try {
             const deleteOperations = [];
             let deletedItems = [];
@@ -135,16 +135,16 @@ const DetailedDeleteDialog = ({
 
             await Promise.all(deleteOperations);
 
-            const successMessage = deletedItems.length === 1 
+            const successMessage = deletedItems.length === 1
                 ? `${deletedItems[0]} wurden erfolgreich gelöscht.`
                 : `Folgende Daten wurden erfolgreich gelöscht: ${deletedItems.join(', ')}.`;
 
             showSuccess(successMessage, 'Löschvorgang abgeschlossen');
-            
+
             if (onDeleteSuccess) {
                 onDeleteSuccess();
             }
-            
+
             dialogRef.current.close();
 
         } catch (error) {
@@ -182,7 +182,7 @@ const DetailedDeleteDialog = ({
                     <div className="warning-box">
                         <span className="warning-icon">⚠️</span>
                         <div className="warning-text">
-                            <strong>Achtung:</strong> Diese Aktion kann nicht rückgängig gemacht werden! 
+                            <strong>Achtung:</strong> Diese Aktion kann nicht rückgängig gemacht werden!
                             Bitte wählen Sie sorgfältig aus, welche Daten gelöscht werden sollen.
                         </div>
                     </div>
@@ -190,7 +190,7 @@ const DetailedDeleteDialog = ({
 
                 <div className="delete-options-section">
                     <h3>Zu löschende Daten auswählen:</h3>
-                    
+
                     <div className="delete-options-grid">
                         <label className="delete-option delete-option-critical">
                             <input

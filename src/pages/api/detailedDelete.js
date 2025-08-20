@@ -41,9 +41,9 @@ export default async function handler(req, res) {
                 return handleError(res, new Error('Unbekannter Löschtyp'), 400);
         }
 
-        return handleSuccess(res, { 
+        return handleSuccess(res, {
             deletedCount: result.changes,
-            type: type 
+            type: type
         }, message);
 
     } catch (error) {

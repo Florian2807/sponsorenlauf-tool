@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import BaseDialog from '../../BaseDialog';
 
-const SetupGuideDialog = ({ 
-    dialogRef, 
-    onOpenClassStructure, 
+const SetupGuideDialog = ({
+    dialogRef,
+    onOpenClassStructure,
     onOpenModuleSettings,
     onComplete,
     onClassStructureComplete,
@@ -56,11 +56,11 @@ const SetupGuideDialog = ({
                         <div className="hero-icon">🏃‍♂️</div>
                         <h3>Herzlich willkommen!</h3>
                         <p className="hero-text">
-                            Dieses Setup-Guide führt Sie durch die wichtigsten Einstellungen 
+                            Dieses Setup-Guide führt Sie durch die wichtigsten Einstellungen
                             für Ihr Sponsorenlauf-Tool. In wenigen Minuten ist alles bereit!
                         </p>
                     </div>
-                    
+
                     <div className="features-grid">
                         <div className="feature-card">
                             <div className="feature-icon">🏫</div>
@@ -78,7 +78,7 @@ const SetupGuideDialog = ({
                             <p>Automatische Berichte und Statistiken für Ihren Sponsorenlauf</p>
                         </div>
                     </div>
-                    
+
                     <div className="benefits-badge">
                         <span className="badge-icon">⚡</span>
                         <span>Setup in nur 2 Minuten abgeschlossen</span>
@@ -100,7 +100,7 @@ const SetupGuideDialog = ({
                             <p>Strukturieren Sie Ihre Schule für optimale Verwaltung und Auswertungen</p>
                         </div>
                     </div>
-                    
+
                     <div className="benefits-list">
                         <div className="benefit-item">
                             <div className="benefit-icon">✅</div>
@@ -124,10 +124,10 @@ const SetupGuideDialog = ({
                             </div>
                         </div>
                     </div>
-                    
+
                     <div className="action-area">
                         <div className="action-buttons-group">
-                            <button 
+                            <button
                                 className="action-btn primary-btn"
                                 onClick={handleConfigureClassStructure}
                             >
@@ -135,7 +135,7 @@ const SetupGuideDialog = ({
                                 <span>Klassenstruktur konfigurieren</span>
                                 <span className="btn-arrow">→</span>
                             </button>
-                            <button 
+                            <button
                                 className="action-btn skip-btn"
                                 onClick={() => {
                                     markStepCompleted('class-structure');
@@ -164,7 +164,7 @@ const SetupGuideDialog = ({
                             <p>Wählen Sie die Funktionen aus, die Sie für Ihren Sponsorenlauf benötigen</p>
                         </div>
                     </div>
-                    
+
                     <div className="modules-grid">
                         <div className="module-card">
                             <div className="module-header">
@@ -178,7 +178,7 @@ const SetupGuideDialog = ({
                                 <span>• Übersichtliche Statistiken</span>
                             </div>
                         </div>
-                        
+
                         <div className="module-card">
                             <div className="module-header">
                                 <span className="module-icon">📧</span>
@@ -191,7 +191,7 @@ const SetupGuideDialog = ({
                                 <span>• Massenversand</span>
                             </div>
                         </div>
-                        
+
                         <div className="module-card">
                             <div className="module-header">
                                 <span className="module-icon">👨‍🏫</span>
@@ -205,10 +205,10 @@ const SetupGuideDialog = ({
                             </div>
                         </div>
                     </div>
-                    
+
                     <div className="action-area">
                         <div className="action-buttons-group">
-                            <button 
+                            <button
                                 className="action-btn secondary-btn"
                                 onClick={handleConfigureModules}
                             >
@@ -216,7 +216,7 @@ const SetupGuideDialog = ({
                                 <span>Module konfigurieren</span>
                                 <span className="btn-arrow">→</span>
                             </button>
-                            <button 
+                            <button
                                 className="action-btn skip-btn"
                                 onClick={() => {
                                     markStepCompleted('modules');
@@ -241,14 +241,14 @@ const SetupGuideDialog = ({
                     <div className="success-animation">
                         <div className="checkmark">✓</div>
                     </div>
-                    
+
                     <div className="success-content">
                         <h3>🎊 Herzlichen Glückwunsch!</h3>
                         <p className="success-text">
                             Ihr Sponsorenlauf-Tool ist erfolgreich konfiguriert und einsatzbereit!
                         </p>
                     </div>
-                    
+
                     <div className="next-steps-card">
                         <h4>🚀 Empfohlene nächste Schritte:</h4>
                         <div className="steps-timeline">
@@ -275,7 +275,7 @@ const SetupGuideDialog = ({
                             </div>
                         </div>
                     </div>
-                    
+
                     <div className="celebration-banner">
                         <span>🎉 Viel Erfolg bei Ihrem Sponsorenlauf! 🎉</span>
                     </div>
@@ -356,9 +356,9 @@ const SetupGuideDialog = ({
                 {/* Enhanced Progress Visualization */}
                 <div className="progress-section">
                     <div className="progress-track">
-                        <div 
+                        <div
                             className="progress-fill"
-                            style={{ 
+                            style={{
                                 width: `${((currentStep + 1) / steps.length) * 100}%`,
                                 background: currentStepData.gradient
                             }}
@@ -368,9 +368,8 @@ const SetupGuideDialog = ({
                         {steps.map((step, index) => (
                             <div
                                 key={step.id}
-                                className={`step-indicator ${index <= currentStep ? 'active' : ''} ${
-                                    completedSteps.includes(step.id) ? 'completed' : ''
-                                } ${index === currentStep ? 'current' : ''}`}
+                                className={`step-indicator ${index <= currentStep ? 'active' : ''} ${completedSteps.includes(step.id) ? 'completed' : ''
+                                    } ${index === currentStep ? 'current' : ''}`}
                             >
                                 <div className="indicator-content">
                                     {completedSteps.includes(step.id) ? '✓' : step.icon}

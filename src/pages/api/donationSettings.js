@@ -10,22 +10,22 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       // Standard: erwartete Spenden anzeigen
       const donationDisplayMode = await getSetting('donation_display_mode', 'expected');
-      
+
       res.status(200).json({ donationDisplayMode });
     } else if (req.method === 'POST') {
       const { donationDisplayMode } = req.body;
-      
+
       if (!['expected', 'received'].includes(donationDisplayMode)) {
-        return res.status(400).json({ 
-          error: 'donationDisplayMode muss "expected" oder "received" sein' 
+        return res.status(400).json({
+          error: 'donationDisplayMode muss "expected" oder "received" sein'
         });
       }
-      
+
       await setSetting('donation_display_mode', donationDisplayMode);
-      
-      res.status(200).json({ 
+
+      res.status(200).json({
         message: 'Spenden-Anzeigemodus erfolgreich gespeichert',
-        donationDisplayMode 
+        donationDisplayMode
       });
     }
   } catch (error) {

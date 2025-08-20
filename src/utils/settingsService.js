@@ -38,13 +38,13 @@ export const getSetting = async (key, defaultValue = null) => {
 export const setSetting = async (key, value) => {
     try {
         const serializedValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
-        
+
         await dbRun(
             `INSERT OR REPLACE INTO settings (key, value, updated_at) 
              VALUES (?, ?, CURRENT_TIMESTAMP)`,
             [key, serializedValue]
         );
-        
+
         return true;
     } catch (error) {
         console.error(`Fehler beim Speichern der Einstellung '${key}':`, error);
@@ -64,7 +64,7 @@ export const getSettings = async (keys) => {
             `SELECT key, value FROM settings WHERE key IN (${placeholders})`,
             keys
         );
-        
+
         const settings = {};
         results.forEach(row => {
             try {
@@ -73,7 +73,7 @@ export const getSettings = async (keys) => {
                 settings[row.key] = row.value;
             }
         });
-        
+
         return settings;
     } catch (error) {
         console.error('Fehler beim Abrufen mehrerer Einstellungen:', error);
@@ -89,11 +89,11 @@ export const getSettings = async (keys) => {
 export const setSettings = async (settings) => {
     try {
         const entries = Object.entries(settings);
-        
+
         for (const [key, value] of entries) {
             await setSetting(key, value);
         }
-        
+
         return true;
     } catch (error) {
         console.error('Fehler beim Speichern mehrerer Einstellungen:', error);
@@ -123,7 +123,7 @@ export const deleteSetting = async (key) => {
 export const getAllSettings = async () => {
     try {
         const results = await dbAll('SELECT key, value FROM settings ORDER BY key');
-        
+
         const settings = {};
         results.forEach(row => {
             try {
@@ -132,7 +132,7 @@ export const getAllSettings = async () => {
                 settings[row.key] = row.value;
             }
         });
-        
+
         return settings;
     } catch (error) {
         console.error('Fehler beim Abrufen aller Einstellungen:', error);

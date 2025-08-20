@@ -8,7 +8,7 @@ const getDonationDisplayMode = async () => {
 
 const loadStudentsForStatistics = async () => {
   const donationMode = await getDonationDisplayMode();
-  
+
   const query = `
     SELECT 
       s.*,
@@ -60,7 +60,7 @@ const loadStudentsForStatistics = async () => {
 
 const calculateStatistics = (students) => {
   const donationMode = getDonationDisplayMode();
-  
+
   const classStats = {};
   let totalRounds = 0;
   let totalActiveStudents = 0;
@@ -87,8 +87,8 @@ const calculateStatistics = (students) => {
     }
 
     // Verwende nur den ausgewählten Spenden-Modus
-    const studentDonations = donationMode === 'expected' 
-      ? (student.expected_donations || 0) 
+    const studentDonations = donationMode === 'expected'
+      ? (student.expected_donations || 0)
       : (student.received_donations || 0);
     classStats[student.klasse].totalMoney += studentDonations;
     totalDonations += studentDonations;
@@ -134,15 +134,15 @@ const calculateStatistics = (students) => {
 
   const topStudentsByMoney = students
     .filter(student => {
-      const donations = donationMode === 'expected' 
-        ? student.expected_donations 
+      const donations = donationMode === 'expected'
+        ? student.expected_donations
         : student.received_donations;
       return donations > 0;
     })
     .map(student => ({
       ...student,
-      spenden: donationMode === 'expected' 
-        ? student.expected_donations 
+      spenden: donationMode === 'expected'
+        ? student.expected_donations
         : student.received_donations
     }))
     .sort((a, b) => b.spenden - a.spenden)

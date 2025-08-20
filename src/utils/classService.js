@@ -22,13 +22,13 @@ export const getClassStructure = async () => {
 export const getAvailableClasses = async () => {
     const structure = await getClassStructure();
     const classes = [];
-    
+
     for (const grade in structure) {
         if (Array.isArray(structure[grade])) {
             classes.push(...structure[grade]);
         }
     }
-    
+
     return classes.sort();
 };
 
@@ -49,7 +49,7 @@ export const getClasses = async () => {
 export const updateClassStructure = async (availableClasses) => {
     try {
         await setSetting('class_structure', availableClasses);
-        
+
         return {
             success: true,
             message: 'Klassenstruktur erfolgreich aktualisiert',

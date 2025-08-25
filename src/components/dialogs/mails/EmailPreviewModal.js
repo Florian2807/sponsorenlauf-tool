@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 
-const EmailPreviewModal = ({ 
-    isOpen, 
-    onClose, 
-    mailText, 
-    senderName, 
-    teacherSummary, 
-    onConfirmSend 
+const EmailPreviewModal = ({
+    isOpen,
+    onClose,
+    mailText,
+    senderName,
+    teacherSummary,
+    onConfirmSend
 }) => {
     const [isConfirming, setIsConfirming] = useState(false);
 
@@ -53,7 +53,7 @@ const EmailPreviewModal = ({
                         <i className="icon-preview"></i>
                         E-Mail Vorschau
                     </h2>
-                    <button 
+                    <button
                         className="close-button"
                         onClick={onClose}
                         disabled={isConfirming}
@@ -92,7 +92,7 @@ const EmailPreviewModal = ({
 
                         <div className="tab-content">
                             <div className="email-preview-frame">
-                                <div 
+                                <div
                                     className="html-preview"
                                     dangerouslySetInnerHTML={{ __html: htmlPreview }}
                                 />
@@ -127,14 +127,14 @@ const EmailPreviewModal = ({
                 </div>
 
                 <div className="preview-actions">
-                    <button 
+                    <button
                         className="btn btn-secondary"
                         onClick={onClose}
                         disabled={isConfirming}
                     >
                         Bearbeiten
                     </button>
-                    <button 
+                    <button
                         className="btn btn-success send-confirm-btn"
                         onClick={handleConfirm}
                         disabled={isConfirming}

@@ -27,7 +27,7 @@ const MailTemplateSelector = ({ templates, onSelect, currentText, onChange }) =>
     return (
         <div className="mail-template-selector">
             <div className="template-header">
-                <button 
+                <button
                     className="template-toggle"
                     onClick={() => setIsOpen(!isOpen)}
                     type="button"
@@ -62,7 +62,7 @@ const MailTemplateSelector = ({ templates, onSelect, currentText, onChange }) =>
                                 </button>
                             </div>
                         ))}
-                        
+
                         <div className="template-card custom-card">
                             <div className="template-card-header">
                                 <h4>Benutzerdefiniert</h4>

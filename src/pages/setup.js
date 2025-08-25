@@ -20,7 +20,7 @@ export default function Setup() {
     const [selectedClasses, setSelectedClasses] = useState([]);
     const [classStructure, setClassStructure] = useState({});
     const [tempClassStructure, setTempClassStructure] = useState({});
-    
+
     const { request } = useApi();
     const { showError, showSuccess } = useGlobalError();
     const { isDonationsEnabled, isEmailsEnabled, isTeachersEnabled } = useModuleConfig();
@@ -33,7 +33,7 @@ export default function Setup() {
 
     // Dialog-Management
     const { refs: dialogRefs, openDialog, closeDialog } = useDialogs([
-        'generateLabels', 'detailedDelete', 'exportSpenden', 
+        'generateLabels', 'detailedDelete', 'exportSpenden',
         'classStructure', 'dataImport', 'moduleSettings'
     ]);
 
@@ -48,7 +48,7 @@ export default function Setup() {
             return null;
         }
     }, [request]);
-    
+
     const fetchClassStructure = useCallback(async () => {
         try {
             const data = await request(API_ENDPOINTS.CLASS_STRUCTURE);

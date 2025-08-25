@@ -830,11 +830,11 @@ textarea:focus {
   border-radius: 50%;
 }
 
-.module-toggle input:checked + .toggle-slider {
+.module-toggle input:checked+.toggle-slider {
   background-color: var(--success-color);
 }
 
-.module-toggle input:checked + .toggle-slider:before {
+.module-toggle input:checked+.toggle-slider:before {
   transform: translateX(26px);
 }
 
@@ -976,11 +976,11 @@ textarea:focus {
   transition: var(--transition);
 }
 
-.radio-option-compact input[type="radio"]:checked + .radio-dot {
+.radio-option-compact input[type="radio"]:checked+.radio-dot {
   background: var(--primary-color);
 }
 
-.radio-option-compact input[type="radio"]:checked + .radio-dot::after {
+.radio-option-compact input[type="radio"]:checked+.radio-dot::after {
   content: '';
   width: 6px;
   height: 6px;
@@ -1005,28 +1005,28 @@ textarea:focus {
     grid-template-columns: 1fr;
     gap: 1rem;
   }
-  
+
   .module-card-header {
     padding: 1rem;
   }
-  
+
   .module-icon {
     width: 50px;
     height: 50px;
     font-size: 2rem;
   }
-  
+
   .module-toggle {
     width: 50px;
     height: 28px;
   }
-  
+
   .toggle-slider:before {
     height: 20px;
     width: 20px;
   }
-  
-  .module-toggle input:checked + .toggle-slider:before {
+
+  .module-toggle input:checked+.toggle-slider:before {
     transform: translateX(22px);
   }
 }
@@ -1675,8 +1675,15 @@ textarea:focus {
 }
 
 @keyframes pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.05);
+  }
 }
 
 /* Provider Selection */
@@ -1722,7 +1729,7 @@ textarea:focus {
   box-shadow: var(--shadow-sm);
 }
 
-.provider-radio:checked + .provider-label {
+.provider-radio:checked+.provider-label {
   border-color: var(--primary-color);
   background: var(--primary-light);
   color: var(--primary-color);
@@ -1730,7 +1737,7 @@ textarea:focus {
   box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
 }
 
-.provider-radio:checked + .provider-label::after {
+.provider-radio:checked+.provider-label::after {
   content: '✓';
   position: absolute;
   top: 8px;
@@ -1945,8 +1952,15 @@ textarea:focus {
 }
 
 @keyframes bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-5px);
+  }
 }
 
 .title-icon {
@@ -2502,8 +2516,13 @@ textarea:focus {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .loading-container p {
@@ -2513,13 +2532,33 @@ textarea:focus {
 }
 
 /* Icons - Nur verwendete Icons */
-.icon-eye::before { content: "👁"; }
-.icon-check::before { content: "✓"; }
-.icon-check-circle::before { content: "✅"; }
-.icon-alert-circle::before { content: "⚠️"; }
-.icon-info::before { content: "ℹ️"; }
-.icon-send::before { content: "📤"; }
-.icon-edit::before { content: "✏️"; }
+.icon-eye::before {
+  content: "👁";
+}
+
+.icon-check::before {
+  content: "✓";
+}
+
+.icon-check-circle::before {
+  content: "✅";
+}
+
+.icon-alert-circle::before {
+  content: "⚠️";
+}
+
+.icon-info::before {
+  content: "ℹ️";
+}
+
+.icon-send::before {
+  content: "📤";
+}
+
+.icon-edit::before {
+  content: "✏️";
+}
 
 /* Dark Theme Support for Mail Module */
 [data-theme="dark"] .mail-config-section {
@@ -2618,7 +2657,7 @@ textarea:focus {
   background: rgba(74, 144, 226, 0.1);
 }
 
-[data-theme="dark"] .provider-radio:checked + .provider-label {
+[data-theme="dark"] .provider-radio:checked+.provider-label {
   background: rgba(74, 144, 226, 0.2);
   border-color: var(--primary-color);
 }
@@ -3077,9 +3116,17 @@ textarea:focus {
 }
 
 /* Icons for template selector */
-.icon-template::before { content: "📝"; }
-.icon-chevron::before { content: "▶"; }
-.icon-chevron.down::before { content: "▼"; }
+.icon-template::before {
+  content: "📝";
+}
+
+.icon-chevron::before {
+  content: "▶";
+}
+
+.icon-chevron.down::before {
+  content: "▼";
+}
 
 /* Email Progress Tracker Styles */
 .email-progress-tracker {
@@ -3105,8 +3152,15 @@ textarea:focus {
 }
 
 @keyframes progressShimmer {
-  0%, 100% { opacity: 0.7; }
-  50% { opacity: 1; }
+
+  0%,
+  100% {
+    opacity: 0.7;
+  }
+
+  50% {
+    opacity: 1;
+  }
 }
 
 .progress-header {
@@ -3187,17 +3241,21 @@ textarea:focus {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(90deg, 
-    transparent, 
-    rgba(255, 255, 255, 0.3), 
-    transparent
-  );
+  background: linear-gradient(90deg,
+      transparent,
+      rgba(255, 255, 255, 0.3),
+      transparent);
   animation: progressGlow 2s ease-in-out infinite;
 }
 
 @keyframes progressGlow {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 .progress-text {
@@ -3304,11 +3362,25 @@ textarea:focus {
 }
 
 /* Progress tracker icons */
-.icon-mail-send::before { content: "📧"; }
-.icon-clock::before { content: "⏱️"; }
-.icon-users::before { content: "👥"; }
-.icon-x-circle::before { content: "❌"; }
-.icon-alert-triangle::before { content: "⚠️"; }
+.icon-mail-send::before {
+  content: "📧";
+}
+
+.icon-clock::before {
+  content: "⏱️";
+}
+
+.icon-users::before {
+  content: "👥";
+}
+
+.icon-x-circle::before {
+  content: "❌";
+}
+
+.icon-alert-triangle::before {
+  content: "⚠️";
+}
 
 /* Dark theme support for progress tracker */
 [data-theme="dark"] .email-progress-tracker {
@@ -3562,10 +3634,21 @@ textarea:focus {
 }
 
 /* Preview modal icons */
-.icon-preview::before { content: "👀"; }
-.icon-x::before { content: "✖️"; }
-.icon-code::before { content: "💻"; }
-.icon-check-list::before { content: "✅"; }
+.icon-preview::before {
+  content: "👀";
+}
+
+.icon-x::before {
+  content: "✖️";
+}
+
+.icon-code::before {
+  content: "💻";
+}
+
+.icon-check-list::before {
+  content: "✅";
+}
 
 /* Dark theme support for preview modal */
 [data-theme="dark"] .email-preview-modal {

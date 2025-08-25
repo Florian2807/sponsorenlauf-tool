@@ -47,15 +47,15 @@ export const useFetchHelper = () => {
                     data,
                     errorContext
                 });
-                
+
                 if (successMessage) {
                     showSuccess(successMessage);
                 }
-                
+
                 if (onSuccess) {
                     onSuccess(result);
                 }
-                
+
                 return result;
             } catch (error) {
                 // Fehler wird automatisch über useApi gehandelt

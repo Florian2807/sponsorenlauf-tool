@@ -6,7 +6,7 @@ import { useRef } from 'react';
  */
 export const useDialogs = (dialogNames) => {
     const refs = {};
-    
+
     // Erstelle Refs für alle angegebenen Dialog-Namen
     dialogNames.forEach(name => {
         refs[`${name}Ref`] = useRef(null);

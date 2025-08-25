@@ -1,13 +1,13 @@
 import React from 'react';
 
-const EmailProgressTracker = ({ 
-    isActive, 
-    progress, 
-    currentClass, 
-    totalClasses, 
-    successCount, 
-    errorCount, 
-    errors = [] 
+const EmailProgressTracker = ({
+    isActive,
+    progress,
+    currentClass,
+    totalClasses,
+    successCount,
+    errorCount,
+    errors = []
 }) => {
     if (!isActive) return null;
 
@@ -37,8 +37,8 @@ const EmailProgressTracker = ({
             <div className="progress-content">
                 <div className="progress-bar-container">
                     <div className="progress-bar">
-                        <div 
-                            className="progress-fill" 
+                        <div
+                            className="progress-fill"
                             style={{ width: `${progressPercentage}%` }}
                         ></div>
                     </div>

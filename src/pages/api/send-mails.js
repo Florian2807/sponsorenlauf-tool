@@ -27,7 +27,7 @@ const emailProviders = {
 
 const createTransporter = (email, password, provider = 'outlook') => {
   const config = emailProviders[provider] || emailProviders.outlook;
-  
+
   const transporterConfig = {
     ...config,
     auth: { user: email, pass: password },
@@ -54,7 +54,7 @@ const sendClassEmail = async (transporter, className, teacherData, classFileBase
   }
 
   const teacherEmails = teacherData.map(teacher => teacher.email).filter(Boolean);
-  
+
   if (teacherEmails.length === 0) {
     console.warn(`Überspringe Klasse ${className}: Keine gültigen E-Mail-Adressen`);
     return false;
@@ -104,7 +104,7 @@ const sendClassEmail = async (transporter, className, teacherData, classFileBase
 
   try {
     await transporter.sendMail(mailOptions);
-    
+
     // Rate limiting um den E-Mail-Server nicht zu überlasten
     await new Promise(resolve => setTimeout(resolve, 1000));
     return true;
@@ -123,7 +123,7 @@ const validateEmailData = (teacherData, teacherFiles, email, password, senderNam
   }
 
   // Prüfe ob mindestens eine Klasse Lehrer hat
-  const hasAnyTeachers = teacherData && Object.values(teacherData).some(teachers => 
+  const hasAnyTeachers = teacherData && Object.values(teacherData).some(teachers =>
     Array.isArray(teachers) && teachers.length > 0 && teachers.some(teacher => teacher.email)
   );
 
@@ -215,15 +215,15 @@ export default async function handler(req, res) {
 
     // Validierung der Eingabedaten
     const validationErrors = validateEmailData(
-      teacherData, 
-      teacherFiles, 
-      email, 
-      password, 
-      senderName, 
-      mailText, 
+      teacherData,
+      teacherFiles,
+      email,
+      password,
+      senderName,
+      mailText,
       emailProvider
     );
-    
+
     if (validationErrors.length > 0) {
       console.warn('Validierungsfehler:', validationErrors);
       return handleValidationError(res, validationErrors);
@@ -231,7 +231,7 @@ export default async function handler(req, res) {
 
     // Transporter erstellen und testen
     const transporter = createTransporter(email, password, emailProvider);
-    
+
     try {
       await transporter.verify();
     } catch (verifyError) {
@@ -264,15 +264,15 @@ export default async function handler(req, res) {
     for (const className of classNamesWithTeachers) {
       try {
         const success = await sendClassEmail(
-          transporter, 
-          className, 
-          teacherData[className], 
-          teacherFiles[className], 
-          mailText, 
-          senderName, 
+          transporter,
+          className,
+          teacherData[className],
+          teacherFiles[className],
+          mailText,
+          senderName,
           email
         );
-        
+
         if (success) {
           results.successful++;
         } else {

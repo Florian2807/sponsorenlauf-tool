@@ -9,7 +9,7 @@ const emailProviders = {
     secure: false
   },
   gmail: {
-    service: 'gmail',  
+    service: 'gmail',
     port: 587,
     secure: false
   },
@@ -27,7 +27,7 @@ const emailProviders = {
 
 const testEmailConnection = async (email, password, provider = 'outlook') => {
   const config = emailProviders[provider] || emailProviders.outlook;
-  
+
   const transporterConfig = {
     ...config,
     auth: { user: email, pass: password },
@@ -45,7 +45,7 @@ const testEmailConnection = async (email, password, provider = 'outlook') => {
   }
 
   const transporter = nodemailer.createTransport(transporterConfig);
-  
+
   try {
     await transporter.verify();
     return transporter;
@@ -80,19 +80,19 @@ export default async function handler(req, res) {
 
     // Teste die Verbindung
     await testEmailConnection(email, password, emailProvider);
-    
-    return handleSuccess(res, { 
+
+    return handleSuccess(res, {
       success: true,
       provider: emailProvider,
       timestamp: new Date().toISOString()
     }, 'E-Mail-Verbindung erfolgreich getestet');
-    
+
   } catch (error) {
     console.error('E-Mail-Authentifizierung fehlgeschlagen:', error);
-    
+
     // Spezifische Fehlermeldungen basierend auf dem Fehler
     let errorMessage = 'E-Mail-Anmeldung fehlgeschlagen';
-    
+
     if (error.code === 'EAUTH') {
       errorMessage = 'Benutzername oder Passwort ist falsch';
     } else if (error.code === 'ECONNECTION') {

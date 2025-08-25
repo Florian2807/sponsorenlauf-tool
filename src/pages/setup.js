@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { API_ENDPOINTS, downloadFile } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
 import { useAsyncOperation } from '../hooks/useAsyncOperation';
 import { useGlobalError } from '../contexts/ErrorContext';
 import { useModuleConfig } from '../contexts/ModuleConfigContext';
+import { useDialogs } from '../hooks/useDialogs';
 import GenerateLabelsDialog from '../components/dialogs/setup/GenerateLabelsDialog';
 import ExportSpendenDialog from '../components/dialogs/setup/ExportSpendenDialog';
 import DetailedDeleteDialog from '../components/dialogs/setup/DetailedDeleteDialog';
@@ -19,6 +20,7 @@ export default function Setup() {
     const [selectedClasses, setSelectedClasses] = useState([]);
     const [classStructure, setClassStructure] = useState({});
     const [tempClassStructure, setTempClassStructure] = useState({});
+    
     const { request } = useApi();
     const { showError, showSuccess } = useGlobalError();
     const { isDonationsEnabled, isEmailsEnabled, isTeachersEnabled } = useModuleConfig();
@@ -29,22 +31,24 @@ export default function Setup() {
         downloadResults: false
     });
 
-    const generateLabelsPopup = useRef(null);
-    const detailedDeletePopup = useRef(null);
-    const exportSpendenPopup = useRef(null);
-    const classStructurePopup = useRef(null);
-    const dataImportPopup = useRef(null);
-    const moduleSettingsPopup = useRef(null);
+    // Dialog-Management
+    const { refs: dialogRefs, openDialog, closeDialog } = useDialogs([
+        'generateLabels', 'detailedDelete', 'exportSpenden', 
+        'classStructure', 'dataImport', 'moduleSettings'
+    ]);
 
+    // Fetch-Funktionen mit useCallback für stabile Referenzen
     const fetchClasses = useCallback(async () => {
         try {
-            const data = await request('/api/getClasses');
+            const data = await request('/api/getClasses', { errorContext: 'Beim Abrufen der Klassen' });
             setClasses(data);
+            return data;
         } catch (error) {
-            showError(error, 'Beim Abrufen der Klassen');
+            // Fehler wird automatisch über useApi gehandelt
+            return null;
         }
-    }, [request, showError]);
-
+    }, [request]);
+    
     const fetchClassStructure = useCallback(async () => {
         try {
             const data = await request(API_ENDPOINTS.CLASS_STRUCTURE);
@@ -53,7 +57,7 @@ export default function Setup() {
         } catch (error) {
             showError(error, 'Beim Abrufen der Klassenstruktur');
         }
-    }, [request]);
+    }, [request, showError]);
 
     useEffect(() => {
         fetchClasses();
@@ -62,12 +66,8 @@ export default function Setup() {
 
     const handleImportSuccess = (count) => {
         setInsertedCount(count);
-        dataImportPopup.current.close();
+        closeDialog('dataImport');
         fetchClasses(); // Refresh classes in case new ones were added
-    };
-
-    const handleDataImportClose = () => {
-        dataImportPopup.current.close();
     };
 
     const handleGenerateLabels = useCallback(async () => {
@@ -93,12 +93,12 @@ export default function Setup() {
     }, [replacementAmount, selectedClasses, request, executeAsync, showSuccess]);
 
     const handleDeleteSuccess = useCallback(() => {
-        // Nach erfolgreichem Löschen die Daten neu laden
+        closeDialog('detailedDelete');
         fetchClasses();
         fetchClassStructure();
         setInsertedCount(0);
         showSuccess('Löschvorgang erfolgreich abgeschlossen.', 'Daten gelöscht');
-    }, [fetchClasses, fetchClassStructure, showSuccess]);
+    }, [closeDialog, fetchClasses, fetchClassStructure, showSuccess]);
 
     const downloadResults = useCallback(async (type) => {
         const downloadOperation = async () => {
@@ -157,7 +157,7 @@ export default function Setup() {
 
     const openClassStructurePopup = () => {
         setTempClassStructure(JSON.parse(JSON.stringify(classStructure)));
-        classStructurePopup.current.showModal();
+        openDialog('classStructure');
     };
 
     const handleGradeNameChange = (oldGrade, newGrade) => {
@@ -226,7 +226,7 @@ export default function Setup() {
                 setClassStructure(tempClassStructure);
                 setSelectedClasses(Object.values(tempClassStructure).flat());
                 showSuccess('Klassenstruktur erfolgreich gespeichert.', 'Klassenstruktur');
-                classStructurePopup.current.close();
+                closeDialog('classStructure');
             }
         } catch (error) {
             // Fehler wird automatisch über useApi gehandelt
@@ -269,7 +269,7 @@ export default function Setup() {
                             </button>
 
                             <button
-                                onClick={() => dataImportPopup.current.showModal()}
+                                onClick={() => openDialog('dataImport')}
                                 className="setup-action-btn"
                                 disabled={loading.upload}
                             >
@@ -278,7 +278,7 @@ export default function Setup() {
                             </button>
 
                             <button
-                                onClick={() => detailedDeletePopup.current.showModal()}
+                                onClick={() => openDialog('detailedDelete')}
                                 className="setup-action-btn setup-action-btn-danger"
                                 title="Erweiterte Löschoptionen - wählen Sie detailliert aus, welche Daten gelöscht werden sollen."
                             >
@@ -297,7 +297,7 @@ export default function Setup() {
                     <div className="setup-card-content">
                         <div className="setup-actions">
                             <button
-                                onClick={() => generateLabelsPopup.current.showModal()}
+                                onClick={() => openDialog('generateLabels')}
                                 className="setup-action-btn"
                                 disabled={loading.replacement}
                             >
@@ -338,7 +338,7 @@ export default function Setup() {
 
                             {isDonationsEnabled && (
                                 <button
-                                    onClick={() => exportSpendenPopup.current.showModal()}
+                                    onClick={() => openDialog('exportSpenden')}
                                     className="setup-action-btn"
                                 >
                                     <span className="setup-btn-icon">📊</span>
@@ -357,7 +357,7 @@ export default function Setup() {
                     <div className="setup-card-content">
                         <div className="setup-actions">
                             <button
-                                onClick={() => moduleSettingsPopup.current.showModal()}
+                                onClick={() => openDialog('moduleSettings')}
                                 className="setup-action-btn"
                                 title="Aktivieren oder deaktivieren Sie einzelne Module der Anwendung."
                             >
@@ -370,7 +370,7 @@ export default function Setup() {
             </div>
 
             <GenerateLabelsDialog
-                dialogRef={generateLabelsPopup}
+                dialogRef={dialogRefs.generateLabelsRef}
                 replacementAmount={replacementAmount}
                 setReplacementAmount={setReplacementAmount}
                 handleSelectAll={handleSelectAll}
@@ -383,25 +383,27 @@ export default function Setup() {
             />
 
             <DataImportDialog
-                dialogRef={dataImportPopup}
+                dialogRef={dialogRefs.dataImportRef}
                 onImportSuccess={handleImportSuccess}
-                onClose={handleDataImportClose}
+                onClose={() => closeDialog('dataImport')}
             />
 
-            <ExportSpendenDialog
-                dialogRef={exportSpendenPopup}
-                downloadResults={downloadResults}
-                downloadHtmlReport={downloadHtmlReport}
-                loading={loading}
-            />
+            {isDonationsEnabled && (
+                <ExportSpendenDialog
+                    dialogRef={dialogRefs.exportSpendenRef}
+                    downloadResults={downloadResults}
+                    downloadHtmlReport={downloadHtmlReport}
+                    loading={loading}
+                />
+            )}
 
             <DetailedDeleteDialog
-                dialogRef={detailedDeletePopup}
+                dialogRef={dialogRefs.detailedDeleteRef}
                 onDeleteSuccess={handleDeleteSuccess}
             />
 
             <ClassStructureDialog
-                dialogRef={classStructurePopup}
+                dialogRef={dialogRefs.classStructureRef}
                 tempClassStructure={tempClassStructure}
                 handleGradeNameChange={handleGradeNameChange}
                 removeGrade={removeGrade}
@@ -413,19 +415,8 @@ export default function Setup() {
             />
 
             <ModuleSettingsDialog
-                dialogRef={moduleSettingsPopup}
+                dialogRef={dialogRefs.moduleSettingsRef}
             />
-
-            {isDonationsEnabled && (
-                <>
-                    <ExportSpendenDialog
-                        dialogRef={exportSpendenPopup}
-                        downloadResults={downloadResults}
-                        downloadHtmlReport={downloadHtmlReport}
-                        loading={loading}
-                    />
-                </>
-            )}
         </div>
     );
 }

@@ -132,3 +132,25 @@ export const createPagination = (page = 1, limit = 50) => {
 
     return { offset, limit: limitNum, page: pageNum };
 };
+
+/**
+ * Erstellt einen einfachen GET-Handler für API-Endpunkte
+ * @param {Function} serviceFunction Service-Funktion die aufgerufen werden soll
+ * @param {string} successMessage Erfolgsmeldung
+ * @param {string} errorMessage Fehlermeldung
+ * @returns {Function} Handler-Funktion
+ */
+export const createSimpleGetHandler = (serviceFunction, successMessage, errorMessage) => {
+    return async (req, res) => {
+        if (req.method !== 'GET') {
+            return handleMethodNotAllowed(res, ['GET']);
+        }
+
+        try {
+            const result = await serviceFunction();
+            return handleSuccess(res, result, successMessage);
+        } catch (error) {
+            return handleError(res, error, 500, errorMessage);
+        }
+    };
+};

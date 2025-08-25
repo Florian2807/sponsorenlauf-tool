@@ -29,7 +29,7 @@ export const getAvailableClasses = async () => {
         }
     }
 
-    return classes.sort();
+    return classes;
 };
 
 /**

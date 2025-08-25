@@ -21,7 +21,7 @@ const getStudentsForLabels = async (selectedClasses) => {
 
   const placeholders = selectedClasses.map(() => '?').join(',');
   const query = `SELECT * FROM students WHERE klasse IN (${placeholders})`;
-  
+
   return await dbAll(query, selectedClasses);
 };
 
@@ -43,7 +43,7 @@ const createLabelsPDF = async (students) => {
     try {
       const doc = new PDFDocument({ size: 'A4', margin: 30 });
       const pdfChunks = [];
-      
+
       doc.on('data', chunk => pdfChunks.push(chunk));
       doc.on('end', () => resolve(Buffer.concat(pdfChunks)));
       doc.on('error', reject);
@@ -111,12 +111,12 @@ export default async function handler(req, res) {
     const numReplacementAmount = parseInt(replacementAmount, 10) || 0;
     const classArray = parseQueryArray(selectedClasses);
 
-    if (classArray.length === 0) {
+    if (classArray.length === 0 && numReplacementAmount === 0) {
       return handleError(res, new Error('Keine Klassen ausgewählt'), 400);
     }
 
     let students = await getStudentsForLabels(classArray);
-    
+
     if (numReplacementAmount > 0) {
       students = addReplacementLabels(students, numReplacementAmount);
     }

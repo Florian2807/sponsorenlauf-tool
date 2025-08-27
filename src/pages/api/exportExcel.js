@@ -9,26 +9,18 @@ const getDonationDisplayMode = async () => {
 };
 
 const getClassDataForExport = async () => {
-  const donationMode = await getDonationDisplayMode();
-  const donationColumn = donationMode === 'expected' ? 'ed.amount' : 'rd.amount';
-  const donationJoin = donationMode === 'expected'
-    ? 'LEFT JOIN expected_donations ed ON s.id = ed.student_id'
-    : 'LEFT JOIN received_donations rd ON s.id = rd.student_id';
-
   const query = `
     SELECT 
       s.klasse, 
       s.vorname, 
       s.nachname,
       s.geschlecht,
-      COUNT(r.id) as rounds,
-      COALESCE(SUM(${donationColumn}), 0) as total_donations,
+      COALESCE((SELECT COUNT(*) FROM rounds WHERE student_id = s.id), 0) as rounds,
+      COALESCE((SELECT SUM(amount) FROM expected_donations WHERE student_id = s.id), 0) as expected_donations,
+      COALESCE((SELECT SUM(amount) FROM received_donations WHERE student_id = s.id), 0) as received_donations,
       c.grade
     FROM students s
-    LEFT JOIN rounds r ON s.id = r.student_id
-    ${donationJoin}
     LEFT JOIN classes c ON s.klasse = c.class_name
-    GROUP BY s.id, s.klasse, s.vorname, s.nachname, s.geschlecht, c.grade
     ORDER BY c.grade, s.klasse, s.nachname
   `;
 
@@ -44,7 +36,8 @@ const getClassDataForExport = async () => {
       geschlecht: row.geschlecht || 'Nicht angegeben',
       klasse: row.klasse,
       rounds: row.rounds,
-      spenden: row.total_donations,
+      expected_donations: row.expected_donations,
+      received_donations: row.received_donations,
       grade: row.grade
     });
     return acc;
@@ -52,26 +45,22 @@ const getClassDataForExport = async () => {
 };
 
 const getStatisticsData = async () => {
-  const donationMode = getDonationDisplayMode();
-  const donationColumn = donationMode === 'expected' ? 'ed.amount' : 'rd.amount';
-  const donationJoin = donationMode === 'expected'
-    ? 'LEFT JOIN expected_donations ed ON s.id = ed.student_id'
-    : 'LEFT JOIN received_donations rd ON s.id = rd.student_id';
-
   const queries = {
     classStats: `
       SELECT 
         s.klasse,
+        c.grade,
         COUNT(DISTINCT s.id) as student_count,
-        COUNT(r.id) as total_rounds,
-        ROUND(COUNT(r.id) * 1.0 / COUNT(DISTINCT s.id), 2) as average_rounds,
-        COALESCE(SUM(${donationColumn}), 0) as total_donations,
-        ROUND(COALESCE(SUM(${donationColumn}), 0) * 1.0 / COUNT(DISTINCT s.id), 2) as average_donations
+        COALESCE(SUM((SELECT COUNT(*) FROM rounds WHERE student_id = s.id)), 0) as total_rounds,
+        ROUND(COALESCE(SUM((SELECT COUNT(*) FROM rounds WHERE student_id = s.id)), 0) * 1.0 / COUNT(DISTINCT s.id), 2) as average_rounds,
+        COALESCE(SUM((SELECT SUM(amount) FROM expected_donations WHERE student_id = s.id)), 0) as total_expected_donations,
+        COALESCE(SUM((SELECT SUM(amount) FROM received_donations WHERE student_id = s.id)), 0) as total_received_donations,
+        ROUND(COALESCE(SUM((SELECT SUM(amount) FROM expected_donations WHERE student_id = s.id)), 0) * 1.0 / COUNT(DISTINCT s.id), 2) as average_expected_donations,
+        ROUND(COALESCE(SUM((SELECT SUM(amount) FROM received_donations WHERE student_id = s.id)), 0) * 1.0 / COUNT(DISTINCT s.id), 2) as average_received_donations
       FROM students s
-      LEFT JOIN rounds r ON s.id = r.student_id
-      ${donationJoin}
-      GROUP BY s.klasse
-      ORDER BY s.klasse
+      LEFT JOIN classes c ON s.klasse = c.class_name
+      GROUP BY s.klasse, c.grade
+      ORDER BY c.grade, s.klasse
     `,
     topStudentsRounds: `
       SELECT 
@@ -79,24 +68,31 @@ const getStatisticsData = async () => {
         s.nachname,
         s.klasse,
         s.geschlecht,
-        COUNT(r.id) as rounds
+        COALESCE((SELECT COUNT(*) FROM rounds WHERE student_id = s.id), 0) as rounds
       FROM students s
-      LEFT JOIN rounds r ON s.id = r.student_id
-      GROUP BY s.id, s.vorname, s.nachname, s.klasse, s.geschlecht
       ORDER BY rounds DESC
       LIMIT 50
     `,
-    topStudentsDonations: `
+    topStudentsExpectedDonations: `
       SELECT 
         s.vorname,
         s.nachname,
         s.klasse,
         s.geschlecht,
-        COALESCE(SUM(${donationColumn}), 0) as total_donations
+        COALESCE((SELECT SUM(amount) FROM expected_donations WHERE student_id = s.id), 0) as total_expected_donations
       FROM students s
-      ${donationJoin}
-      GROUP BY s.id, s.vorname, s.nachname, s.klasse, s.geschlecht
-      ORDER BY total_donations DESC
+      ORDER BY total_expected_donations DESC
+      LIMIT 50
+    `,
+    topStudentsReceivedDonations: `
+      SELECT 
+        s.vorname,
+        s.nachname,
+        s.klasse,
+        s.geschlecht,
+        COALESCE((SELECT SUM(amount) FROM received_donations WHERE student_id = s.id), 0) as total_received_donations
+      FROM students s
+      ORDER BY total_received_donations DESC
       LIMIT 50
     `
   };
@@ -110,66 +106,130 @@ const getStatisticsData = async () => {
 };
 
 const createExcelForClass = async (className, students) => {
-  const donationMode = getDonationDisplayMode();
-  const spendenHeader = donationMode === 'expected' ? 'Erwartete Spenden' : 'Erhaltene Spenden';
-
   const workbook = new Workbook();
-  const worksheet = workbook.addWorksheet('Schüler');
+  const worksheet = workbook.addWorksheet(`Klasse ${className}`);
 
+  // Spalten mit beiden Spendenarten
   worksheet.columns = [
-    { header: 'Vorname', key: 'vorname', width: 20 },
-    { header: 'Nachname', key: 'nachname', width: 20 },
-    { header: 'Geschlecht', key: 'geschlecht', width: 15 },
-    { header: 'Klasse', key: 'klasse', width: 15 },
+    { header: 'Vorname', key: 'vorname', width: 18 },
+    { header: 'Nachname', key: 'nachname', width: 18 },
+    { header: 'Geschlecht', key: 'geschlecht', width: 12 },
     { header: 'Runden', key: 'rounds', width: 10 },
-    { header: spendenHeader, key: 'spenden', width: 15 },
+    { header: 'Erwartete Spenden', key: 'expected_donations', width: 18 },
+    { header: 'Erhaltene Spenden', key: 'received_donations', width: 18 },
   ];
 
-  students.forEach((student) => {
-    worksheet.addRow({
+  // Header-Formatierung
+  const headerRow = worksheet.getRow(1);
+  headerRow.font = { bold: true, color: { argb: 'FFFFFF' } };
+  headerRow.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: '366092' }
+  };
+  headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+  headerRow.height = 30;
+
+  // Schüler-Daten hinzufügen
+  students.forEach((student, index) => {
+    const row = worksheet.addRow({
       vorname: student.vorname,
       nachname: student.nachname,
       geschlecht: student.geschlecht,
-      klasse: student.klasse,
       rounds: student.rounds,
-      spenden: student.spenden,
+      expected_donations: student.expected_donations,
+      received_donations: student.received_donations,
     });
+
+    // Zebrastreifen-Design
+    if ((index + 1) % 2 === 0) {
+      row.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'F8F9FA' }
+      };
+    }
+
+    row.alignment = { vertical: 'middle' };
+    row.height = 25;
+
+    // Währungsformatierung für Spenden
+    row.getCell(5).numFmt = '#,##0.00 "€"'; // Erwartete Spenden
+    row.getCell(6).numFmt = '#,##0.00 "€"'; // Erhaltene Spenden
   });
+
+  // Rahmen für alle Zellen
+  for (let row = 1; row <= students.length + 1; row++) {
+    for (let col = 1; col <= 6; col++) {
+      const cell = worksheet.getCell(row, col);
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'CCCCCC' } },
+        left: { style: 'thin', color: { argb: 'CCCCCC' } },
+        bottom: { style: 'thin', color: { argb: 'CCCCCC' } },
+        right: { style: 'thin', color: { argb: 'CCCCCC' } }
+      };
+    }
+  }
+
+  // AutoFilter aktivieren
+  if (students.length > 0) {
+    worksheet.autoFilter = {
+      from: 'A1',
+      to: `F${students.length + 1}`
+    };
+  }
+
+  // Zusammenfassung hinzufügen
+  const summaryRow = students.length + 3;
+  worksheet.getCell(`A${summaryRow}`).value = 'Zusammenfassung:';
+  worksheet.getCell(`A${summaryRow}`).font = { bold: true, size: 14 };
+
+  worksheet.getCell(`A${summaryRow + 1}`).value = 'Schüler gesamt:';
+  worksheet.getCell(`B${summaryRow + 1}`).value = students.length;
+
+  worksheet.getCell(`A${summaryRow + 2}`).value = 'Runden gesamt:';
+  worksheet.getCell(`B${summaryRow + 2}`).value = students.reduce((sum, s) => sum + s.rounds, 0);
+
+  worksheet.getCell(`A${summaryRow + 3}`).value = 'Erwartete Spenden gesamt:';
+  worksheet.getCell(`B${summaryRow + 3}`).value = students.reduce((sum, s) => sum + s.expected_donations, 0);
+  worksheet.getCell(`B${summaryRow + 3}`).numFmt = '#,##0.00 "€"';
+
+  worksheet.getCell(`A${summaryRow + 4}`).value = 'Erhaltene Spenden gesamt:';
+  worksheet.getCell(`B${summaryRow + 4}`).value = students.reduce((sum, s) => sum + s.received_donations, 0);
+  worksheet.getCell(`B${summaryRow + 4}`).numFmt = '#,##0.00 "€"';
 
   return await workbook.xlsx.writeBuffer();
 };
 
 const createCompleteExcelReport = async () => {
-  const donationMode = getDonationDisplayMode();
-  const spendenHeader = donationMode === 'expected' ? 'Erwartete Spenden' : 'Erhaltene Spenden';
-
   const workbook = new Workbook();
   const classData = await getClassDataForExport();
   const statsData = await getStatisticsData();
 
-  // Haupttabelle: Alle Schüler (als erstes Arbeitsblatt)
-  const allStudentsSheet = workbook.addWorksheet('Alle Schüler');
+  // 1. Alle Schüler Arbeitsblatt
+  const allStudentsSheet = workbook.addWorksheet('📊 Alle Schüler');
   allStudentsSheet.columns = [
     { header: 'Klasse', key: 'klasse', width: 12 },
-    { header: 'Vorname', key: 'vorname', width: 18 },
-    { header: 'Nachname', key: 'nachname', width: 18 },
+    { header: 'Vorname', key: 'vorname', width: 16 },
+    { header: 'Nachname', key: 'nachname', width: 16 },
     { header: 'Geschlecht', key: 'geschlecht', width: 12 },
-    { header: 'Runden', key: 'rounds', width: 8 },
-    { header: spendenHeader, key: 'spenden', width: 15 },
+    { header: 'Runden', key: 'rounds', width: 10 },
+    { header: 'Erwartete Spenden', key: 'expected_donations', width: 18 },
+    { header: 'Erhaltene Spenden', key: 'received_donations', width: 18 },
   ];
 
-  // Header-Zeile formatieren
+  // Header-Formatierung
   const headerRow = allStudentsSheet.getRow(1);
-  headerRow.font = { bold: true, color: { argb: 'FFFFFF' } };
+  headerRow.font = { bold: true, color: { argb: 'FFFFFF' }, size: 12 };
   headerRow.fill = {
     type: 'pattern',
     pattern: 'solid',
-    fgColor: { argb: '366092' } // Dunkelblau
+    fgColor: { argb: '2E7D32' } // Dunkelgrün
   };
   headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
-  headerRow.height = 25;
+  headerRow.height = 35;
 
-  // Alle Schüler aus allen Klassen sammeln und nach Jahrgängen sortieren
+  // Alle Schüler sammeln und sortieren
   const allStudents = [];
   Object.entries(classData).forEach(([className, students]) => {
     students.forEach(student => {
@@ -177,11 +237,9 @@ const createCompleteExcelReport = async () => {
     });
   });
 
-  // Nach Jahrgang (grade), dann nach Klasse, dann nach Nachname sortieren
+  // Sortierung nach Jahrgang, Klasse, Nachname
   allStudents.sort((a, b) => {
-    // Erst nach Jahrgang sortieren
     if (a.grade !== b.grade) {
-      // Numerische Sortierung für Jahrgänge (falls sie Zahlen sind)
       const gradeA = parseInt(a.grade) || a.grade;
       const gradeB = parseInt(b.grade) || b.grade;
       if (typeof gradeA === 'number' && typeof gradeB === 'number') {
@@ -189,15 +247,13 @@ const createCompleteExcelReport = async () => {
       }
       return String(gradeA).localeCompare(String(gradeB));
     }
-    // Dann nach Klasse sortieren
     if (a.klasse !== b.klasse) {
       return a.klasse.localeCompare(b.klasse);
     }
-    // Schließlich nach Nachname sortieren
     return a.nachname.localeCompare(b.nachname);
   });
 
-  // Excel-Tabelle als formatierte Tabelle erstellen
+  // Schüler-Daten einfügen
   allStudents.forEach((student, index) => {
     const row = allStudentsSheet.addRow({
       klasse: student.klasse,
@@ -205,98 +261,207 @@ const createCompleteExcelReport = async () => {
       nachname: student.nachname,
       geschlecht: student.geschlecht,
       rounds: student.rounds,
-      spenden: student.spenden,
+      expected_donations: student.expected_donations,
+      received_donations: student.received_donations,
     });
 
-    // Zebrastreifen-Design (abwechselnde Farben)
+    // Zebrastreifen-Design
     if ((index + 1) % 2 === 0) {
       row.fill = {
         type: 'pattern',
         pattern: 'solid',
-        fgColor: { argb: 'F2F2F2' } // Hellgrau für gerade Zeilen
+        fgColor: { argb: 'F1F8E9' } // Sehr helles Grün
       };
     }
 
-    // Zellformatierung
     row.alignment = { vertical: 'middle' };
-    row.height = 20;
+    row.height = 22;
 
-    // Zahlenformatierung für Spenden (Euro)
-    const spendenCell = row.getCell(6); // Spenden-Spalte (F)
-    spendenCell.numFmt = '#,##0.00 "€"';
+    // Formatierung für Spenden-Spalten
+    row.getCell(6).numFmt = '#,##0.00 "€"'; // Erwartete Spenden
+    row.getCell(7).numFmt = '#,##0.00 "€"'; // Erhaltene Spenden
   });
 
-  // Excel-Tabelle formatieren (AutoFilter aktivieren)
+  // Rahmen und AutoFilter
   if (allStudents.length > 0) {
     allStudentsSheet.autoFilter = {
       from: 'A1',
-      to: `F${allStudents.length + 1}`
+      to: `G${allStudents.length + 1}`
     };
 
-    // Rahmen um die gesamte Tabelle
-    const tableRange = `A1:F${allStudents.length + 1}`;
-    allStudentsSheet.getCell(tableRange).border = {
-      top: { style: 'thin' },
-      left: { style: 'thin' },
-      bottom: { style: 'thin' },
-      right: { style: 'thin' }
-    };
-
-    // Rahmen für alle Zellen setzen
     for (let row = 1; row <= allStudents.length + 1; row++) {
-      for (let col = 1; col <= 6; col++) {
+      for (let col = 1; col <= 7; col++) {
         const cell = allStudentsSheet.getCell(row, col);
         cell.border = {
-          top: { style: 'thin', color: { argb: 'CCCCCC' } },
-          left: { style: 'thin', color: { argb: 'CCCCCC' } },
-          bottom: { style: 'thin', color: { argb: 'CCCCCC' } },
-          right: { style: 'thin', color: { argb: 'CCCCCC' } }
+          top: { style: 'thin', color: { argb: 'E0E0E0' } },
+          left: { style: 'thin', color: { argb: 'E0E0E0' } },
+          bottom: { style: 'thin', color: { argb: 'E0E0E0' } },
+          right: { style: 'thin', color: { argb: 'E0E0E0' } }
         };
       }
     }
   }
 
-  // Klassenstatistiken Arbeitsblatt
-  const classStatsSheet = workbook.addWorksheet('Klassenstatistiken');
+  // 2. Klassenstatistiken Arbeitsblatt
+  const classStatsSheet = workbook.addWorksheet('📈 Klassenstatistiken');
   classStatsSheet.columns = [
-    { header: 'Klasse', key: 'klasse', width: 15 },
-    { header: 'Anzahl Schüler', key: 'student_count', width: 15 },
-    { header: 'Gesamt Runden', key: 'total_rounds', width: 15 },
-    { header: 'Ø Runden', key: 'average_rounds', width: 15 },
-    { header: `Gesamt ${spendenHeader}`, key: 'total_donations', width: 18 },
-    { header: `Ø ${spendenHeader}`, key: 'average_donations', width: 18 },
+    { header: 'Jahrgang', key: 'grade', width: 12 },
+    { header: 'Klasse', key: 'klasse', width: 12 },
+    { header: 'Schüler', key: 'student_count', width: 12 },
+    { header: 'Runden', key: 'total_rounds', width: 12 },
+    { header: 'Ø Runden', key: 'average_rounds', width: 12 },
+    { header: 'Erwartete Spenden', key: 'total_expected_donations', width: 18 },
+    { header: 'Erhaltene Spenden', key: 'total_received_donations', width: 18 },
+    { header: 'Ø Erwartete Spenden', key: 'average_expected_donations', width: 18 },
+    { header: 'Ø Erhaltene Spenden', key: 'average_received_donations', width: 18 },
   ];
 
-  statsData.classStats.forEach(stat => {
-    classStatsSheet.addRow(stat);
+  // Header-Formatierung für Klassenstatistiken
+  const classStatsHeaderRow = classStatsSheet.getRow(1);
+  classStatsHeaderRow.font = { bold: true, color: { argb: 'FFFFFF' }, size: 11 };
+  classStatsHeaderRow.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: '1976D2' } // Blau
+  };
+  classStatsHeaderRow.alignment = { horizontal: 'center', vertical: 'middle' };
+  classStatsHeaderRow.height = 35;
+
+  statsData.classStats.forEach((stat, index) => {
+    const row = classStatsSheet.addRow(stat);
+
+    if ((index + 1) % 2 === 0) {
+      row.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'E3F2FD' } // Helles Blau
+      };
+    }
+
+    row.height = 22;
+    // Währungsformatierung
+    row.getCell(6).numFmt = '#,##0.00 "€"';
+    row.getCell(7).numFmt = '#,##0.00 "€"';
+    row.getCell(8).numFmt = '#,##0.00 "€"';
+    row.getCell(9).numFmt = '#,##0.00 "€"';
   });
 
-  // Top Schüler nach Runden
-  const topRoundsSheet = workbook.addWorksheet('Top Schüler Runden');
+  // 3. Top Schüler nach Runden
+  const topRoundsSheet = workbook.addWorksheet('🏃 Top Runden');
   topRoundsSheet.columns = [
-    { header: 'Vorname', key: 'vorname', width: 20 },
-    { header: 'Nachname', key: 'nachname', width: 20 },
-    { header: 'Klasse', key: 'klasse', width: 15 },
-    { header: 'Geschlecht', key: 'geschlecht', width: 15 },
+    { header: 'Platz', key: 'rank', width: 8 },
+    { header: 'Vorname', key: 'vorname', width: 16 },
+    { header: 'Nachname', key: 'nachname', width: 16 },
+    { header: 'Klasse', key: 'klasse', width: 12 },
+    { header: 'Geschlecht', key: 'geschlecht', width: 12 },
     { header: 'Runden', key: 'rounds', width: 10 },
   ];
 
-  statsData.topStudentsRounds.forEach(student => {
-    topRoundsSheet.addRow(student);
+  // Header-Formatierung für Top Runden
+  const topRoundsHeaderRow = topRoundsSheet.getRow(1);
+  topRoundsHeaderRow.font = { bold: true, color: { argb: 'FFFFFF' } };
+  topRoundsHeaderRow.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF9800' } // Orange
+  };
+  topRoundsHeaderRow.alignment = { horizontal: 'center', vertical: 'middle' };
+  topRoundsHeaderRow.height = 30;
+
+  statsData.topStudentsRounds.forEach((student, index) => {
+    const row = topRoundsSheet.addRow({
+      rank: index + 1,
+      ...student
+    });
+
+    // Goldene, silberne, bronzene Medaillen-Farben
+    if (index === 0) {
+      row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD700' } }; // Gold
+    } else if (index === 1) {
+      row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'C0C0C0' } }; // Silber
+    } else if (index === 2) {
+      row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'CD7F32' } }; // Bronze
+    } else if ((index + 1) % 2 === 0) {
+      row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E0' } }; // Helles Orange
+    }
+
+    row.height = 22;
   });
 
-  // Top Schüler nach Spenden
-  const topDonationsSheet = workbook.addWorksheet(`Top Schüler ${spendenHeader}`);
-  topDonationsSheet.columns = [
-    { header: 'Vorname', key: 'vorname', width: 20 },
-    { header: 'Nachname', key: 'nachname', width: 20 },
-    { header: 'Klasse', key: 'klasse', width: 15 },
-    { header: 'Geschlecht', key: 'geschlecht', width: 15 },
-    { header: spendenHeader, key: 'total_donations', width: 18 },
+  // 4. Top Schüler nach erwarteten Spenden
+  const topExpectedSheet = workbook.addWorksheet('💰 Top Erwartete Spenden');
+  topExpectedSheet.columns = [
+    { header: 'Platz', key: 'rank', width: 8 },
+    { header: 'Vorname', key: 'vorname', width: 16 },
+    { header: 'Nachname', key: 'nachname', width: 16 },
+    { header: 'Klasse', key: 'klasse', width: 12 },
+    { header: 'Geschlecht', key: 'geschlecht', width: 12 },
+    { header: 'Erwartete Spenden', key: 'total_expected_donations', width: 18 },
   ];
 
-  statsData.topStudentsDonations.forEach(student => {
-    topDonationsSheet.addRow(student);
+  const topExpectedHeaderRow = topExpectedSheet.getRow(1);
+  topExpectedHeaderRow.font = { bold: true, color: { argb: 'FFFFFF' } };
+  topExpectedHeaderRow.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: '4CAF50' } // Grün
+  };
+  topExpectedHeaderRow.alignment = { horizontal: 'center', vertical: 'middle' };
+  topExpectedHeaderRow.height = 30;
+
+  statsData.topStudentsExpectedDonations.forEach((student, index) => {
+    const row = topExpectedSheet.addRow({
+      rank: index + 1,
+      ...student
+    });
+
+    if (index < 3) {
+      const colors = ['FFD700', 'C0C0C0', 'CD7F32'];
+      row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colors[index] } };
+    } else if ((index + 1) % 2 === 0) {
+      row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'E8F5E8' } };
+    }
+
+    row.height = 22;
+    row.getCell(6).numFmt = '#,##0.00 "€"';
+  });
+
+  // 5. Top Schüler nach erhaltenen Spenden
+  const topReceivedSheet = workbook.addWorksheet('💸 Top Erhaltene Spenden');
+  topReceivedSheet.columns = [
+    { header: 'Platz', key: 'rank', width: 8 },
+    { header: 'Vorname', key: 'vorname', width: 16 },
+    { header: 'Nachname', key: 'nachname', width: 16 },
+    { header: 'Klasse', key: 'klasse', width: 12 },
+    { header: 'Geschlecht', key: 'geschlecht', width: 12 },
+    { header: 'Erhaltene Spenden', key: 'total_received_donations', width: 18 },
+  ];
+
+  const topReceivedHeaderRow = topReceivedSheet.getRow(1);
+  topReceivedHeaderRow.font = { bold: true, color: { argb: 'FFFFFF' } };
+  topReceivedHeaderRow.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: '9C27B0' } // Violett
+  };
+  topReceivedHeaderRow.alignment = { horizontal: 'center', vertical: 'middle' };
+  topReceivedHeaderRow.height = 30;
+
+  statsData.topStudentsReceivedDonations.forEach((student, index) => {
+    const row = topReceivedSheet.addRow({
+      rank: index + 1,
+      ...student
+    });
+
+    if (index < 3) {
+      const colors = ['FFD700', 'C0C0C0', 'CD7F32'];
+      row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colors[index] } };
+    } else if ((index + 1) % 2 === 0) {
+      row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F3E5F5' } };
+    }
+
+    row.height = 22;
+    row.getCell(6).numFmt = '#,##0.00 "€"';
   });
 
   return await workbook.xlsx.writeBuffer();

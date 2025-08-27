@@ -6,7 +6,7 @@ import { useDonationDisplayMode } from '../contexts/DonationDisplayModeContext';
 import { useModuleConfig } from '../contexts/ModuleConfigContext';
 import StatisticsWidget from '../components/statistics/StatisticsWidget';
 import StatisticsTable from '../components/statistics/StatisticsTable';
-import ExportDialog from '../components/dialogs/statistics/ExportDialog';
+import AdvancedExportDialog from '../components/dialogs/statistics/AdvancedExportDialog';
 
 export default function Statistics() {
     const [stats, setStats] = useState({
@@ -40,21 +40,53 @@ export default function Statistics() {
         fetchStatistics();
     }, [request, showError, donationMode]); // Daten neu laden wenn sich der Modus ändert
 
-    const handleExport = useCallback(async (exportType) => {
+    const handleExport = useCallback(async (exportData) => {
         try {
-            const response = await request(`${API_ENDPOINTS.EXPORT_EXCEL}?type=${exportType}`, {
-                responseType: 'blob'
-            });
+            if (exportData.format === 'html') {
+                // Für HTML-Export die bestehende Route verwenden
+                const response = await request(API_ENDPOINTS.EXPORT_STATISTICS_HTML, {
+                    responseType: 'blob'
+                });
+                downloadFile(response, 'sponsorenlauf_statistiken_interaktiv.html');
+                showSuccess('HTML-Report erfolgreich exportiert');
+            } else if (exportData.format === 'excel-complete') {
+                // Für Excel-Complete die bestehende Route verwenden
+                const response = await request(`${API_ENDPOINTS.EXPORT_EXCEL}?type=complete`, {
+                    responseType: 'blob'
+                });
+                downloadFile(response, 'sponsorenlauf_gesamtauswertung.xlsx');
+                showSuccess('Excel-Gesamtauswertung erfolgreich exportiert');
+            } else if (exportData.format === 'excel-classes') {
+                // Für Excel-Classes die bestehende Route verwenden
+                const response = await request(`${API_ENDPOINTS.EXPORT_EXCEL}?type=class-wise`, {
+                    responseType: 'blob'
+                });
+                downloadFile(response, 'sponsorenlauf_klassenweise.zip');
+                showSuccess('Excel-Klassendateien erfolgreich exportiert');
+            } else {
+                // Für andere Formate die neue erweiterte API verwenden
+                const response = await request('/api/advancedExport', {
+                    method: 'POST',
+                    data: exportData,
+                    responseType: 'blob'
+                });
 
-            const filename = exportType === 'complete'
-                ? 'sponsorenlauf_gesamtauswertung.xlsx'
-                : 'sponsorenlauf_klassenweise.zip';
+                let filename = 'sponsorenlauf_export';
+                switch (exportData.format) {
+                    case 'pdf-summary':
+                        filename += '.pdf';
+                        break;
+                    default:
+                        filename += '.html';
+                }
 
-            downloadFile(response, filename);
-            showSuccess(`Statistiken erfolgreich exportiert (${exportType === 'complete' ? 'Gesamtauswertung' : 'Klassenweise'})`);
+                downloadFile(response, filename);
+                showSuccess('Export erfolgreich erstellt');
+            }
+
             setExportDialogOpen(false);
         } catch (error) {
-            showError(error, 'Beim Export der Excel-Dateien');
+            showError(error, 'Beim Export der Auswertung');
         }
     }, [request, showError, showSuccess]);
 
@@ -257,11 +289,12 @@ export default function Statistics() {
                 </div>
             )}
 
-            <ExportDialog
+            <AdvancedExportDialog
                 isOpen={exportDialogOpen}
                 onClose={() => setExportDialogOpen(false)}
                 onExport={handleExport}
                 loading={loading}
+                statistics={stats}
             />
         </div>
     );

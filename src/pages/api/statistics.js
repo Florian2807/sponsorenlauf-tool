@@ -58,9 +58,7 @@ const loadStudentsForStatistics = async () => {
   }));
 };
 
-const calculateStatistics = (students) => {
-  const donationMode = getDonationDisplayMode();
-
+const calculateStatistics = async (students, donationMode) => {
   const classStats = {};
   let totalRounds = 0;
   let totalActiveStudents = 0;
@@ -94,7 +92,7 @@ const calculateStatistics = (students) => {
     totalDonations += studentDonations;
   });
 
-  const grades = getSetting('class_structure', {});
+  const grades = await getSetting('class_structure', {});
   const topClassesOfGrades = Object.entries(grades).reduce((acc, [grade, classes]) => {
     acc[grade] = classes
       .map(klasse => ({
@@ -193,7 +191,8 @@ export default async function handler(req, res) {
 
   try {
     const students = await loadStudentsForStatistics();
-    const statistics = calculateStatistics(students);
+    const donationMode = await getDonationDisplayMode();
+    const statistics = await calculateStatistics(students, donationMode);
     return handleSuccess(res, statistics, 'Statistiken erfolgreich berechnet');
   } catch (error) {
     return handleError(res, error, 500, 'Fehler beim Berechnen der Statistiken');

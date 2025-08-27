@@ -6,7 +6,8 @@ import { getSetting, getLegacyConfig } from '../../utils/settingsService.js';
  * Lädt alle Statistikdaten für den HTML-Export
  */
 const loadDataForHtml = async () => {
-    const query = `
+    // Zuerst alle Schülerdaten mit Runden und Spenden
+    const studentsQuery = `
     SELECT 
       s.*,
       COUNT(r.id) as rounds,
@@ -28,13 +29,29 @@ const loadDataForHtml = async () => {
     ORDER BY s.klasse, s.nachname
   `;
 
-    return await dbAll(query);
+    // Klasseninformationen aus der Klassen-Datenbank
+    const classesQuery = `
+    SELECT grade, class_name 
+    FROM classes 
+    ORDER BY grade, class_name
+  `;
+
+    const students = await dbAll(studentsQuery);
+    const classes = await dbAll(classesQuery);
+
+    // Klassenstufenmap erstellen
+    const classGradeMap = {};
+    classes.forEach(cls => {
+        classGradeMap[cls.class_name] = cls.grade;
+    });
+
+    return { students, classGradeMap };
 };
 
 /**
  * Berechnet umfassende Statistiken für den HTML-Export
  */
-const calculateStatsForHtml = (students) => {
+const calculateStatsForHtml = (students, classGradeMap) => {
     // Konstanten
     const METERS_PER_ROUND = 400; // 400m pro Runde
 
@@ -45,13 +62,9 @@ const calculateStatsForHtml = (students) => {
     let totalStudents = students.length;
     let totalExpectedDonations = 0;
     let totalReceivedDonations = 0;
-    let totalKilometers = 0;
 
     // Basis-Statistiken pro Klasse berechnen
     students.forEach(student => {
-        const studentKilometers = (student.rounds * METERS_PER_ROUND) / 1000;
-        totalKilometers += studentKilometers;
-
         if (!classStats[student.klasse]) {
             classStats[student.klasse] = {
                 totalRounds: 0,
@@ -60,15 +73,13 @@ const calculateStatsForHtml = (students) => {
                 expectedDonations: 0,
                 receivedDonations: 0,
                 students: [],
-                totalKilometers: 0,
-                grade: extractGradeFromClass(student.klasse)
+                grade: classGradeMap[student.klasse] || extractGradeFromClass(student.klasse)  // Primär aus DB, Fallback Extraktion
             };
         }
 
         const classData = classStats[student.klasse];
         classData.studentCount += 1;
         classData.students.push(student);
-        classData.totalKilometers += studentKilometers;
 
         if (student.rounds > 0) {
             classData.totalRounds += student.rounds;
@@ -107,9 +118,6 @@ const calculateStatsForHtml = (students) => {
     // Klassenstufen-Analyse
     const gradeStats = calculateGradeStats(classStats);
 
-    // Distanz-Vergleiche
-    const distanceComparisons = calculateDistanceComparisons(totalKilometers);
-
     // Klassen-Rankings (verschiedene Kategorien)
     const classRankings = calculateClassRankings(classStats);
 
@@ -127,16 +135,13 @@ const calculateStatsForHtml = (students) => {
         totalStudents,
         totalActiveStudents,
         totalRounds,
-        totalKilometers,
         averageRounds: totalActiveStudents > 0 ? totalRounds / totalActiveStudents : 0,
-        averageKilometersPerStudent: totalStudents > 0 ? totalKilometers / totalStudents : 0,
-        averageKilometersPerActiveStudent: totalActiveStudents > 0 ? totalKilometers / totalActiveStudents : 0,
         totalExpectedDonations,
         totalReceivedDonations,
-        totalDonations: totalExpectedDonations + totalReceivedDonations,
-        averageDonationsPerStudent: totalStudents > 0 ? (totalExpectedDonations + totalReceivedDonations) / totalStudents : 0,
-        averageDonationsPerActiveStudent: totalActiveStudents > 0 ? (totalExpectedDonations + totalReceivedDonations) / totalActiveStudents : 0,
-        averageDonationsPerRound: totalRounds > 0 ? (totalExpectedDonations + totalReceivedDonations) / totalRounds : 0,
+        totalDonations: totalExpectedDonations,  // Nur erwartete Spenden für Auswertung
+        averageDonationsPerStudent: totalStudents > 0 ? totalExpectedDonations / totalStudents : 0,
+        averageDonationsPerActiveStudent: totalActiveStudents > 0 ? totalExpectedDonations / totalActiveStudents : 0,
+        averageDonationsPerRound: totalRounds > 0 ? totalExpectedDonations / totalRounds : 0,
         participationRate: (totalActiveStudents / totalStudents) * 100,
 
         // Statistische Kennzahlen
@@ -144,9 +149,6 @@ const calculateStatsForHtml = (students) => {
         minRounds,
         maxRounds,
         roundsDistribution,
-
-        // Vergleiche und Einordnungen
-        distanceComparisons,
 
         // Rankings und Analysen
         classRankings,
@@ -170,15 +172,13 @@ const calculateDetailedGenderStats = (students, METERS_PER_ROUND) => {
 
     students.forEach(student => {
         let gender = normalizeGender(student.geschlecht);
-        const studentKilometers = (student.rounds * METERS_PER_ROUND) / 1000;
-        const studentDonations = student.expected_donations + student.received_donations;
+        const studentDonations = student.expected_donations;
 
         // Alle Schüler
         if (!allGenderStats[gender]) {
             allGenderStats[gender] = {
                 count: 0,
                 totalRounds: 0,
-                totalKilometers: 0,
                 totalDonations: 0,
                 activeCount: 0,
                 participationRate: 0
@@ -186,7 +186,6 @@ const calculateDetailedGenderStats = (students, METERS_PER_ROUND) => {
         }
         allGenderStats[gender].count++;
         allGenderStats[gender].totalRounds += student.rounds;
-        allGenderStats[gender].totalKilometers += studentKilometers;
         allGenderStats[gender].totalDonations += studentDonations;
 
         if (student.rounds > 0) {
@@ -197,19 +196,15 @@ const calculateDetailedGenderStats = (students, METERS_PER_ROUND) => {
                 activeGenderStats[gender] = {
                     count: 0,
                     totalRounds: 0,
-                    totalKilometers: 0,
                     totalDonations: 0,
                     averageRounds: 0,
-                    averageKilometers: 0,
                     averageDonations: 0,
                     averageDonationsPerRound: 0,
-                    averageDonationsPerKm: 0,
                     topPerformers: []
                 };
             }
             activeGenderStats[gender].count++;
             activeGenderStats[gender].totalRounds += student.rounds;
-            activeGenderStats[gender].totalKilometers += studentKilometers;
             activeGenderStats[gender].totalDonations += studentDonations;
             activeGenderStats[gender].topPerformers.push(student);
         }
@@ -223,10 +218,8 @@ const calculateDetailedGenderStats = (students, METERS_PER_ROUND) => {
         if (activeGenderStats[gender]) {
             const activeStats = activeGenderStats[gender];
             activeStats.averageRounds = activeStats.count > 0 ? activeStats.totalRounds / activeStats.count : 0;
-            activeStats.averageKilometers = activeStats.count > 0 ? activeStats.totalKilometers / activeStats.count : 0;
             activeStats.averageDonations = activeStats.count > 0 ? activeStats.totalDonations / activeStats.count : 0;
             activeStats.averageDonationsPerRound = activeStats.totalRounds > 0 ? activeStats.totalDonations / activeStats.totalRounds : 0;
-            activeStats.averageDonationsPerKm = activeStats.totalKilometers > 0 ? activeStats.totalDonations / activeStats.totalKilometers : 0;
 
             // Top-Performer nach Runden sortieren
             activeStats.topPerformers.sort((a, b) => b.rounds - a.rounds);
@@ -249,7 +242,6 @@ const calculateGradeStats = (classStats) => {
                 totalActiveStudents: 0,
                 totalRounds: 0,
                 totalDonations: 0,
-                totalKilometers: 0,
                 averageRoundsPerStudent: 0,
                 averageDonationsPerStudent: 0,
                 averageDonationsPerRound: 0,
@@ -263,8 +255,7 @@ const calculateGradeStats = (classStats) => {
         gradeStats[grade].totalStudents += classData.studentCount;
         gradeStats[grade].totalActiveStudents += classData.activeStudents;
         gradeStats[grade].totalRounds += classData.totalRounds;
-        gradeStats[grade].totalDonations += classData.expectedDonations + classData.receivedDonations;
-        gradeStats[grade].totalKilometers += classData.totalKilometers;
+        gradeStats[grade].totalDonations += classData.expectedDonations;  // Nur erwartete Spenden
     });
 
     // Durchschnitte und Extremwerte berechnen
@@ -297,10 +288,9 @@ const calculateClassRankings = (classStats) => {
         averageRounds: stats.activeStudents > 0 ? stats.totalRounds / stats.activeStudents : 0,
         averageRoundsPerStudent: stats.studentCount > 0 ? stats.totalRounds / stats.studentCount : 0,
         participationRate: (stats.activeStudents / stats.studentCount) * 100,
-        totalDonations: stats.expectedDonations + stats.receivedDonations,
-        averageDonationsPerStudent: stats.studentCount > 0 ? (stats.expectedDonations + stats.receivedDonations) / stats.studentCount : 0,
-        averageDonationsPerRound: stats.totalRounds > 0 ? (stats.expectedDonations + stats.receivedDonations) / stats.totalRounds : 0,
-        averageKilometersPerStudent: stats.studentCount > 0 ? stats.totalKilometers / stats.studentCount : 0
+        totalDonations: stats.expectedDonations, // Fokus auf erwartete Spenden
+        averageDonationsPerStudent: stats.studentCount > 0 ? stats.expectedDonations / stats.studentCount : 0,
+        averageDonationsPerRound: stats.totalRounds > 0 ? stats.expectedDonations / stats.totalRounds : 0
     }));
 
     return {
@@ -309,7 +299,6 @@ const calculateClassRankings = (classStats) => {
         byTotalDonations: [...baseRanking].sort((a, b) => b.totalDonations - a.totalDonations),
         byAverageDonationsPerStudent: [...baseRanking].sort((a, b) => b.averageDonationsPerStudent - a.averageDonationsPerStudent),
         byParticipationRate: [...baseRanking].sort((a, b) => b.participationRate - a.participationRate),
-        byTotalKilometers: [...baseRanking].sort((a, b) => b.totalKilometers - a.totalKilometers),
         byEfficiency: [...baseRanking].sort((a, b) => b.averageDonationsPerRound - a.averageDonationsPerRound)
     };
 };
@@ -319,14 +308,14 @@ const calculateTopPerformers = (students) => {
     return {
         topRunners: students.filter(s => s.rounds > 0).sort((a, b) => b.rounds - a.rounds).slice(0, 20),
         topFundraisers: students
-            .filter(s => (s.expected_donations + s.received_donations) > 0)
-            .sort((a, b) => (b.expected_donations + b.received_donations) - (a.expected_donations + a.received_donations))
+            .filter(s => s.expected_donations > 0)
+            .sort((a, b) => b.expected_donations - a.expected_donations)
             .slice(0, 20),
         topEfficiency: students
             .filter(s => s.rounds > 0)
             .sort((a, b) => {
-                const aEff = (a.expected_donations + a.received_donations) / a.rounds;
-                const bEff = (b.expected_donations + b.received_donations) / b.rounds;
+                const aEff = a.expected_donations / a.rounds;
+                const bEff = b.expected_donations / b.rounds;
                 return bEff - aEff;
             })
             .slice(0, 10),
@@ -347,29 +336,6 @@ const normalizeGender = (gender) => {
     }
 };
 
-// Distanz-Vergleiche
-const calculateDistanceComparisons = (totalKm) => {
-    const comparisons = [];
-
-    if (totalKm >= 1450) {
-        comparisons.push(`🌍 Von Berlin nach Rom (${Math.round(totalKm / 1450)} mal)`);
-    }
-    if (totalKm >= 925) {
-        comparisons.push(`🗼 Von Berlin nach Paris (${Math.round(totalKm / 925)} mal)`);
-    }
-    if (totalKm >= 600) {
-        comparisons.push(`🏔️ Von München nach Hamburg (${Math.round(totalKm / 600)} mal)`);
-    }
-    if (totalKm >= 42.195) {
-        comparisons.push(`🏃‍♂️ ${Math.round(totalKm / 42.195)} Marathon-Distanzen`);
-    }
-    if (totalKm >= 10) {
-        comparisons.push(`🚶‍♀️ ${Math.round(totalKm / 10)} mal um einen großen See`);
-    }
-
-    return comparisons;
-};
-
 // Helden und besondere Leistungen finden
 const findHeroes = (students, classStats) => {
     const heroes = {
@@ -385,7 +351,7 @@ const findHeroes = (students, classStats) => {
 
     // Top-Spender
     heroes.topFundraiser = students
-        .sort((a, b) => (b.expected_donations + b.received_donations) - (a.expected_donations + a.received_donations))[0];
+        .sort((a, b) => b.expected_donations - a.expected_donations)[0];
 
     // Meiste Runden
     heroes.mostRounds = students
@@ -395,8 +361,8 @@ const findHeroes = (students, classStats) => {
     heroes.bestEfficiency = students
         .filter(s => s.rounds > 0)
         .sort((a, b) => {
-            const aEff = (a.expected_donations + a.received_donations) / a.rounds;
-            const bEff = (b.expected_donations + b.received_donations) / b.rounds;
+            const aEff = a.expected_donations / a.rounds;
+            const bEff = b.expected_donations / b.rounds;
             return bEff - aEff;
         })[0];
 
@@ -984,16 +950,9 @@ const createStatisticsHTML = (stats) => {
                     
                     <div class="stat-card">
                         <span class="icon">💰</span>
-                        <div class="title">Gesamt Spenden</div>
+                        <div class="title">Erwartete Spenden</div>
                         <div class="value">${formatCurrency(stats.totalDonations)}</div>
-                        <div class="subtitle">Erwartet + Erhalten</div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <span class="icon">🏃‍♀️</span>
-                        <div class="title">Gesamt Kilometer</div>
-                        <div class="value">${stats.totalKilometers.toFixed(1)} km</div>
-                        <div class="subtitle">∅ ${stats.averageKilometersPerActiveStudent.toFixed(2)} km pro Läufer</div>
+                        <div class="subtitle">Basis der Auswertung</div>
                     </div>
                     
                     <div class="stat-card">
@@ -1029,14 +988,10 @@ const createStatisticsHTML = (stats) => {
                         </div>
                         <div class="insight-item">
                             <strong>💎 Top-Spendensammler:</strong><br>
-                            ${insights.topFundraiser ? `${insights.topFundraiser.vorname} ${insights.topFundraiser.nachname} (${formatCurrency(insights.topFundraiser.expected_donations + insights.topFundraiser.received_donations)})` : 'Keine Daten'}
+                            ${insights.topFundraiser ? `${insights.topFundraiser.vorname} ${insights.topFundraiser.nachname} (${formatCurrency(insights.topFundraiser.expected_donations)})` : 'Keine Daten'}
                         </div>
                         <div class="insight-item">
-                            <strong>🌍 Distanz-Vergleich:</strong><br>
-                            ${stats.distanceComparisons && stats.distanceComparisons.length > 0 ? stats.distanceComparisons[0] : `${stats.totalKilometers.toFixed(1)} km gelaufen`}
-                        </div>
-                        <div class="insight-item">
-                            <strong>🎉 Teilnahmequote:</strong><br>
+                            <strong> Teilnahmequote:</strong><br>
                             ${stats.participationRate.toFixed(1)}% aller Schüler sind gelaufen
                         </div>
                     </div>
@@ -1156,7 +1111,7 @@ const createStatisticsHTML = (stats) => {
                             </thead>
                             <tbody>
                                 ${topFundraisers.slice(0, 20).map((fundraiser, index) => {
-        const totalDonations = fundraiser.expected_donations + fundraiser.received_donations;
+        const totalDonations = fundraiser.expected_donations;
         const isTopThree = index < 3;
         const trophyIcon = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '';
         return `
@@ -1274,7 +1229,6 @@ const createStatisticsHTML = (stats) => {
                                     <th>Aktive</th>
                                     <th>Teilnahme %</th>
                                     <th>∅ Runden</th>
-                                    <th>Gesamt km</th>
                                     <th>∅ Spenden</th>
                                     <th>Beste Klasse</th>
                                 </tr>
@@ -1291,12 +1245,11 @@ const createStatisticsHTML = (stats) => {
                                             <td>${gradeData.totalActiveStudents}</td>
                                             <td>${gradeData.participationRate.toFixed(1)}%</td>
                                             <td>${gradeData.averageRoundsPerStudent.toFixed(1)}</td>
-                                            <td>${gradeData.totalKilometers.toFixed(1)} km</td>
                                             <td>${formatCurrency(gradeData.averageDonationsPerStudent)}</td>
                                             <td>${gradeData.bestClass ? gradeData.bestClass.klasse : '-'}</td>
                                         </tr>
                                     `).join('')
-            : '<tr><td colspan="9">Keine Klassenstufen-Daten verfügbar</td></tr>'}
+            : '<tr><td colspan="8">Keine Klassenstufen-Daten verfügbar</td></tr>'}
                             </tbody>
                         </table>
                     </div>
@@ -1314,7 +1267,6 @@ const createStatisticsHTML = (stats) => {
                                 <th>Aktive</th>
                                 <th>Teilnahme %</th>
                                 <th>∅ Runden</th>
-                                <th>Gesamt km</th>
                                 <th>∅ Spenden</th>
                                 <th>∅ €/Runde</th>
                                 <th>Bester Läufer</th>
@@ -1337,7 +1289,6 @@ const createStatisticsHTML = (stats) => {
                                         <td>${activeCount >= 0 ? activeCount : data.count}</td>
                                         <td>${data.participationRate.toFixed(1)}%</td>
                                         <td>${avgRounds}</td>
-                                        <td>${((data.totalRounds * 400) / 1000).toFixed(1)} km</td>
                                         <td>${formatCurrency(data.totalDonations / Math.max(data.count, 1))}</td>
                                         <td>${data.totalRounds > 0 ? formatCurrency(data.totalDonations / data.totalRounds) : formatCurrency(0)}</td>
                                         <td>${topRunner}</td>
@@ -1446,13 +1397,13 @@ const createStatisticsHTML = (stats) => {
                             ${stats.heroes.topFundraiser ? `
                             <div class="insight-item">
                                 <strong>💰 Spenden-Champion:</strong><br>
-                                ${stats.heroes.topFundraiser.vorname} ${stats.heroes.topFundraiser.nachname} (${formatCurrency(stats.heroes.topFundraiser.expected_donations + stats.heroes.topFundraiser.received_donations)})
+                                ${stats.heroes.topFundraiser.vorname} ${stats.heroes.topFundraiser.nachname} (${formatCurrency(stats.heroes.topFundraiser.expected_donations)})
                             </div>
                             ` : ''}
                             ${stats.heroes.bestEfficiency ? `
                             <div class="insight-item">
                                 <strong>⚡ Effizienz-Champion:</strong><br>
-                                ${stats.heroes.bestEfficiency.vorname} ${stats.heroes.bestEfficiency.nachname} (${formatCurrency((stats.heroes.bestEfficiency.expected_donations + stats.heroes.bestEfficiency.received_donations) / stats.heroes.bestEfficiency.rounds)} pro Runde)
+                                ${stats.heroes.bestEfficiency.vorname} ${stats.heroes.bestEfficiency.nachname} (${formatCurrency(stats.heroes.bestEfficiency.expected_donations / stats.heroes.bestEfficiency.rounds)} pro Runde)
                             </div>
                             ` : ''}
                             ${stats.heroes.bestSmallClass ? `
@@ -1475,28 +1426,22 @@ const createStatisticsHTML = (stats) => {
                     <div class="insights-grid">
                         <div class="insight-item">
                             <strong>💰 Durchschnitt pro Schüler (alle):</strong><br>
-                            ${formatCurrency(stats.averageDonationsPerStudent)} | ${stats.averageKilometersPerStudent.toFixed(2)} km
+                            ${formatCurrency(stats.averageDonationsPerStudent)}
                         </div>
                         <div class="insight-item">
                             <strong>🏃‍♂️ Durchschnitt pro aktivem Läufer:</strong><br>
-                            ${formatCurrency(stats.averageDonationsPerActiveStudent)} | ${stats.averageKilometersPerActiveStudent.toFixed(2)} km
+                            ${formatCurrency(stats.averageDonationsPerActiveStudent)}
                         </div>
                         <div class="insight-item">
                             <strong>⚡ Effizienz pro Runde:</strong><br>
-                            ${formatCurrency(stats.averageDonationsPerRound)} | 400m pro Runde
+                            ${formatCurrency(stats.averageDonationsPerRound)} pro Runde
                         </div>
                         <div class="insight-item">
                             <strong>🎯 Bester Effizienz-Wert:</strong><br>
                             ${stats.heroes && stats.heroes.bestEfficiency ?
             `${stats.heroes.bestEfficiency.vorname} ${stats.heroes.bestEfficiency.nachname} 
-                               (${formatCurrency((stats.heroes.bestEfficiency.expected_donations + stats.heroes.bestEfficiency.received_donations) / stats.heroes.bestEfficiency.rounds)} pro Runde)`
+                               (${formatCurrency(stats.heroes.bestEfficiency.expected_donations / stats.heroes.bestEfficiency.rounds)} pro Runde)`
             : 'Keine Daten'}
-                        </div>
-                        <div class="insight-item">
-                            <strong>🌍 Distanz-Einordnung:</strong><br>
-                            ${stats.distanceComparisons && stats.distanceComparisons.length > 0 ?
-            stats.distanceComparisons.slice(0, 2).join('<br>') :
-            `${stats.totalKilometers.toFixed(1)} km Gesamtdistanz`}
                         </div>
                         <div class="insight-item">
                             <strong>📈 Teilnahme-Erfolg:</strong><br>
@@ -1524,7 +1469,7 @@ const createStatisticsHTML = (stats) => {
             const topAvgRounds = topRunners.length > 0 ?
                 topRunners.reduce((sum, r) => sum + r.rounds, 0) / topRunners.length : 0;
             const topAvgDonations = topRunners.length > 0 ?
-                topRunners.reduce((sum, r) => sum + r.expected_donations + r.received_donations, 0) / topRunners.length : 0;
+                topRunners.reduce((sum, r) => sum + r.expected_donations, 0) / topRunners.length : 0;
 
             const roundsFactor = stats.averageRounds > 0 ? (topAvgRounds / stats.averageRounds).toFixed(1) : '-';
             const donationsFactor = stats.averageDonationsPerActiveStudent > 0 ? (topAvgDonations / stats.averageDonationsPerActiveStudent).toFixed(1) : '-';
@@ -1541,12 +1486,6 @@ const createStatisticsHTML = (stats) => {
                                             <td>${formatCurrency(topAvgDonations)}</td>
                                             <td>${formatCurrency(stats.averageDonationsPerActiveStudent)}</td>
                                             <td><strong>${donationsFactor}x</strong></td>
-                                        </tr>
-                                        <tr>
-                                            <td><strong>Kilometer</strong></td>
-                                            <td>${(topAvgRounds * 0.4).toFixed(1)} km</td>
-                                            <td>${(stats.averageRounds * 0.4).toFixed(1)} km</td>
-                                            <td><strong>${roundsFactor}x</strong></td>
                                         </tr>
                                     `;
         })()}
@@ -1586,80 +1525,13 @@ const createStatisticsHTML = (stats) => {
                                     <td>Runden</td>
                                 </tr>
                                 <tr>
-                                    <td><strong>Gesamtdistanz</strong></td>
-                                    <td>${stats.totalKilometers.toFixed(1)}</td>
-                                    <td>km</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Gesamtspenden</strong></td>
+                                    <td><strong>Erwartete Spenden</strong></td>
                                     <td>${formatCurrency(stats.totalDonations)}</td>
                                     <td>€</td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
-                </div>
-                
-                <!-- Erweiterte Distanz-Vergleiche -->
-                ${stats.distanceComparisons && stats.distanceComparisons.length > 0 ? `
-                <div class="table-container">
-                    <div class="table-header">🌍 Erweiterte Distanz-Vergleiche</div>
-                    <div style="padding: 2rem;">
-                        <div class="insights-grid">
-                            ${stats.distanceComparisons.map(comparison => `
-                                <div class="insight-item">
-                                    <strong>${comparison}</strong>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                </div>
-                ` : ''}
-                
-                <!-- Klassengrößen-Analyse -->
-                <div class="table-container">
-                    <div class="table-header">📏 Klassengrößen vs. Leistung</div>
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Klassengröße</th>
-                                <th>Anzahl Klassen</th>
-                                <th>∅ Runden pro Klasse</th>
-                                <th>∅ Runden pro Schüler</th>
-                                <th>∅ Teilnahme %</th>
-                                <th>∅ Spenden pro Klasse</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${(() => {
-            const classRanking = classRankingByAverage;
-            const sizeCategories = {
-                'Klein (< 20)': classRanking.filter(c => c.studentCount < 20),
-                'Mittel (20-25)': classRanking.filter(c => c.studentCount >= 20 && c.studentCount <= 25),
-                'Groß (> 25)': classRanking.filter(c => c.studentCount > 25)
-            };
-
-            return Object.entries(sizeCategories).map(([size, classes]) => {
-                if (classes.length === 0) return '';
-                const avgRoundsPerClass = classes.reduce((sum, c) => sum + c.totalRounds, 0) / classes.length;
-                const avgRoundsPerStudent = classes.reduce((sum, c) => sum + c.averageRoundsPerStudent, 0) / classes.length;
-                const avgParticipation = classes.reduce((sum, c) => sum + c.participationRate, 0) / classes.length;
-                const avgDonationsPerClass = classes.reduce((sum, c) => sum + c.totalDonations, 0) / classes.length;
-
-                return `
-                                        <tr>
-                                            <td><strong>${size}</strong></td>
-                                            <td>${classes.length}</td>
-                                            <td>${avgRoundsPerClass.toFixed(1)}</td>
-                                            <td>${avgRoundsPerStudent.toFixed(1)}</td>
-                                            <td>${avgParticipation.toFixed(1)}%</td>
-                                            <td>${formatCurrency(avgDonationsPerClass)}</td>
-                                        </tr>
-                                    `;
-            }).join('');
-        })()}
-                        </tbody>
-                    </table>
                 </div>
             </div>
         </div>
@@ -1870,8 +1742,8 @@ export default async function handler(req, res) {
     }
 
     try {
-        const students = await loadDataForHtml();
-        const stats = calculateStatsForHtml(students);
+        const { students, classGradeMap } = await loadDataForHtml();
+        const stats = calculateStatsForHtml(students, classGradeMap);
         const htmlContent = createStatisticsHTML(stats);
 
         res.setHeader('Content-Type', 'text/html; charset=utf-8');

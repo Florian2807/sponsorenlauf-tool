@@ -6,7 +6,7 @@ import { useGlobalError } from '../contexts/ErrorContext';
 import { useModuleConfig } from '../contexts/ModuleConfigContext';
 import { useDialogs } from '../hooks/useDialogs';
 import GenerateLabelsDialog from '../components/dialogs/setup/GenerateLabelsDialog';
-import ExportSpendenDialog from '../components/dialogs/setup/ExportSpendenDialog';
+import AdvancedExportDialog from '../components/dialogs/statistics/AdvancedExportDialog';
 import DetailedDeleteDialog from '../components/dialogs/setup/DetailedDeleteDialog';
 import ClassStructureDialog from '../components/dialogs/setup/ClassStructureDialog';
 import DataImportDialog from '../components/dialogs/setup/DataImportDialog';
@@ -20,6 +20,8 @@ export default function Setup() {
     const [selectedClasses, setSelectedClasses] = useState([]);
     const [classStructure, setClassStructure] = useState({});
     const [tempClassStructure, setTempClassStructure] = useState({});
+    const [exportDialogOpen, setExportDialogOpen] = useState(false);
+    const [stats, setStats] = useState(null);
 
     const { request } = useApi();
     const { showError, showSuccess } = useGlobalError();
@@ -33,7 +35,7 @@ export default function Setup() {
 
     // Dialog-Management
     const { refs: dialogRefs, openDialog, closeDialog } = useDialogs([
-        'generateLabels', 'detailedDelete', 'exportSpenden',
+        'generateLabels', 'detailedDelete',
         'classStructure', 'dataImport', 'moduleSettings'
     ]);
 
@@ -100,45 +102,66 @@ export default function Setup() {
         showSuccess('Löschvorgang erfolgreich abgeschlossen.', 'Daten gelöscht');
     }, [closeDialog, fetchClasses, fetchClassStructure, showSuccess]);
 
-    const downloadResults = useCallback(async (type) => {
-        const downloadOperation = async () => {
-            const response = await request(API_ENDPOINTS.EXPORT_SPENDEN, {
-                responseType: 'blob',
-                params: { requestedType: type },
-                errorContext: 'Beim Herunterladen der Excel-Datei'
-            });
-            return response;
-        };
-
+    const handleExport = useCallback(async (exportData) => {
         try {
-            const response = await executeAsync(downloadOperation, 'downloadResults');
-            const filename = type === 'allstudents' ? 'Auswertung_Gesamt.xlsx' : 'Auswertung_Klassen.xlsx';
-            downloadFile(response, filename);
-            showSuccess(`${filename} erfolgreich heruntergeladen.`, 'Excel-Export');
+            if (exportData.format === 'excel-spenden-klassen') {
+                // Für die neue klassenweise Spendenauswertung
+                const response = await request('/api/exportSpendenKlassen', {
+                    responseType: 'blob'
+                });
+                downloadFile(response, 'klassenauswertungen_spenden.xlsx');
+                showSuccess('Klassenweise Spendenauswertung erfolgreich exportiert');
+            } else if (exportData.format === 'html') {
+                // Für HTML-Export die bestehende Route verwenden
+                const response = await request(API_ENDPOINTS.EXPORT_STATISTICS_HTML, {
+                    responseType: 'blob'
+                });
+                downloadFile(response, 'sponsorenlauf_statistiken_interaktiv.html');
+                showSuccess('HTML-Report erfolgreich exportiert');
+            } else if (exportData.format === 'excel-complete') {
+                // Für Excel-Complete die bestehende Route verwenden
+                const response = await request(`${API_ENDPOINTS.EXPORT_EXCEL}?type=complete`, {
+                    responseType: 'blob'
+                });
+                downloadFile(response, 'sponsorenlauf_gesamtauswertung.xlsx');
+                showSuccess('Excel-Gesamtauswertung erfolgreich exportiert');
+            } else if (exportData.format === 'excel-classes') {
+                // Für Excel-Classes die bestehende Route verwenden
+                const response = await request(`${API_ENDPOINTS.EXPORT_EXCEL}?type=class-wise`, {
+                    responseType: 'blob'
+                });
+                downloadFile(response, 'sponsorenlauf_klassenweise.zip');
+                showSuccess('Excel-Klassendateien erfolgreich exportiert');
+            } else {
+                // Für andere Formate die neue erweiterte API verwenden
+                const response = await request('/api/advancedExport', {
+                    method: 'POST',
+                    data: exportData,
+                    responseType: 'blob'
+                });
+
+                let filename = 'sponsorenlauf_export';
+                switch (exportData.format) {
+                    case 'pdf-summary':
+                        filename += '.pdf';
+                        break;
+                    default:
+                        filename += '.html';
+                }
+
+                downloadFile(response, filename);
+                showSuccess('Export erfolgreich erstellt');
+            }
+
+            setExportDialogOpen(false);
         } catch (error) {
-            // Fehler wird automatisch über useApi gehandelt
+            showError(error, 'Beim Export der Auswertung');
         }
-    }, [request, executeAsync, showSuccess]);
+    }, [request, showError, showSuccess]);
 
-
-
-    const downloadHtmlReport = useCallback(async () => {
-        const downloadOperation = async () => {
-            const response = await request(API_ENDPOINTS.EXPORT_STATISTICS_HTML, {
-                responseType: 'blob',
-                errorContext: 'Beim Erstellen des HTML-Reports'
-            });
-            return response;
-        };
-
-        try {
-            const response = await executeAsync(downloadOperation, 'downloadResults');
-            downloadFile(response, 'Sponsorenlauf_Statistiken.html');
-            showSuccess('HTML-Web-Report erfolgreich heruntergeladen.', 'HTML-Export');
-        } catch (error) {
-            // Fehler wird automatisch über useApi gehandelt
-        }
-    }, [request, executeAsync, showSuccess]);
+    const handleExportButtonClick = useCallback(() => {
+        setExportDialogOpen(true);
+    }, []);
 
     const handleClassSelection = (e) => {
         const value = e.target.value;
@@ -338,11 +361,11 @@ export default function Setup() {
 
                             {isDonationsEnabled && (
                                 <button
-                                    onClick={() => openDialog('exportSpenden')}
+                                    onClick={handleExportButtonClick}
                                     className="setup-action-btn"
                                 >
                                     <span className="setup-btn-icon">📊</span>
-                                    <span className="setup-btn-text">Spenden-Export</span>
+                                    <span className="setup-btn-text">Auswertungen exportieren</span>
                                 </button>
                             )}
                         </div>
@@ -389,11 +412,13 @@ export default function Setup() {
             />
 
             {isDonationsEnabled && (
-                <ExportSpendenDialog
-                    dialogRef={dialogRefs.exportSpendenRef}
-                    downloadResults={downloadResults}
-                    downloadHtmlReport={downloadHtmlReport}
-                    loading={loading}
+                <AdvancedExportDialog
+                    isOpen={exportDialogOpen}
+                    onClose={() => setExportDialogOpen(false)}
+                    onExport={handleExport}
+                    showSpendenExport={true}
+                    loading={loading.downloadResults}
+                    statistics={stats}
                 />
             )}
 

@@ -477,7 +477,7 @@ const DataImportDialog = ({ dialogRef, onImportSuccess, onClose }) => {
                             <div className="import-info-box">
                                 <p><strong>✅ Excel-Datei erfolgreich geladen!</strong></p>
                                 <p>Sie können die Daten jetzt bearbeiten, Zeilen hinzufügen oder entfernen.
-                                    Klicken Sie auf "Importieren", wenn Sie fertig sind.</p>
+                                    Klicken Sie auf &quot;Importieren&quot;, wenn Sie fertig sind.</p>
                             </div>
 
                             <table className="table">

@@ -15,7 +15,7 @@ export const API_ENDPOINTS = {
 };
 
 // Database configuration
-export const DATABASE_PATH = './data/database.db';
+export const DATABASE_PATH = './database.db';
 
 // Utility-Funktionen für Downloads
 export const downloadFile = (blob, filename) => {

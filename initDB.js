@@ -1,6 +1,6 @@
 import sqlite3 from 'sqlite3';
 
-const db = new sqlite3.Database('./data/database.db');
+const db = new sqlite3.Database('./database.db');
 
 // Create a new table if it does not exist
 db.serialize(() => {

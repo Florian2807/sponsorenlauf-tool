@@ -76,25 +76,13 @@ Schau dir die [Anleitung](/raspberrySetup.md) an, wie du den Raspberry Pi instal
 > sudo apt install git
 > ```
 
-2. **Kopiere die Beispieldaten**:
-    ```bash
-    mkdir data
-    cp exampleData/* data/
-    ```
 
-3. **Config Datei anpassen**:
-    
-    Bearbeite die Config so, dass es auf eure Schule passt.
-    ```bash
-    nano data/config.json
-    ```
-
-4. **Installiere alle benötigten Pakete**:
+2. **Installiere alle benötigten Pakete**:
     ```bash
     npm install
     ```
 
-5. **Initialisiere die Datenbank**:
+3. **Initialisiere die Datenbank**:
     ```bash
     node initDB.js
     ```

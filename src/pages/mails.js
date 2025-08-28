@@ -10,6 +10,9 @@ import MailTemplateSelector from '../components/dialogs/mails/MailTemplateSelect
 export default function MailsPage() {
     const { config } = useModuleConfig();
 
+    const [internetConnected, setInternetConnected] = useState(null);
+    const [connectivityLoading, setConnectivityLoading] = useState(false);
+
     const [fileData, setFileData] = useState({
         file: null,
         email: '',
@@ -89,6 +92,20 @@ SV-Team`
     const { request } = useApi();
     const { showError, showSuccess } = useGlobalError();
     const sendMailsPopup = useRef(null);
+
+    // Internet-Konnektivität prüfen
+    const checkInternetConnectivity = async () => {
+        setConnectivityLoading(true);
+        try {
+            const response = await request('/api/check-connectivity');
+            setInternetConnected(response.connected);
+        } catch (error) {
+            console.error('Fehler beim Prüfen der Internetverbindung:', error);
+            setInternetConnected(false);
+        } finally {
+            setConnectivityLoading(false);
+        }
+    };
 
     // Helper-Funktionen
     const initializeEmptyFields = (availableClasses, mode = 'manual') => {
@@ -195,6 +212,19 @@ SV-Team`
         };
 
         fetchAllTeachers();
+        
+        // Prüfe Internetverbindung beim Laden der Seite
+        checkInternetConnectivity();
+
+        // Prüfe Internetverbindung alle 30 Sekunden automatisch
+        const connectivityInterval = setInterval(() => {
+            checkInternetConnectivity();
+        }, 30000);
+
+        // Cleanup beim Unmount
+        return () => {
+            clearInterval(connectivityInterval);
+        };
     }, [config.teachers, request, showError]);
 
     const handleLogin = async () => {
@@ -532,10 +562,51 @@ SV-Team`
                 </p>
 
                 {!Object.keys(teacherData.files).length && (
-                    <div className="text-center" style={{ marginTop: '2rem' }}>
+                    <div className="email-start-section">
+                        {/* Kompakte Internet-Konnektivitätsstatus */}
+                        <div className="connectivity-check-compact">
+                            <div className="connectivity-status-compact">
+                                {connectivityLoading ? (
+                                    <span className="connectivity-badge loading">
+                                        <span className="spinner-mini"></span>
+                                        Prüfe Verbindung...
+                                    </span>
+                                ) : internetConnected === true ? (
+                                    <span className="connectivity-badge connected">
+                                        ✅ Internet verfügbar
+                                    </span>
+                                ) : internetConnected === false ? (
+                                    <span className="connectivity-badge disconnected">
+                                        ❌ Keine Internetverbindung
+                                    </span>
+                                ) : (
+                                    <span className="connectivity-badge unknown">
+                                        ⏳ Verbindung prüfen...
+                                    </span>
+                                )}
+                                
+                                <button 
+                                    className="connectivity-refresh-compact"
+                                    onClick={checkInternetConnectivity}
+                                    disabled={connectivityLoading}
+                                    title="Internetverbindung erneut prüfen"
+                                >
+                                    🔄
+                                </button>
+                            </div>
+                            
+                            {internetConnected === false && (
+                                <div className="connectivity-warning-compact">
+                                    ⚠️ E-Mail-Versand nicht möglich ohne Internetverbindung
+                                </div>
+                            )}
+                        </div>
+
                         <button
-                            className="btn btn-primary btn-lg mail-start-button"
+                            className={`btn btn-lg mail-start-button ${internetConnected === false ? 'btn-disabled' : 'btn-primary'}`}
                             onClick={() => sendMailsPopup.current.showModal()}
+                            disabled={internetConnected === false}
+                            title={internetConnected === false ? 'Internetverbindung erforderlich' : ''}
                         >
                             <span className="button-icon">🚀</span>
                             E-Mail-Versand starten
@@ -553,6 +624,9 @@ SV-Team`
                 handleLogin={handleLogin}
                 status={status}
                 handleUpload={handleUpload}
+                internetConnected={internetConnected}
+                connectivityLoading={connectivityLoading}
+                checkInternetConnectivity={checkInternetConnectivity}
             />
 
             {/* Teacher Email Configuration - Only show after files are loaded */}
@@ -679,8 +753,9 @@ SV-Team`
 
                         <button
                             onClick={handleSendEmails}
-                            className="btn btn-success send-button"
-                            disabled={status.sendMailLoading}
+                            className={`btn send-button ${internetConnected === false ? 'btn-secondary' : 'btn-success'}`}
+                            disabled={status.sendMailLoading || internetConnected === false}
+                            title={internetConnected === false ? 'Internetverbindung erforderlich' : ''}
                         >
                             <span className="button-icon">📤</span>
                             {status.sendMailLoading ? 'E-Mails werden gesendet...' : 'E-Mails jetzt senden'}

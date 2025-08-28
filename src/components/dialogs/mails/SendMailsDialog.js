@@ -9,7 +9,10 @@ const SendMailsDialog = ({
     handleLogin,
     status,
     handleUpload,
-    onTestEmail
+    onTestEmail,
+    internetConnected,
+    connectivityLoading,
+    checkInternetConnectivity
 }) => {
     const [emailProvider, setEmailProvider] = useState('outlook');
 
@@ -46,13 +49,13 @@ const SendMailsDialog = ({
             label: 'Verbindung testen',
             onClick: () => handleLogin(),
             variant: 'primary',
-            disabled: !fileData.email || !fileData.password || status.loginLoading,
+            disabled: !fileData.email || !fileData.password || status.loginLoading || internetConnected === false,
         },
         {
             label: 'Weiter',
             variant: 'success',
             onClick: handleUpload,
-            disabled: !credentialsCorrect || status.uploadLoading
+            disabled: !credentialsCorrect || status.uploadLoading || internetConnected === false
         }
     ];
 
@@ -65,6 +68,32 @@ const SendMailsDialog = ({
             showDefaultClose={false}
         >
             <div className="mail-dialog-content">
+                {/* Kompakte Internet-Konnektivitätsstatus */}
+                <div className="connectivity-dialog-compact">
+                    {connectivityLoading ? (
+                        <div className="connectivity-badge-dialog loading">
+                            <span className="spinner-mini"></span>
+                            Prüfe Internetverbindung...
+                        </div>
+                    ) : internetConnected === true ? (
+                        <div className="connectivity-badge-dialog connected">
+                            ✅ Internetverbindung verfügbar
+                        </div>
+                    ) : internetConnected === false ? (
+                        <div className="connectivity-badge-dialog disconnected">
+                            ❌ Keine Internetverbindung - E-Mail-Versand nicht möglich
+                            <button 
+                                className="connectivity-retry-btn"
+                                onClick={checkInternetConnectivity}
+                                disabled={connectivityLoading}
+                                title="Erneut prüfen"
+                            >
+                                🔄
+                            </button>
+                        </div>
+                    ) : null}
+                </div>
+
                 <div className="mail-config-section">
                     <h3 className="section-subtitle">
                         <span className="subtitle-icon">📧</span>

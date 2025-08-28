@@ -87,6 +87,11 @@ Schau dir die [Anleitung](/raspberrySetup.md) an, wie du den Raspberry Pi instal
     node initDB.js
     ```
 
+4. **Erstelle das Build**:
+    ```bash
+    npm run build
+    ```
+
 ---
 
 ## ⏩ Systemd - Prozessmanagement
@@ -228,6 +233,31 @@ Um den Raspberry Pi als Router zu nutzen, folge diesen Schritten:
     ```bash
     sudo reboot
     ```
+
+---
+
+## 🌐 Zugriff auf die Anwendung im Netzwerk
+
+Nach der Einrichtung kannst du die Sponsorenlauf-Anwendung auf verschiedene Weise erreichen:
+
+### 📱 Einfacher Zugriff über DNS
+Die Anwendung ist über den konfigurierten DNS-Eintrag erreichbar:
+- **URL**: `http://sponsorenlauf.de`
+- **Alternative**: `http://www.sponsorenlauf.de`
+
+### 🔢 Direkter IP-Zugriff
+Falls der DNS-Eintrag nicht funktioniert, kannst du direkt über die IP-Adresse zugreifen:
+- **Raspberry Pi IP**: `http://10.0.0.1`
+- **Mit Port**: `http://10.0.0.1:3000` (falls die Port-Weiterleitung nicht aktiv ist)
+
+### ✅ Verbindungstest
+Um sicherzustellen, dass alles funktioniert:
+1. Verbinde dein Gerät mit dem WLAN `Sponsorenlauf Backend`
+2. Öffne einen Browser und gehe zu `http://sponsorenlauf.de`
+3. Die Sponsorenlauf-Anwendung sollte sich öffnen
+
+> [!TIP]
+> **Port-Weiterleitung**: Die iptables-Regel leitet automatisch HTTP-Traffic (Port 80) auf den Node.js-Server (Port 3000) weiter, sodass du keine Portnummer in der URL angeben musst.
 
 ---
 

@@ -9,7 +9,7 @@ import GenerateLabelsDialog from '../components/dialogs/setup/GenerateLabelsDial
 import AdvancedExportDialog from '../components/dialogs/statistics/AdvancedExportDialog';
 import DetailedDeleteDialog from '../components/dialogs/setup/DetailedDeleteDialog';
 import ClassStructureDialog from '../components/dialogs/setup/ClassStructureDialog';
-import DataImportDialog from '../components/dialogs/setup/DataImportDialog';
+import CombinedImportDialog from '../components/dialogs/setup/CombinedImportDialog';
 import ModuleSettingsDialog from '../components/dialogs/setup/ModuleSettingsDialog';
 
 export default function Setup() {
@@ -36,7 +36,7 @@ export default function Setup() {
     // Dialog-Management
     const { refs: dialogRefs, openDialog, closeDialog } = useDialogs([
         'generateLabels', 'detailedDelete',
-        'classStructure', 'dataImport', 'moduleSettings'
+        'classStructure', 'combinedImport', 'moduleSettings'
     ]);
 
     // Fetch-Funktionen mit useCallback für stabile Referenzen
@@ -66,10 +66,11 @@ export default function Setup() {
         fetchClassStructure();
     }, [fetchClasses, fetchClassStructure]);
 
-    const handleImportSuccess = (count) => {
+    const handleImportSuccess = (count, type) => {
         setInsertedCount(count);
-        closeDialog('dataImport');
+        closeDialog('combinedImport');
         fetchClasses(); // Refresh classes in case new ones were added
+        showSuccess(`${count} ${type === 'students' ? 'Schüler' : 'Lehrer'} erfolgreich importiert`, 'Daten-Import');
     };
 
     const handleGenerateLabels = useCallback(async () => {
@@ -292,12 +293,12 @@ export default function Setup() {
                             </button>
 
                             <button
-                                onClick={() => openDialog('dataImport')}
+                                onClick={() => openDialog('combinedImport')}
                                 className="setup-action-btn"
                                 disabled={loading.upload}
                             >
                                 <span className="setup-btn-icon">📥</span>
-                                <span className="setup-btn-text">Schüler importieren</span>
+                                <span className="setup-btn-text">Daten importieren</span>
                             </button>
 
                             <button
@@ -405,10 +406,10 @@ export default function Setup() {
                 handleGenerateLabels={handleGenerateLabels}
             />
 
-            <DataImportDialog
-                dialogRef={dialogRefs.dataImportRef}
+            <CombinedImportDialog
+                dialogRef={dialogRefs.combinedImportRef}
                 onImportSuccess={handleImportSuccess}
-                onClose={() => closeDialog('dataImport')}
+                onClose={() => closeDialog('combinedImport')}
             />
 
             {isDonationsEnabled && (

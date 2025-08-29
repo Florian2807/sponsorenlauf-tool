@@ -157,21 +157,21 @@ Um den Raspberry Pi als Router zu nutzen, folge diesen Schritten:
       sudo nano /etc/hostapd/hostapd.conf
       ```
     - Füge folgendes hinzu:
-      ```bash
-      interface=wlan0
-      driver=nl80211
-      ssid=Sponsorenlauf Backend
-      hw_mode=g
-      channel=7
-      wmm_enabled=0
-      macaddr_acl=0
-      auth_algs=1
-      ignore_broadcast_ssid=0
-      wpa=2
-      wpa_passphrase=Sponsorenlauf!
-      wpa_key_mgmt=WPA-PSK
-      rsn_pairwise=CCMP
-      ```
+        ```bash
+        interface=wlan0
+        driver=nl80211
+        country_code=DE
+        ssid=Sponsorenlauf Backend
+        hw_mode=a
+        channel=44
+        ieee80211n=1
+        ieee80211ac=1
+        wmm_enabled=1
+        wpa=2
+        wpa_passphrase=Sponsorenlauf!
+        wpa_key_mgmt=WPA-PSK
+        rsn_pairwise=CCMP
+        ```
 
 4. **Hostapd aktivieren**:
     ```bash

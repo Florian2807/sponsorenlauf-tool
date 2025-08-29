@@ -31,7 +31,7 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
                 await updateDonationMode(localDonationMode);
             }
             showSuccess('Modul-Einstellungen erfolgreich gespeichert', 'Einstellungen');
-            dialogRef.current?.close();
+            dialogRef.current.close();
         } catch (error) {
             showError(error, 'Beim Speichern der Modul-Einstellungen');
         } finally {

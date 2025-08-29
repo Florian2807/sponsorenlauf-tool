@@ -5,14 +5,16 @@ import { useRef, useMemo } from 'react';
  * Reduziert Boilerplate-Code für mehrere Dialog-Refs
  */
 export const useDialogs = (dialogNames) => {
-    // Erstelle Refs für alle angegebenen Dialog-Namen
+    // Erstelle Refs für alle angegebenen Dialog-Namen auf oberster Ebene
+    const refsArray = dialogNames.map(() => useRef(null));
+    
     const refs = useMemo(() => {
         const refsObj = {};
-        dialogNames.forEach(name => {
-            refsObj[`${name}Ref`] = { current: null };
+        dialogNames.forEach((name, index) => {
+            refsObj[`${name}Ref`] = refsArray[index];
         });
         return refsObj;
-    }, [dialogNames]);
+    }, [dialogNames, refsArray]);
 
     // Helper-Funktionen für häufige Dialog-Operationen
     const openDialog = (name) => {

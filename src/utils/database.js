@@ -91,6 +91,37 @@ export const dbTransaction = (operations) => {
 };
 
 /**
+ * Führt einen Batch-Insert mit Transaktion aus
+ * @param {string} query SQL-Query mit Platzhaltern
+ * @param {Array} values Array mit allen Werten
+ * @returns {Promise<{lastID: number, changes: number}>} Ergebnis der Operation
+ */
+export const dbBatchInsert = (query, values) => {
+    return new Promise((resolve, reject) => {
+        const db = createDbConnection();
+        
+        db.serialize(() => {
+            db.run('BEGIN TRANSACTION');
+            
+            db.run(query, values, function (err) {
+                if (err) {
+                    db.run('ROLLBACK', () => {
+                        db.close();
+                        reject(err);
+                    });
+                } else {
+                    db.run('COMMIT', (commitErr) => {
+                        db.close();
+                        if (commitErr) reject(commitErr);
+                        else resolve({ lastID: this.lastID, changes: this.changes });
+                    });
+                }
+            });
+        });
+    });
+};
+
+/**
  * Bereitet eine SQL-Query mit Platzhaltern vor
  * @param {Array} items Array von Elementen
  * @returns {string} Platzhalter für SQL IN-Klausel

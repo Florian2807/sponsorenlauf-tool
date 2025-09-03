@@ -1,4 +1,4 @@
-import { dbAll, dbRun } from '../../utils/database.js';
+import { dbAll, dbBatchInsert } from '../../utils/database.js';
 import { handleMethodNotAllowed, handleError, handleSuccess, handleValidationError } from '../../utils/apiHelpers.js';
 
 function validateTeacher(teacher, index) {
@@ -81,21 +81,30 @@ export default async function handler(req, res) {
 
         let nextId = await getNextId();
 
-        // Insert teachers with automatically assigned IDs
-        for (const teacher of teachers) {
-            await dbRun(
-                'INSERT INTO teachers (id, vorname, nachname, klasse, email) VALUES (?, ?, ?, ?, ?)',
-                [
-                    nextId++,
-                    teacher.vorname.trim(),
-                    teacher.nachname.trim(),
-                    teacher.klasse?.trim() || null,
-                    teacher.email.trim()
-                ]
+        // Insert teachers in batches with automatically assigned IDs
+        const BATCH_SIZE = 500; // Process 500 teachers at a time
+        let totalInserted = 0;
+
+        for (let i = 0; i < teachers.length; i += BATCH_SIZE) {
+            const batch = teachers.slice(i, i + BATCH_SIZE);
+            const placeholders = batch.map(() => '(?, ?, ?, ?, ?)').join(', ');
+            const values = batch.flatMap((teacher) => [
+                nextId++,
+                teacher.vorname.trim(),
+                teacher.nachname.trim(),
+                teacher.klasse?.trim() || null,
+                teacher.email.trim()
+            ]);
+
+            await dbBatchInsert(
+                `INSERT INTO teachers (id, vorname, nachname, klasse, email) VALUES ${placeholders}`,
+                values
             );
+            
+            totalInserted += batch.length;
         }
 
-        return handleSuccess(res, { count: teachers.length }, `${teachers.length} Lehrer erfolgreich hinzugefügt`);
+        return handleSuccess(res, { count: totalInserted }, `${totalInserted} Lehrer erfolgreich hinzugefügt`);
 
     } catch (error) {
         return handleError(res, error, 500, 'Fehler beim Erstellen der Lehrer');

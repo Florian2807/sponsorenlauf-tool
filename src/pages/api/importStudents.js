@@ -1,4 +1,4 @@
-import { dbAll, dbRun } from '../../utils/database.js';
+import { dbAll, dbBatchInsert } from '../../utils/database.js';
 import { handleMethodNotAllowed, handleError, handleSuccess, handleValidationError } from '../../utils/apiHelpers.js';
 
 const VALID_GENDERS = ['männlich', 'weiblich', 'divers'];
@@ -56,15 +56,29 @@ export default async function handler(req, res) {
             }
         }
 
-        // Insert students
-        await Promise.all(students.map(({ vorname, nachname, geschlecht, klasse }) =>
-            dbRun(
-                'INSERT INTO students (vorname, nachname, geschlecht, klasse) VALUES (?, ?, ?, ?)',
-                [vorname.trim(), nachname.trim(), geschlecht || null, klasse.trim()]
-            )
-        ));
+        // Insert students in batches to handle very large datasets efficiently
+        const BATCH_SIZE = 500; // Process 500 students at a time
+        let totalInserted = 0;
 
-        return handleSuccess(res, { count: students.length }, `${students.length} Schüler erfolgreich hinzugefügt`);
+        for (let i = 0; i < students.length; i += BATCH_SIZE) {
+            const batch = students.slice(i, i + BATCH_SIZE);
+            const placeholders = batch.map(() => '(?, ?, ?, ?)').join(', ');
+            const values = batch.flatMap(({ vorname, nachname, geschlecht, klasse }) => [
+                vorname.trim(),
+                nachname.trim(),
+                geschlecht || null,
+                klasse.trim()
+            ]);
+
+            await dbBatchInsert(
+                `INSERT INTO students (vorname, nachname, geschlecht, klasse) VALUES ${placeholders}`,
+                values
+            );
+            
+            totalInserted += batch.length;
+        }
+
+        return handleSuccess(res, { count: totalInserted }, `${totalInserted} Schüler erfolgreich hinzugefügt`);
 
     } catch (error) {
         return handleError(res, error, 500, 'Fehler beim Erstellen der Schüler');

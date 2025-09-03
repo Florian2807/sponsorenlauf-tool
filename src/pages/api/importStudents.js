@@ -3,6 +3,19 @@ import { handleMethodNotAllowed, handleError, handleSuccess, handleValidationErr
 
 const VALID_GENDERS = ['männlich', 'weiblich', 'divers'];
 
+function formatGender(gender) {
+    if (!gender || typeof gender !== 'string') return gender;
+    
+    const genderMap = {
+        'w': 'weiblich',
+        'm': 'männlich', 
+        'd': 'divers'
+    };
+    
+    const normalizedGender = gender.toLowerCase().trim();
+    return genderMap[normalizedGender] || gender;
+}
+
 function validateStudent(student, index) {
     const errors = [];
     const linePrefix = `Zeile ${index + 1}:`;
@@ -30,9 +43,15 @@ export default async function handler(req, res) {
             return handleValidationError(res, ['Keine Schülerdaten empfangen']);
         }
 
+        // Format gender abbreviations to full names
+        const formattedStudents = students.map(student => ({
+            ...student,
+            geschlecht: formatGender(student.geschlecht)
+        }));
+
         // Validate students and get available classes in parallel
         const [allErrors, availableClasses] = await Promise.all([
-            Promise.resolve(students.flatMap((student, index) => validateStudent(student, index))),
+            Promise.resolve(formattedStudents.flatMap((student, index) => validateStudent(student, index))),
             dbAll('SELECT DISTINCT class_name FROM classes')
         ]);
 
@@ -43,7 +62,7 @@ export default async function handler(req, res) {
         // Validate classes if any are available
         const classNames = availableClasses.map(row => row.class_name);
         if (classNames.length > 0) {
-            const classErrors = students
+            const classErrors = formattedStudents
                 .map((student, index) =>
                     !classNames.includes(student.klasse)
                         ? `Zeile ${index + 1}: Ungültige Klasse "${student.klasse}". Verfügbare Klassen: ${classNames.join(', ')}`
@@ -60,8 +79,8 @@ export default async function handler(req, res) {
         const BATCH_SIZE = 500; // Process 500 students at a time
         let totalInserted = 0;
 
-        for (let i = 0; i < students.length; i += BATCH_SIZE) {
-            const batch = students.slice(i, i + BATCH_SIZE);
+        for (let i = 0; i < formattedStudents.length; i += BATCH_SIZE) {
+            const batch = formattedStudents.slice(i, i + BATCH_SIZE);
             const placeholders = batch.map(() => '(?, ?, ?, ?)').join(', ');
             const values = batch.flatMap(({ vorname, nachname, geschlecht, klasse }) => [
                 vorname.trim(),

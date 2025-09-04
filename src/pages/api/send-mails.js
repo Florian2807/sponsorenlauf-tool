@@ -69,24 +69,55 @@ const sendClassEmail = async (transporter, className, teacherData, classFileBase
     subject: `Sponsorenlauf ${currentYear} - Ergebnisliste Klasse ${className}`,
     text: mailText,
     html: `
-      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f8f9fa;">
         <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #4a90e2, #357abd); color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center;">
-            <h1 style="margin: 0; font-size: 24px;">🏃‍♂️ Sponsorenlauf ${currentYear}</h1>
-            <p style="margin: 10px 0 0 0; opacity: 0.9;">Ergebnisliste Klasse ${className}</p>
+          <!-- Header -->
+          <div style="background: linear-gradient(135deg, #0066cc, #004499); color: white; padding: 30px 25px; border-radius: 12px 12px 0 0; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <h1 style="margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.5px;">🏃‍♂️ Sponsorenlauf ${currentYear}</h1>
+            <p style="margin: 15px 0 0 0; opacity: 0.95; font-size: 16px; font-weight: 300;">Ergebnisliste Klasse ${className}</p>
           </div>
           
-          <div style="background: white; padding: 30px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 8px 8px;">
-            <div style="white-space: pre-wrap; margin-bottom: 20px;">${mailText}</div>
+          <!-- Main Content -->
+          <div style="background: white; padding: 40px 30px; border: 1px solid #e1e5e9; border-top: none; border-radius: 0 0 12px 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+            <!-- Mail Text -->
+            <div style="white-space: pre-wrap; margin-bottom: 30px; font-size: 16px; line-height: 1.7; color: #2c3e50;">${mailText}</div>
             
-            <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #4a90e2;">
-              <p style="margin: 0; font-weight: bold; color: #4a90e2;">📎 Anhang:</p>
-              <p style="margin: 5px 0 0 0; font-size: 14px; color: #666;">Excel-Datei mit den Laufergebnissen der Schüler</p>
+            <!-- Attachment Info -->
+            <div style="background: #f8f9fa; border: 1px solid #e9ecef; padding: 20px; border-radius: 8px; margin: 25px 0; position: relative;">
+              <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                <div style="width: 40px; height: 40px; background: #0066cc; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px; font-size: 18px;">📎</div>
+                <div>
+                  <p style="margin: 0; font-weight: 600; color: #0066cc; font-size: 16px;">Anhang: Excel-Datei</p>
+                  <p style="margin: 3px 0 0 0; font-size: 14px; color: #6c757d;">Sponsorenlauf_${currentYear}_Klasse_${className}.xlsx</p>
+                </div>
+              </div>
+              <p style="margin: 12px 0 0 0; font-size: 14px; color: #495057; line-height: 1.5;">Die Datei enthält alle Laufergebnisse der Schülerinnen und Schüler Ihrer Klasse.</p>
             </div>
             
-            <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
-              <p style="margin: 0; font-size: 12px; color: #888;">
-                Diese E-Mail wurde automatisch generiert • ${new Date().toLocaleDateString('de-DE')}
+            <!-- Support Section -->
+            <div style="background: #e7f3ff; border: 1px solid #b3d9ff; padding: 20px; border-radius: 8px; margin: 25px 0;">
+              <div style="display: flex; align-items: flex-start;">
+                <div style="font-size: 24px; margin-right: 12px; margin-top: 2px;">💬</div>
+                <div>
+                  <p style="margin: 0 0 8px 0; font-weight: 600; color: #0066cc; font-size: 15px;">Bei Fragen oder Unklarheiten:</p>
+                  <p style="margin: 0; font-size: 14px; color: #495057; line-height: 1.5;">
+                    • Antworten Sie einfach auf diese E-Mail<br>
+                    • Oder wenden Sie sich direkt an die Schülervertretung
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Footer -->
+            <div style="text-align: center; margin-top: 40px; padding-top: 25px; border-top: 2px solid #f1f3f4;">
+              <p style="margin: 0; font-size: 13px; color: #6c757d; line-height: 1.4;">
+                Diese E-Mail wurde automatisch generiert<br>
+                <span style="color: #0066cc;">${new Date().toLocaleDateString('de-DE', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}</span>
               </p>
             </div>
           </div>

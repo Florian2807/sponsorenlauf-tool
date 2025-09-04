@@ -23,7 +23,7 @@ export default function MailsPage() {
 
 anbei finden Sie die Liste der Schülerinnen und Schüler Ihrer Klasse für den Sponsorenlauf ${new Date().getFullYear()}.
 
-Schüler, die mehrmals in dieser Liste stehen, sollten die Runden bitte addiert werden, da diese eine Ersatzkarte erhalten haben.
+Bei Fragen oder Unklarheiten können Sie gerne auf diese E-Mail antworten oder sich direkt an die Schülervertretung wenden.
 
 Mit freundlichen Grüßen,
 
@@ -57,7 +57,7 @@ Ihr SV-Team`
 
 anbei finden Sie die Liste der Schülerinnen und Schüler Ihrer Klasse für den Sponsorenlauf ${new Date().getFullYear()}.
 
-Schüler, die mehrmals in dieser Liste stehen, sollten die Runden bitte addiert werden, da diese eine Ersatzkarte erhalten haben.
+Bei Fragen oder Unklarheiten können Sie gerne auf diese E-Mail antworten oder sich direkt an die Schülervertretung wenden.
 
 Mit freundlichen Grüßen,
 
@@ -69,7 +69,9 @@ Ihr SV-Team`
 
 wir hoffen, es geht Ihnen gut! Anbei senden wir Ihnen die Ergebnisliste Ihrer Klasse vom Sponsorenlauf ${new Date().getFullYear()}.
 
-📊 Bitte beachten Sie: Schüler*innen, die mehrfach aufgeführt sind, haben eine Ersatzkarte erhalten. Die Runden sollten in diesem Fall addiert werden.
+📊 Die Excel-Datei enthält alle Laufergebnisse Ihrer Schülerinnen und Schüler übersichtlich aufgelistet.
+
+Sollten Sie Fragen haben, antworten Sie einfach auf diese E-Mail oder wenden Sie sich an die Schülervertretung.
 
 Vielen Dank für Ihre Unterstützung!
 
@@ -82,7 +84,7 @@ Das SV-Team`
 
 anbei die Sponsorenlauf-Ergebnisse ${new Date().getFullYear()} Ihrer Klasse.
 
-Bei mehrfachen Einträgen: Runden addieren (Ersatzkarten).
+Bei Fragen einfach antworten oder SV kontaktieren.
 
 Danke!
 SV-Team`

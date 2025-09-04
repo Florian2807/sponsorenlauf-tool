@@ -46,13 +46,13 @@ const SendMailsDialog = ({
             variant: 'secondary'
         },
         {
-            label: 'Verbindung testen',
+            label: status.loginLoading ? 'Verbinde...' : (credentialsCorrect ? 'Verbunden ✓' : 'Verbindung testen'),
             onClick: () => handleLogin(),
-            variant: 'primary',
+            variant: credentialsCorrect ? 'success' : 'primary',
             disabled: !fileData.email || !fileData.password || status.loginLoading || internetConnected === false,
         },
         {
-            label: 'Weiter',
+            label: status.uploadLoading ? 'Lade...' : 'Weiter zu E-Mail Konfiguration',
             variant: 'success',
             onClick: handleUpload,
             disabled: !credentialsCorrect || status.uploadLoading || internetConnected === false
@@ -62,12 +62,30 @@ const SendMailsDialog = ({
     return (
         <BaseDialog
             dialogRef={dialogRef}
-            title="E-Mail Konfiguration"
+            title="E-Mail Konfiguration & Authentifizierung"
             actions={actions}
             size="xl"
             showDefaultClose={false}
         >
             <div className="mail-dialog-content">
+                {/* Progress Steps Indicator */}
+                <div className="setup-progress">
+                    <div className="progress-steps">
+                        <div className={`progress-step ${internetConnected ? 'completed' : 'active'}`}>
+                            <span className="step-number">1</span>
+                            <span className="step-label">Internet</span>
+                        </div>
+                        <div className={`progress-step ${credentialsCorrect ? 'completed' : (internetConnected ? 'active' : 'disabled')}`}>
+                            <span className="step-number">2</span>
+                            <span className="step-label">E-Mail Login</span>
+                        </div>
+                        <div className={`progress-step ${credentialsCorrect ? 'active' : 'disabled'}`}>
+                            <span className="step-number">3</span>
+                            <span className="step-label">Dateien laden</span>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Kompakte Internet-Konnektivitätsstatus */}
                 <div className="connectivity-dialog-compact">
                     {connectivityLoading ? (
@@ -146,13 +164,19 @@ const SendMailsDialog = ({
                                 onChange={(e) => setFileData((prev) => ({ ...prev, email: e.target.value }))}
                                 disabled={credentialsCorrect}
                                 required
-                                className="form-control"
+                                className={`form-control ${credentialsCorrect ? 'success' : ''}`}
                                 autoComplete="email"
                             />
                             {credentialsCorrect && (
                                 <span className="success-indicator">✓</span>
                             )}
                         </div>
+                        {!credentialsCorrect && fileData.email && (
+                            <div className="form-hint">
+                                <span className="hint-icon">💡</span>
+                                Verwenden Sie Ihre vollständige E-Mail-Adresse
+                            </div>
+                        )}
                     </div>
 
                     <div className="form-group">
@@ -166,7 +190,7 @@ const SendMailsDialog = ({
                                 onChange={(e) => setFileData((prev) => ({ ...prev, password: e.target.value }))}
                                 disabled={credentialsCorrect}
                                 required
-                                className="form-control"
+                                className={`form-control ${credentialsCorrect ? 'success' : ''}`}
                                 autoComplete="current-password"
                             />
                             {credentialsCorrect && (
@@ -174,8 +198,11 @@ const SendMailsDialog = ({
                             )}
                         </div>
                         <div className="form-hint">
-                            <span className="hint-icon">💡</span>
-                            Verwenden Sie ein App-spezifisches Passwort für mehr Sicherheit
+                            <span className="hint-icon">�</span>
+                            {emailProvider === 'gmail' && 'Verwenden Sie ein App-Passwort für Gmail (nicht Ihr normales Passwort)'}
+                            {emailProvider === 'outlook' && 'Verwenden Sie Ihr normales Outlook-Passwort oder ein App-Passwort'}
+                            {emailProvider === 'yahoo' && 'Verwenden Sie ein App-Passwort für Yahoo Mail'}
+                            {emailProvider === 'custom' && 'Verwenden Sie die von Ihrem Administrator bereitgestellten Anmeldedaten'}
                         </div>
                     </div>
 
@@ -209,7 +236,7 @@ const SendMailsDialog = ({
                             </div>
                             <div className="status-text">
                                 <strong>Verbindung wird getestet...</strong>
-                                <p>Bitte warten Sie einen Moment</p>
+                                <p>Überprüfe E-Mail-Anmeldedaten bei {emailProviders[emailProvider].name}</p>
                             </div>
                         </div>
                     )}
@@ -220,8 +247,8 @@ const SendMailsDialog = ({
                                 <span className="status-emoji">✅</span>
                             </div>
                             <div className="status-text">
-                                <strong>Verbindung erfolgreich</strong>
-                                <p>Ihre E-Mail-Konfiguration ist korrekt</p>
+                                <strong>Verbindung erfolgreich!</strong>
+                                <p>Ihre E-Mail-Konfiguration wurde erfolgreich überprüft. Sie können nun mit dem nächsten Schritt fortfahren.</p>
                             </div>
                         </div>
                     )}
@@ -234,6 +261,15 @@ const SendMailsDialog = ({
                             <div className="status-text">
                                 <strong>Verbindungsfehler</strong>
                                 <p>{status.loginMessage}</p>
+                                <div className="error-suggestions">
+                                    <strong>Mögliche Lösungen:</strong>
+                                    <ul>
+                                        <li>Überprüfen Sie Ihre E-Mail-Adresse und Passwort</li>
+                                        {emailProvider === 'gmail' && <li>Verwenden Sie ein App-Passwort anstelle Ihres normalen Passworts</li>}
+                                        {emailProvider === 'outlook' && <li>Stellen Sie sicher, dass 2-Faktor-Authentifizierung konfiguriert ist</li>}
+                                        <li>Prüfen Sie Ihre Internetverbindung</li>
+                                    </ul>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -245,7 +281,7 @@ const SendMailsDialog = ({
                             </div>
                             <div className="status-text">
                                 <strong>Daten werden verarbeitet...</strong>
-                                <p>Excel-Dateien werden geladen und vorbereitet</p>
+                                <p>Excel-Dateien werden geladen und für den E-Mail-Versand vorbereitet</p>
                             </div>
                         </div>
                     )}

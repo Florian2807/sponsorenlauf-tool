@@ -1627,6 +1627,94 @@ textarea:focus {
   padding: var(--spacing-sm);
 }
 
+/* Setup Progress Steps */
+.setup-progress {
+  margin-bottom: var(--spacing-lg);
+}
+
+.progress-steps {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--spacing-md);
+  position: relative;
+}
+
+.progress-steps::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--border-light);
+  z-index: 1;
+}
+
+.progress-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+  position: relative;
+  z-index: 2;
+  background: var(--card-background);
+  padding: 0 var(--spacing-sm);
+}
+
+.step-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: var(--font-size-sm);
+  border: 2px solid var(--border-light);
+  background: var(--background-light);
+  color: var(--text-muted);
+  transition: var(--transition);
+}
+
+.step-label {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.progress-step.active .step-number {
+  border-color: var(--primary-color);
+  background: var(--primary-color);
+  color: white;
+}
+
+.progress-step.active .step-label {
+  color: var(--primary-color);
+}
+
+.progress-step.completed .step-number {
+  border-color: var(--success-color);
+  background: var(--success-color);
+  color: white;
+}
+
+.progress-step.completed .step-label {
+  color: var(--success-color);
+}
+
+.progress-step.disabled .step-number {
+  border-color: var(--border-light);
+  background: var(--background-light);
+  color: var(--text-light);
+}
+
+.progress-step.disabled .step-label {
+  color: var(--text-light);
+}
+
 /* Kompakte Konnektivitätsstyles */
 .connectivity-check-compact {
   display: flex;
@@ -1658,6 +1746,123 @@ textarea:focus {
   background: #fff3cd;
   color: #856404;
   border-color: #ffeaa7;
+}
+
+/* Improved Form Styles for Mail Dialog */
+.form-control.success {
+  border-color: var(--success-color);
+  background: rgba(40, 167, 69, 0.05);
+}
+
+.form-control.success:focus {
+  border-color: var(--success-color);
+  box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+}
+
+.input-wrapper {
+  position: relative;
+}
+
+.success-indicator {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--success-color);
+  font-weight: bold;
+  font-size: 1.2em;
+}
+
+.form-hint .hint-icon {
+  color: var(--info-color);
+}
+
+/* Provider Selection Enhancement */
+.provider-selection {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+}
+
+.provider-option {
+  position: relative;
+}
+
+.provider-radio {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.provider-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  border: 2px solid var(--border-light);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: var(--transition);
+  background: var(--background-light);
+  font-weight: 600;
+}
+
+.provider-label:hover {
+  border-color: var(--primary-color);
+  background: rgba(74, 144, 226, 0.05);
+}
+
+.provider-radio:checked + .provider-label {
+  border-color: var(--primary-color);
+  background: rgba(74, 144, 226, 0.1);
+  color: var(--primary-color);
+}
+
+.provider-icon {
+  font-size: 1.5em;
+}
+
+/* Status Messages Enhancement */
+.status-message.error .error-suggestions {
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background: rgba(244, 67, 54, 0.05);
+  border-radius: var(--radius);
+  border-left: 4px solid var(--danger-color);
+}
+
+.status-message.error .error-suggestions ul {
+  margin: var(--spacing-xs) 0 0 var(--spacing-md);
+  padding: 0;
+}
+
+.status-message.error .error-suggestions li {
+  margin-bottom: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+.status-message.success {
+  border-left: 4px solid var(--success-color);
+}
+
+.status-message.loading {
+  border-left: 4px solid var(--primary-color);
+}
+
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-light);
+  border-top: 2px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .connectivity-badge.connected {
@@ -2150,10 +2355,87 @@ textarea:focus {
 
 .mail-description {
   max-width: 600px;
-  margin: 0 auto;
+  margin: 0 auto var(--spacing-lg);
   color: var(--text-muted);
   line-height: 1.6;
   font-size: var(--font-size-lg);
+}
+
+/* Mail Status Overview */
+.mail-status-overview {
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-lg);
+  margin: var(--spacing-lg) 0;
+  padding: var(--spacing-lg);
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: var(--radius-large);
+  border: 1px solid var(--border-light);
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .mail-status-overview {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+  
+  .status-item {
+    justify-content: center;
+  }
+  
+  .progress-steps {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+  
+  .progress-steps::before {
+    display: none;
+  }
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+  color: var(--text-color);
+}
+
+.status-icon {
+  font-size: 1.2em;
+}
+
+.status-label {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.status-value {
+  font-weight: 700;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-value.success {
+  background: rgba(40, 167, 69, 0.1);
+  color: var(--success-color);
+  border: 1px solid var(--success-color);
+}
+
+.status-value.pending {
+  background: rgba(230, 126, 34, 0.1);
+  color: var(--warning-color);
+  border: 1px solid var(--warning-color);
+}
+
+.status-value.error {
+  background: rgba(244, 67, 54, 0.1);
+  color: var(--danger-color);
+  border: 1px solid var(--danger-color);
 }
 
 .mail-start-button {
@@ -2197,6 +2479,31 @@ textarea:focus {
   padding: var(--spacing-lg);
   margin-bottom: var(--spacing-lg);
   box-shadow: var(--shadow-sm);
+}
+
+/* Send Actions Section */
+.send-actions-section {
+  background: var(--card-background);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-large);
+  padding: var(--spacing-lg);
+  margin-top: var(--spacing-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.send-actions-section .send-button {
+  width: 100%;
+  margin: var(--spacing-md) 0;
+  font-size: var(--font-size-lg);
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-large);
+  font-weight: 600;
+  transition: var(--transition);
+}
+
+.send-actions-section .send-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .classes-grid {
@@ -2348,6 +2655,20 @@ textarea:focus {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.teacher-assignment-row.empty-field {
+  opacity: 0.7;
+  background: rgba(74, 144, 226, 0.02);
+  border-radius: 8px;
+  padding: 4px;
+  margin: 4px 0;
+  border: 1px dashed rgba(74, 144, 226, 0.3);
+}
+
+.teacher-assignment-row.empty-field:hover {
+  opacity: 1;
+  background: rgba(74, 144, 226, 0.05);
 }
 
 .teacher-assignment-select {
@@ -2635,6 +2956,7 @@ textarea:focus {
 }
 
 .send-progress {
+  align-items: center;
   width: 100%;
   max-width: 500px;
   background: var(--card-background);
@@ -2809,6 +3131,38 @@ textarea:focus {
 [data-theme="dark"] .mail-header {
   background: rgba(74, 144, 226, 0.1);
   border-color: var(--primary-color);
+}
+
+[data-theme="dark"] .mail-status-overview {
+  background: rgba(33, 37, 41, 0.8);
+  border-color: var(--border-color);
+  backdrop-filter: blur(10px);
+}
+
+[data-theme="dark"] .status-item {
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .status-label {
+  color: var(--text-muted);
+}
+
+[data-theme="dark"] .status-value.success {
+  background: rgba(52, 208, 88, 0.15);
+  color: var(--success-color);
+  border-color: var(--success-color);
+}
+
+[data-theme="dark"] .status-value.pending {
+  background: rgba(255, 171, 112, 0.15);
+  color: var(--warning-color);
+  border-color: var(--warning-color);
+}
+
+[data-theme="dark"] .status-value.error {
+  background: rgba(248, 81, 73, 0.15);
+  color: var(--danger-color);
+  border-color: var(--danger-color);
 }
 
 [data-theme="dark"] .mail-config-section {

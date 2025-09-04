@@ -599,6 +599,7 @@ export default function MailsPage() {
     
     const [isSending, setIsSending] = useState(false);
     const [sendProgress, setSendProgress] = useState(0);
+    const [sendCopyToSender, setSendCopyToSender] = useState(false);
 
     // Refs
     const sendMailsPopup = useRef(null);
@@ -883,7 +884,8 @@ export default function MailsPage() {
                     email: emailSettings.email,
                     password: emailSettings.password,
                     senderName: emailSettings.senderName,
-                    emailProvider: emailSettings.emailProvider
+                    emailProvider: emailSettings.emailProvider,
+                    sendCopyToSender: sendCopyToSender
                 },
                 errorContext: 'Beim Senden der E-Mails'
             });
@@ -1064,6 +1066,21 @@ export default function MailsPage() {
                             summary={summary} 
                             mode={emailMode}
                         />
+
+                        {/* Copy to Sender Checkbox */}
+                        <div className="checkbox-container" style={{ marginBottom: '16px' }}>
+                            <label className="checkbox-label">
+                                <input
+                                    type="checkbox"
+                                    checked={sendCopyToSender}
+                                    onChange={(e) => setSendCopyToSender(e.target.checked)}
+                                    className="checkbox-input"
+                                />
+                                <span className="checkbox-text">
+                                    📧 Kopie der E-Mails an mich senden
+                                </span>
+                            </label>
+                        </div>
 
                         <button
                             onClick={handleSendEmails}

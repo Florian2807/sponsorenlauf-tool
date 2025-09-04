@@ -47,7 +47,7 @@ const createTransporter = (email, password, provider = 'outlook') => {
   return nodemailer.createTransport(transporterConfig);
 };
 
-const sendClassEmail = async (transporter, className, teacherData, classFileBase64, mailText, senderName, senderEmail) => {
+const sendClassEmail = async (transporter, className, teacherData, classFileBase64, mailText, senderName, senderEmail, sendCopyToSender = false) => {
   if (!classFileBase64 || !teacherData.length) {
     console.warn(`Überspringe Klasse ${className}: Keine Datei oder Lehrer`);
     return false;
@@ -65,7 +65,6 @@ const sendClassEmail = async (transporter, className, teacherData, classFileBase
     from: `${senderName} <${senderEmail}>`,
     to: teacherEmails[0],
     cc: teacherEmails.slice(1).join(', '),
-    bcc: senderEmail, // Kopie an Absender
     subject: `Sponsorenlauf ${currentYear} - Ergebnisliste Klasse ${className}`,
     text: mailText,
     html: `
@@ -207,6 +206,11 @@ ${mailText.replace(/\n/g, '<br>')}
     ],
   };
 
+  // Optionale Kopie an Absender hinzufügen
+  if (sendCopyToSender) {
+    mailOptions.bcc = senderEmail;
+  }
+
   try {
     await transporter.sendMail(mailOptions);
 
@@ -315,7 +319,8 @@ export default async function handler(req, res) {
       mailText,
       email,
       password,
-      emailProvider = 'outlook'
+      emailProvider = 'outlook',
+      sendCopyToSender = false
     } = req.body;
 
     // Validierung der Eingabedaten
@@ -375,7 +380,8 @@ export default async function handler(req, res) {
           teacherFiles[className],
           mailText,
           senderName,
-          email
+          email,
+          sendCopyToSender
         );
 
         if (success) {

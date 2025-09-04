@@ -4213,3 +4213,56 @@ textarea:focus {
   background: var(--background-color);
   border-color: var(--border-color);
 }
+
+/* ===================================================================
+   CHECKBOX STYLES
+   =================================================================== */
+
+.checkbox-container {
+  display: flex;
+  align-items: center;
+  margin: var(--spacing-sm) 0;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  user-select: none;
+  transition: var(--transition);
+}
+
+.checkbox-label:hover {
+  color: var(--primary-color);
+}
+
+.checkbox-input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--primary-color);
+  border-radius: var(--radius-sm);
+}
+
+.checkbox-input:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+.checkbox-text {
+  color: var(--text-color);
+  font-weight: 500;
+  transition: var(--transition);
+}
+
+/* Dark mode styles for checkbox */
+[data-theme="dark"] .checkbox-text {
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .checkbox-label:hover {
+  color: var(--primary-color);
+}

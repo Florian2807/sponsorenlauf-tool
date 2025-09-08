@@ -98,7 +98,7 @@ const useEmailAuth = () => {
     const authenticate = async (email, password) => {
         setIsAuthenticating(true);
         setAuthMessage('');
-        
+
         try {
             const result = await request('/api/mail-auth', {
                 method: 'POST',
@@ -138,7 +138,7 @@ const useFileGeneration = () => {
 
     const generateFiles = async () => {
         setIsGenerating(true);
-        
+
         try {
             const zipBlob = await request('/api/exportExcel', {
                 responseType: 'blob',
@@ -316,7 +316,7 @@ class ManualEmailManager {
     }
 
     getValidEmails(className) {
-        return this.getClassEmails(className).filter(email => 
+        return this.getClassEmails(className).filter(email =>
             email && email.trim() && this.validateEmail(email.trim())
         );
     }
@@ -383,8 +383,8 @@ const ConnectivityStatus = ({ isConnected, isChecking, onRefresh }) => (
                     ⏳ Verbindung prüfen...
                 </span>
             )}
-            
-            <button 
+
+            <button
                 className="connectivity-refresh-compact"
                 onClick={onRefresh}
                 disabled={isChecking}
@@ -393,7 +393,7 @@ const ConnectivityStatus = ({ isConnected, isChecking, onRefresh }) => (
                 🔄
             </button>
         </div>
-        
+
         {isConnected === false && (
             <div className="connectivity-warning-compact">
                 ⚠️ E-Mail-Versand nicht möglich ohne Internetverbindung
@@ -458,19 +458,19 @@ const ManualEmailRow = ({ email, index, onEmailChange, isLastEmpty = false }) =>
     </div>
 );
 
-const ClassAssignmentCard = ({ 
-    className, 
-    mode, 
-    teacherData, 
+const ClassAssignmentCard = ({
+    className,
+    mode,
+    teacherData,
     manualEmailData,
-    onTeacherChange, 
+    onTeacherChange,
     onEmailChange
 }) => {
     const isManual = mode === 'manual';
     const data = isManual ? manualEmailData.emails : teacherData.assignments;
-    
+
     // Count valid (filled) entries
-    const validCount = isManual ? 
+    const validCount = isManual ?
         data.filter(email => email && email.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())).length :
         data.filter(t => t.id).length;
 
@@ -589,14 +589,14 @@ export default function MailsPage() {
     const [emailSettings, setEmailSettings] = useState(DEFAULT_EMAIL_SETTINGS);
     const [availableClasses, setAvailableClasses] = useState([]);
     const [emailMode, setEmailMode] = useState(config.teachers ? 'teachers' : 'manual');
-    
+
     // Teacher data
     const [allTeachers, setAllTeachers] = useState([]);
     const [teacherAssignments, setTeacherAssignments] = useState({});
-    
+
     // Manual email data
     const [manualEmails, setManualEmails] = useState({});
-    
+
     const [isSending, setIsSending] = useState(false);
     const [sendProgress, setSendProgress] = useState(0);
     const [sendCopyToSender, setSendCopyToSender] = useState(false);
@@ -629,10 +629,10 @@ export default function MailsPage() {
                 if (config.teachers) {
                     const teachers = await request('/api/getAllTeachers');
                     setAllTeachers(teachers);
-                    
+
                     // Assign existing teachers and ensure exactly one empty field at end
                     const updatedAssignments = { ...initialTeacherAssignments };
-                    
+
                     // Group teachers by class
                     const teachersByClass = {};
                     teachers.forEach(teacher => {
@@ -645,13 +645,13 @@ export default function MailsPage() {
                             email: teacher.email
                         });
                     });
-                    
+
                     // Set up assignments: filled teachers + exactly one empty field
                     classes.forEach(className => {
                         const classTeachers = teachersByClass[className] || [];
                         updatedAssignments[className] = [...classTeachers, { id: null, name: null, email: '' }];
                     });
-                    
+
                     setTeacherAssignments(updatedAssignments);
                 }
             } catch (error) {
@@ -665,7 +665,7 @@ export default function MailsPage() {
     // Event Handlers
     const handleEmailSettingsChange = (field, value) => {
         setEmailSettings(prev => ({ ...prev, [field]: value }));
-        
+
         // Reset authentication if credentials change
         if ((field === 'email' || field === 'password') && isAuthenticated) {
             resetAuth();
@@ -678,7 +678,7 @@ export default function MailsPage() {
 
     const handleModeChange = (mode) => {
         setEmailMode(mode);
-        
+
         if (mode === 'teachers') {
             // Ensure each class has exactly one empty teacher slot
             setTeacherAssignments(prev => {
@@ -716,7 +716,7 @@ export default function MailsPage() {
         setTeacherAssignments(prev => {
             const updated = { ...prev };
             const classTeachers = [...updated[className]];
-            
+
             if (!teacherId) {
                 classTeachers[index] = { id: null, name: null, email: '' };
             } else {
@@ -729,14 +729,14 @@ export default function MailsPage() {
                     };
                 }
             }
-            
+
             // Clean up: remove extra empty fields, keep exactly one
             const filledTeachers = classTeachers.filter(t => t.id);
             const emptyTeachers = classTeachers.filter(t => !t.id);
-            
+
             // Always have exactly one empty field
             updated[className] = [...filledTeachers, { id: null, name: null, email: '' }];
-            
+
             return updated;
         });
     };
@@ -746,14 +746,14 @@ export default function MailsPage() {
             const updated = { ...prev };
             const classEmails = [...updated[className]];
             classEmails[index] = email.trim();
-            
+
             // Clean up: remove extra empty fields, keep exactly one
             const filledEmails = classEmails.filter(e => e && e.trim());
             const emptyEmails = classEmails.filter(e => !e || !e.trim());
-            
+
             // Always have exactly one empty field
             updated[className] = [...filledEmails, ''];
-            
+
             return updated;
         });
     };
@@ -765,7 +765,7 @@ export default function MailsPage() {
     };
 
     const getValidEmails = (className) => {
-        return manualEmails[className]?.filter(email => 
+        return manualEmails[className]?.filter(email =>
             email && email.trim() && validateEmail(email.trim())
         ) || [];
     };
@@ -776,34 +776,34 @@ export default function MailsPage() {
 
     const getCurrentSummary = () => {
         if (emailMode === 'teachers') {
-            const assignedClasses = availableClasses.filter(className => 
+            const assignedClasses = availableClasses.filter(className =>
                 getAssignedTeachers(className).length > 0
             );
-            const totalRecipients = availableClasses.reduce((sum, className) => 
+            const totalRecipients = availableClasses.reduce((sum, className) =>
                 sum + getAssignedTeachers(className).length, 0
             );
-            
+
             return {
                 totalClasses: availableClasses.length,
                 assignedClasses: assignedClasses.length,
                 totalRecipients,
-                unassignedClasses: availableClasses.filter(className => 
+                unassignedClasses: availableClasses.filter(className =>
                     getAssignedTeachers(className).length === 0
                 )
             };
         } else {
-            const assignedClasses = availableClasses.filter(className => 
+            const assignedClasses = availableClasses.filter(className =>
                 getValidEmails(className).length > 0
             );
-            const totalRecipients = availableClasses.reduce((sum, className) => 
+            const totalRecipients = availableClasses.reduce((sum, className) =>
                 sum + getValidEmails(className).length, 0
             );
-            
+
             return {
                 totalClasses: availableClasses.length,
                 assignedClasses: assignedClasses.length,
                 totalRecipients,
-                unassignedClasses: availableClasses.filter(className => 
+                unassignedClasses: availableClasses.filter(className =>
                     getValidEmails(className).length === 0
                 )
             };
@@ -812,7 +812,7 @@ export default function MailsPage() {
 
     const getEmailData = () => {
         const emailData = {};
-        
+
         if (emailMode === 'teachers') {
             availableClasses.forEach(className => {
                 const assignedTeachers = getAssignedTeachers(className);
@@ -832,7 +832,7 @@ export default function MailsPage() {
                 }
             });
         }
-        
+
         return emailData;
     };
     const handleSendEmails = async () => {
@@ -915,8 +915,8 @@ export default function MailsPage() {
                     E-Mail Versand System
                 </h1>
                 <p className="mail-description">
-                    Versenden Sie automatisch Excel-Listen mit den Sponsorenlauf-Ergebnissen 
-                    an die jeweiligen Klassenlehrer. Das System erstellt für jede Klasse 
+                    Versenden Sie automatisch Excel-Listen mit den Sponsorenlauf-Ergebnissen
+                    an die jeweiligen Klassenlehrer. Das System erstellt für jede Klasse
                     eine individuelle Excel-Datei und versendet diese per E-Mail.
                 </p>
 
@@ -947,7 +947,7 @@ export default function MailsPage() {
 
                 {!Object.keys(files).length && (
                     <div className="email-start-section">
-                        <ConnectivityStatus 
+                        <ConnectivityStatus
                             isConnected={isConnected}
                             isChecking={isChecking}
                             onRefresh={checkConnectivity}
@@ -1062,8 +1062,8 @@ export default function MailsPage() {
 
                     {/* Send Actions Section */}
                     <div className="send-actions-section">
-                        <EmailSummary 
-                            summary={summary} 
+                        <EmailSummary
+                            summary={summary}
                             mode={emailMode}
                         />
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import BaseDialog from '../../BaseDialog';
 import { useApi } from '../../../hooks/useApi';
 import { useGlobalError } from '../../../contexts/ErrorContext';
+import { useModuleConfig } from '../../../contexts/ModuleConfigContext';
 
 const DetailedDeleteDialog = ({
     dialogRef,
@@ -9,6 +10,7 @@ const DetailedDeleteDialog = ({
 }) => {
     const [selectedOptions, setSelectedOptions] = useState({
         students: false,
+        teachers: false,
         rounds: false,
         replacements: false,
         expectedDonations: false,
@@ -19,6 +21,7 @@ const DetailedDeleteDialog = ({
     const [isDeleting, setIsDeleting] = useState(false);
     const { request } = useApi();
     const { showError, showSuccess } = useGlobalError();
+    const { isTeachersEnabled } = useModuleConfig();
 
     // Reset state when dialog opens
     useEffect(() => {
@@ -27,6 +30,7 @@ const DetailedDeleteDialog = ({
             const handleShow = () => {
                 setSelectedOptions({
                     students: false,
+                    teachers: false,
                     rounds: false,
                     replacements: false,
                     expectedDonations: false,
@@ -65,6 +69,7 @@ const DetailedDeleteDialog = ({
 
         const descriptions = {
             students: 'Alle Schüler',
+            teachers: 'Alle Lehrer',
             rounds: 'Alle Runden-Daten',
             replacements: 'Alle Ersatz-IDs',
             expectedDonations: 'Alle erwarteten Spenden',
@@ -121,6 +126,15 @@ const DetailedDeleteDialog = ({
                         method: 'DELETE',
                         data: { type: 'receivedDonations' }
                     }).then(() => deletedItems.push('erhaltene Spenden'))
+                );
+            }
+
+            // Lehrer löschen
+            if (selectedOptions.teachers) {
+                deleteOperations.push(
+                    request('/api/deleteAllTeachers', {
+                        method: 'DELETE'
+                    }).then(() => deletedItems.push('alle Lehrerdaten'))
                 );
             }
 
@@ -209,6 +223,26 @@ const DetailedDeleteDialog = ({
                                 </div>
                             </div>
                         </label>
+
+                        {isTeachersEnabled && (
+                            <label className="delete-option delete-option-critical">
+                                <input
+                                    type="checkbox"
+                                    checked={selectedOptions.teachers}
+                                    onChange={() => handleOptionChange('teachers')}
+                                    disabled={isDeleting}
+                                />
+                                <div className="option-content">
+                                    <span className="option-icon">👨‍🏫</span>
+                                    <div className="option-details">
+                                        <span className="option-title">Alle Lehrer</span>
+                                        <span className="option-description">
+                                            Löscht alle Lehrerdaten und E-Mail-Zuordnungen
+                                        </span>
+                                    </div>
+                                </div>
+                            </label>
+                        )}
 
                         <label className="delete-option delete-option-data" data-disabled={selectedOptions.students}>
                             <input

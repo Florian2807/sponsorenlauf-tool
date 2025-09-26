@@ -69,3 +69,33 @@ export const timeAgo = (now, pastDate) => {
 export const getNextId = (items) => {
     return Math.max(...items.map(item => parseInt(item.id, 10)), 0) + 1;
 };
+
+// Funktion zur Berechnung der Zeit zwischen Runden
+export const calculateTimeDifference = (currentTimestamp, previousTimestamp) => {
+    if (!previousTimestamp || !currentTimestamp) return null;
+    
+    const diffInMs = new Date(currentTimestamp) - new Date(previousTimestamp);
+    const diffInSeconds = Math.floor(diffInMs / 1000);
+    const diffInMinutes = Math.floor(diffInSeconds / 60);
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    
+    if (diffInSeconds < 60) {
+        return `${diffInSeconds} Sek.`;
+    } else if (diffInMinutes < 60) {
+        const remainingSeconds = diffInSeconds % 60;
+        return remainingSeconds > 0 ? 
+            `${diffInMinutes} Min. ${remainingSeconds} Sek.` : 
+            `${diffInMinutes} Min.`;
+    } else if (diffInHours < 24) {
+        const remainingMinutes = diffInMinutes % 60;
+        return remainingMinutes > 0 ? 
+            `${diffInHours} Std. ${remainingMinutes} Min.` : 
+            `${diffInHours} Std.`;
+    } else {
+        const diffInDays = Math.floor(diffInHours / 24);
+        const remainingHours = diffInHours % 24;
+        return remainingHours > 0 ? 
+            `${diffInDays} Tag(e) ${remainingHours} Std.` : 
+            `${diffInDays} Tag(e)`;
+    }
+};

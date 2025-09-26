@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import BaseDialog from '../../BaseDialog';
-import { formatDate } from '../../../utils/constants';
+import { formatDate, calculateTimeDifference } from '../../../utils/constants';
 
 const EditStudentDialog = ({
     dialogRef,
@@ -156,21 +156,32 @@ const EditStudentDialog = ({
                         {selectedStudent.timestamps
                             .slice() // Kopie erstellen um Original nicht zu mutieren
                             .sort((a, b) => new Date(b) - new Date(a)) // Neueste zuerst
-                            .map((timestamp, index) => (
-                            <li key={`${timestamp}-${index}`} className="timestamp-item">
-                                <div className="timestamp-info">
-                                    <span className="timestamp-date">{formatDate(new Date(timestamp))}</span>
-                                </div>
-                                <button
-                                    className="delete-timestamp-btn"
-                                    onClick={() => deleteTimestamp(selectedStudent.timestamps.findIndex(ts => ts === timestamp))}
-                                    disabled={loading}
-                                    title="Runde löschen"
-                                >
-                                    Löschen
-                                </button>
-                            </li>
-                        ))}
+                            .map((timestamp, index, sortedArray) => {
+                                // Finde vorherige Runde (chronologisch früher)
+                                const previousTimestamp = index < sortedArray.length - 1 ? sortedArray[index + 1] : null;
+                                const timeDifference = calculateTimeDifference(timestamp, previousTimestamp);
+                                
+                                return (
+                                    <li key={`${timestamp}-${index}`} className="timestamp-item">
+                                        <div className="timestamp-info">
+                                            <span className="timestamp-date">{formatDate(new Date(timestamp))}</span>
+                                            {timeDifference && (
+                                                <span className="timestamp-diff">
+                                                    (+{timeDifference})
+                                                </span>
+                                            )}
+                                        </div>
+                                        <button
+                                            className="delete-timestamp-btn"
+                                            onClick={() => deleteTimestamp(selectedStudent.timestamps.findIndex(ts => ts === timestamp))}
+                                            disabled={loading}
+                                            title="Runde löschen"
+                                        >
+                                            Löschen
+                                        </button>
+                                    </li>
+                                );
+                            })}
                     </ul>
                 ) : (
                     <div className="no-rounds">

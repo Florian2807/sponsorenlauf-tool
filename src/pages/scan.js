@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { formatDate, timeAgo } from '../utils/constants';
+import { formatDate, timeAgo, calculateTimeDifference } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
 import { useGlobalError } from '../contexts/ErrorContext';
 import ErrorDialog from '../components/dialogs/scan/ErrorDialog';
@@ -304,22 +304,36 @@ export default function Scan() {
             <div className="mt-2">
               <h3>Scan-Timestamps:</h3>
               <ul className="timestamp-list">
-                {timestamps.map((timestamp, index) => (
-                  <li key={`${timestamp}-${index}`} className="timestamp-item">
-                    <span>
-                      {formatDate(new Date(timestamp)) + " Uhr => " + timeAgo(currentTimestamp, new Date(timestamp))}
-                    </span>
-                    <button
-                      type="button"
-                      className="btn btn-danger btn-sm"
-                      onClick={() => handleDeleteTimestamp(index)}
-                      disabled={loading}
-                      aria-label={`Zeitstempel ${formatDate(new Date(timestamp))} löschen`}
-                    >
-                      {loading ? 'Lösche...' : 'Löschen'}
-                    </button>
-                  </li>
-                ))}
+                {timestamps
+                  .slice() // Kopie erstellen
+                  .sort((a, b) => new Date(b) - new Date(a)) // Neueste zuerst
+                  .map((timestamp, index, sortedArray) => {
+                    // Finde vorherige Runde (chronologisch früher)
+                    const previousTimestamp = index < sortedArray.length - 1 ? sortedArray[index + 1] : null;
+                    const timeDifference = calculateTimeDifference(timestamp, previousTimestamp);
+                    
+                    return (
+                      <li key={`${timestamp}-${index}`} className="timestamp-item">
+                        <span>
+                          {formatDate(new Date(timestamp)) + " Uhr => " + timeAgo(currentTimestamp, new Date(timestamp))}
+                          {timeDifference && (
+                            <span style={{ color: '#666', marginLeft: '8px', fontSize: '0.9em' }}>
+                              (+{timeDifference})
+                            </span>
+                          )}
+                        </span>
+                        <button
+                          type="button"
+                          className="btn btn-danger btn-sm"
+                          onClick={() => handleDeleteTimestamp(timestamps.findIndex(ts => ts === timestamp))}
+                          disabled={loading}
+                          aria-label={`Zeitstempel ${formatDate(new Date(timestamp))} löschen`}
+                        >
+                          {loading ? 'Lösche...' : 'Löschen'}
+                        </button>
+                      </li>
+                    );
+                  })}
               </ul>
             </div>
           ) : null}

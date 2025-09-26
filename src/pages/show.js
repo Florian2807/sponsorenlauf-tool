@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { formatDate, timeAgo, API_ENDPOINTS } from '../utils/constants';
+import { formatDate, timeAgo, calculateTimeDifference, API_ENDPOINTS } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
 import { useGlobalError } from '../contexts/ErrorContext';
 
@@ -87,18 +87,34 @@ export default function Show() {
             <div className="mt-3">
               <h3>Scan-Timestamps:</h3>
               <ul className="timestamp-list">
-                {studentInfo.timestamps.map((timestamp, index) => (
-                  <li key={index} className="timestamp-item">
-                    <span>{formatDate(new Date(timestamp)) + " Uhr => " + timeAgo(currentTimestamp, new Date(timestamp))}</span>
-                    <button
-                      type="button"
-                      className="btn btn-danger btn-sm"
-                      onClick={() => handleDeleteTimestamp(studentInfo, index)}
-                    >
-                      Löschen
-                    </button>
-                  </li>
-                ))}
+                {studentInfo.timestamps
+                  .slice() // Kopie erstellen
+                  .sort((a, b) => new Date(b) - new Date(a)) // Neueste zuerst
+                  .map((timestamp, index, sortedArray) => {
+                    // Finde vorherige Runde (chronologisch früher)
+                    const previousTimestamp = index < sortedArray.length - 1 ? sortedArray[index + 1] : null;
+                    const timeDifference = calculateTimeDifference(timestamp, previousTimestamp);
+                    
+                    return (
+                      <li key={`${timestamp}-${index}`} className="timestamp-item">
+                        <span>
+                          {formatDate(new Date(timestamp)) + " Uhr => " + timeAgo(currentTimestamp, new Date(timestamp))}
+                          {timeDifference && (
+                            <span style={{ color: '#666', marginLeft: '8px', fontSize: '0.9em' }}>
+                              (+{timeDifference})
+                            </span>
+                          )}
+                        </span>
+                        <button
+                          type="button"
+                          className="btn btn-danger btn-sm"
+                          onClick={() => handleDeleteTimestamp(studentInfo, studentInfo.timestamps.findIndex(ts => ts === timestamp))}
+                        >
+                          Löschen
+                        </button>
+                      </li>
+                    );
+                  })}
               </ul>
             </div>
           )}

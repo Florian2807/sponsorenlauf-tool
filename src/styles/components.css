@@ -1730,10 +1730,10 @@ dialog select {
   width: 100%;
   padding: var(--spacing-md);
   font-size: 1.2rem;
-  border: 2px solid var(--border-color);
+  border: 2px solid #ddd;
   border-radius: var(--radius);
-  background: var(--background-light);
-  color: var(--text-color);
+  background: #ffffff;
+  color: #333333;
   text-align: center;
   transition: var(--transition);
 }
@@ -2055,6 +2055,25 @@ dialog select {
   background: rgba(248, 81, 73, 0.1);
   color: var(--danger-color);
   border: 1px solid rgba(248, 81, 73, 0.3);
+}
+
+/* Light Mode - explizit sicherstellen, dass Text schwarz ist */
+[data-theme="light"] .scan-input {
+  background: #ffffff;
+  color: #333333;
+  border: 2px solid #ddd;
+}
+
+[data-theme="light"] .scan-input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+}
+
+/* Dark Mode */
+[data-theme="dark"] .scan-input {
+  background: var(--card-background);
+  color: var(--text-color);
+  border: 2px solid var(--border-color);
 }
 
 [data-theme="dark"] .scan-input:focus {
@@ -3037,4 +3056,345 @@ dialog select {
 
 [data-theme="dark"] .loading-content p {
   color: var(--text-muted);
+}
+
+/* Module Settings Sub-Settings for Double-Scan */
+.module-sub-settings {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border-left: 4px solid #007bff;
+}
+
+.sub-settings-title {
+  margin: 0 0 1rem 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #495057;
+}
+
+.sub-setting-item {
+  margin-bottom: 0.75rem;
+}
+
+.sub-setting-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  color: #495057;
+}
+
+.sub-setting-number-input {
+  width: 60px;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  background: #fff;
+  color: #495057;
+}
+
+.sub-setting-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #495057;
+  cursor: pointer;
+}
+
+.checkbox-text {
+  user-select: none;
+}
+
+.sub-settings-preview {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #dee2e6;
+}
+
+.preview-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.preview-label {
+  color: #6c757d;
+}
+
+.preview-value {
+  font-weight: 500;
+  color: #495057;
+}
+
+/* Dark Mode Support für Module Sub-Settings */
+[data-theme="dark"] .module-sub-settings {
+  background: var(--card-background);
+  border-left-color: var(--primary-color);
+}
+
+[data-theme="dark"] .sub-settings-title {
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .sub-setting-label {
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .sub-setting-number-input {
+  background: var(--input-background);
+  border-color: var(--border-color);
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .sub-setting-checkbox {
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .sub-settings-preview {
+  border-top-color: var(--border-color);
+}
+
+[data-theme="dark"] .preview-label {
+  color: var(--text-muted);
+}
+
+[data-theme="dark"] .preview-value {
+  color: var(--text-color);
+}
+
+/* Modern Double-Scan Dialog Styles */
+.double-scan-content {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 0;
+}
+
+/* Alert Section */
+.scan-alert {
+  display: flex;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, rgba(251, 146, 60, 0.1) 0%, rgba(251, 146, 60, 0.05) 100%);
+  border: 1px solid rgba(251, 146, 60, 0.2);
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.scan-alert::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #f59e0b, #f97316);
+}
+
+.alert-icon {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(251, 146, 60, 0.1);
+  border-radius: 50%;
+  color: #f59e0b;
+}
+
+.alert-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.alert-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.alert-message {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-color);
+}
+
+.student-highlight {
+  font-weight: 600;
+  color: var(--primary-color);
+  background: rgba(74, 144, 226, 0.1);
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+}
+
+.time-highlight {
+  font-weight: 600;
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+}
+
+/* Student Card */
+.student-card {
+  background: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.student-avatar {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, var(--primary-color), #3b82f6);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 1.125rem;
+  color: white;
+  text-transform: uppercase;
+}
+
+.student-basic-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.student-full-name {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.student-class {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.card-stats {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  background: rgba(74, 144, 226, 0.03);
+  border: 1px solid rgba(74, 144, 226, 0.1);
+  border-radius: 8px;
+}
+
+.stat-item {
+  text-align: center;
+  flex: 1;
+}
+
+.stat-number {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  line-height: 1;
+  margin-bottom: 0.25rem;
+}
+
+.stat-time {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #dc2626;
+  line-height: 1;
+  margin-bottom: 0.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.stat-divider {
+  width: 1px;
+  height: 32px;
+  background: var(--border-color);
+  margin: 0 0.75rem;
+}
+
+/* Decision Box */
+.decision-box {
+  background: linear-gradient(135deg, rgba(74, 144, 226, 0.05) 0%, rgba(74, 144, 226, 0.02) 100%);
+  border: 1px solid rgba(74, 144, 226, 0.15);
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.decision-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.decision-subtitle {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* Dark Mode Support */
+[data-theme="dark"] .scan-alert {
+  background: linear-gradient(135deg, rgba(251, 146, 60, 0.15) 0%, rgba(251, 146, 60, 0.08) 100%);
+  border-color: rgba(251, 146, 60, 0.3);
+}
+
+[data-theme="dark"] .alert-icon {
+  background: rgba(251, 146, 60, 0.2);
+  color: #fbbf24;
+}
+
+[data-theme="dark"] .student-highlight {
+  background: rgba(74, 144, 226, 0.2);
+}
+
+[data-theme="dark"] .time-highlight {
+  background: rgba(220, 38, 38, 0.2);
+  color: #f87171;
+}
+
+[data-theme="dark"] .student-card {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .card-stats {
+  background: rgba(74, 144, 226, 0.08);
+  border-color: rgba(74, 144, 226, 0.2);
+}
+
+[data-theme="dark"] .decision-box {
+  background: linear-gradient(135deg, rgba(74, 144, 226, 0.08) 0%, rgba(74, 144, 226, 0.04) 100%);
+  border-color: rgba(74, 144, 226, 0.25);
 }

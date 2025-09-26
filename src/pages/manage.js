@@ -81,6 +81,45 @@ export default function Manage() {
     }));
   }, [selectedStudent]);
 
+  const addRound = useCallback(async (studentId, timestamp) => {
+    if (!selectedStudent || selectedStudent.id !== studentId) return;
+
+    try {
+      // Runde über die API hinzufügen
+      const response = await request('/api/runden', {
+        method: 'POST',
+        data: { 
+          id: studentId, 
+          date: new Date(timestamp),
+          confirmDoubleScan: true // Bypass double-scan check in manual mode
+        }
+      });
+
+      if (response?.success) {
+        // Sofortige UI-Aktualisierung
+        setSelectedStudent(prev => ({
+          ...prev,
+          timestamps: [...prev.timestamps, timestamp].sort((a, b) => new Date(b) - new Date(a))
+        }));
+
+        // Auch die Hauptliste aktualisieren
+        setStudents(prevStudents => 
+          prevStudents.map(student => 
+            student.id === studentId 
+              ? { ...student, timestamps: [...student.timestamps, timestamp].sort((a, b) => new Date(b) - new Date(a)) }
+              : student
+          )
+        );
+
+        showSuccess('Runde erfolgreich hinzugefügt');
+        setMessage('');
+      }
+    } catch (error) {
+      showError(error, 'Beim Hinzufügen der Runde');
+      setMessage('Fehler beim Hinzufügen der Runde');
+    }
+  }, [selectedStudent, request, showError, showSuccess]);
+
   const addReplacementID = useCallback(async () => {
     if (!selectedStudent) return;
 
@@ -326,6 +365,7 @@ export default function Manage() {
         confirmDeletePopup={confirmDeletePopup}
         editStudent={editStudent}
         loading={loading}
+        addRound={addRound}
       />
 
       <AddReplacementDialog

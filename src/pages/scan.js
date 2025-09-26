@@ -3,6 +3,7 @@ import { formatDate, timeAgo } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
 import { useGlobalError } from '../contexts/ErrorContext';
 import ErrorDialog from '../components/dialogs/scan/ErrorDialog';
+import DoubleScanConfirmationDialog from '../components/dialogs/scan/DoubleScanConfirmationDialog';
 
 export default function Scan() {
   const [id, setID] = useState('');
@@ -13,11 +14,13 @@ export default function Scan() {
   const [timestamps, setTimestamps] = useState([]);
   const [timestampsLoading, setTimestampsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [doubleScanData, setDoubleScanData] = useState(null);
 
   const { request, loading } = useApi();
   const { showError } = useGlobalError();
   const inputRef = useRef(null);
   const popupRef = useRef(null);
+  const doubleScanDialogRef = useRef(null);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -48,6 +51,13 @@ export default function Scan() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Dialog öffnen sobald doubleScanData gesetzt wird
+  useEffect(() => {
+    if (doubleScanData && doubleScanDialogRef.current) {
+      doubleScanDialogRef.current.showModal();
+    }
+  }, [doubleScanData]);
+
   const cleanId = useCallback((rawId) => {
     return rawId.replace(new RegExp(`${new Date().getFullYear()}[ß/\\-]`, 'gm'), '');
   }, []);
@@ -70,6 +80,120 @@ export default function Scan() {
     }
   }, [request]);
 
+  const performScan = useCallback(async (cleanedId, confirmDoubleScan = false) => {
+    let processingHandled = false; // Flag um sicherzustellen, dass Loading-State korrekt behandelt wird
+    
+    try {
+      const response = await request('/api/runden', {
+        method: 'POST',
+        data: { id: cleanedId, date: new Date(), confirmDoubleScan }
+      });
+
+      // Server antwortet IMMER mit 200 bei gültigen Anfragen
+      if (response?.success) {
+        
+        // Fall 1: Server möchte Bestätigung für Doppel-Scan
+        if (response.requiresConfirmation) {
+          // State setzen
+          setDoubleScanData({
+            student: response.student,
+            lastRoundTime: response.lastRoundTime,
+            thresholdMinutes: response.thresholdMinutes || 5,
+            cleanedId
+          });
+          setMessage('Doppel-Scan erkannt - bitte bestätigen');
+          setMessageType('warning');
+          setIsProcessing(false);
+          processingHandled = true;
+          return;
+        }
+
+        // Fall 2: Runde wurde erfolgreich gespeichert
+        setStudentInfo(response.student);
+        setCurrentTimestamp(new Date());
+        setMessage(response.message || 'Runde erfolgreich gezählt!');
+        setMessageType('success');
+        setID('');
+        setDoubleScanData(null);
+
+        // Timestamps asynchron laden
+        loadTimestamps(cleanedId);
+      }
+    } catch (error) {
+      // Echte Fehler und Block-Modus landen hier
+      setID('');
+      
+      if (error.status === 404) {
+        setMessage('Schüler mit dieser ID nicht gefunden');
+        setMessageType('error');
+      } else if (error.status === 400) {
+        // Prüfe verschiedene Error-Strukturen für Block-Modus
+        const errorData = error.data || error.response?.data || error || {};
+        const errorCode = errorData.error || error.error;
+        const errorMessage = errorData.message || error.message || '';
+        
+        if (errorCode === 'DOUBLE_SCAN_BLOCKED' || errorMessage.includes('Doppel-Scan blockiert')) {
+          // Block-Modus: Scan wurde komplett abgelehnt
+          if (errorData.timeDifferenceMs && errorData.student) {
+            // Detaillierte Fehlermeldung mit Schülerinfo
+            const timeDiffMinutes = Math.floor(errorData.timeDifferenceMs / 60000);
+            const timeDiffSeconds = Math.floor((errorData.timeDifferenceMs % 60000) / 1000);
+            const timeDisplay = timeDiffMinutes > 0 
+              ? `${timeDiffMinutes} Minute${timeDiffMinutes !== 1 ? 'n' : ''} und ${timeDiffSeconds} Sekunde${timeDiffSeconds !== 1 ? 'n' : ''}`
+              : `${timeDiffSeconds} Sekunde${timeDiffSeconds !== 1 ? 'n' : ''}`;
+            
+            setMessage(`⚠️ Doppel-Scan blockiert: ${errorData.student.vorname} ${errorData.student.nachname} wurde erst vor ${timeDisplay} gescannt. Mindestabstand: ${errorData.thresholdMinutes} Minuten.`);
+            setStudentInfo(errorData.student);
+          } else {
+            // Einfache Fehlermeldung vom Server
+            setMessage(`⚠️ ${errorMessage}`);
+          }
+          setMessageType('error');
+        } else {
+          // Fallback für andere 400-Fehler
+          setMessage(errorMessage || 'Ungültige ID oder Eingabe');
+          setMessageType('error');
+        }
+      } else {
+        setMessage('Fehler beim Speichern der Runde');
+        setMessageType('error');
+        showError(error, 'Beim Speichern der Runde');
+      }
+      
+      if (error.status !== 400 || error.data?.error !== 'DOUBLE_SCAN_BLOCKED') {
+        setStudentInfo(null);
+      }
+      setTimestamps([]);
+    } finally {
+      // Stelle sicher, dass Processing immer gestoppt wird (außer bei Dialog)
+      if (!processingHandled) {
+        setIsProcessing(false);
+      }
+    }
+  }, [request, showError, loadTimestamps]);
+
+  const handleDoubleScanConfirm = useCallback(async () => {
+    if (!doubleScanData) return;
+
+    doubleScanDialogRef.current?.close();
+    setIsProcessing(true);
+    setMessage('Verarbeite...');
+    setMessageType('info');
+
+    await performScan(doubleScanData.cleanedId, true); // confirmDoubleScan = true
+    // performScan handled setIsProcessing(false)
+
+    setTimeout(() => inputRef.current?.focus(), 100);
+  }, [doubleScanData, performScan]);
+
+  const handleDoubleScanCancel = useCallback(() => {
+    doubleScanDialogRef.current?.close();
+    setDoubleScanData(null);
+    setMessage('Scan abgebrochen - möglicher Doppel-Scan erkannt');
+    setMessageType('warning');
+    setTimeout(() => inputRef.current?.focus(), 100);
+  }, []);
+
   const handleSubmit = useCallback(async (event) => {
     event.preventDefault();
 
@@ -88,49 +212,11 @@ export default function Scan() {
     setMessage('Verarbeite...');
     setMessageType('info');
 
-    try {
-      const response = await request('/api/runden', {
-        method: 'POST',
-        data: { id: cleanedId, date: new Date() }
-      });
-
-      if (response?.success !== false && response?.student) {
-        // API gibt jetzt schnell die Basisdaten zurück
-        setStudentInfo(response.student);
-        setCurrentTimestamp(new Date());
-        setMessage('Runde erfolgreich gezählt!');
-        setMessageType('success');
-        setID('');
-
-        // Timestamps asynchron laden (nicht blockierend)
-        loadTimestamps(cleanedId);
-      } else {
-        setID('');
-        setMessage('Fehler beim Scannen der Runde');
-        setMessageType('error');
-        setStudentInfo(null);
-        setTimestamps([]);
-      }
-    } catch (error) {
-      setID('');
-
-      if (error.status === 404) {
-        setMessage('Schüler mit dieser ID nicht gefunden');
-        setMessageType('error');
-      } else if (error.status === 400) {
-        setMessage('Ungültige ID oder Eingabe');
-        setMessageType('error');
-      } else {
-        setMessage('Fehler beim Speichern der Runde');
-        setMessageType('error');
-        showError(error, 'Beim Speichern der Runde');
-      }
-      setStudentInfo(null);
-      setTimestamps([]);
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [cleanId, id, request, showError, isProcessing, loadTimestamps]);
+    await performScan(cleanedId, false); // confirmDoubleScan = false
+    
+    // Fokus nach Verarbeitung wiederherstellen (performScan handled setIsProcessing)
+    setTimeout(() => inputRef.current?.focus(), 100);
+  }, [cleanId, id, isProcessing, performScan]);
 
   const handleDeleteTimestamp = useCallback(async (indexToRemove) => {
     if (!timestamps || indexToRemove < 0 || indexToRemove >= timestamps.length || !studentInfo) {
@@ -238,6 +324,17 @@ export default function Scan() {
             </div>
           ) : null}
         </div>
+      )}
+
+      {doubleScanData && (
+        <DoubleScanConfirmationDialog
+          dialogRef={doubleScanDialogRef}
+          studentInfo={doubleScanData.student}
+          lastRoundTime={doubleScanData.lastRoundTime}
+          thresholdMinutes={doubleScanData.thresholdMinutes}
+          onConfirm={handleDoubleScanConfirm}
+          onCancel={handleDoubleScanCancel}
+        />
       )}
     </div>
   );

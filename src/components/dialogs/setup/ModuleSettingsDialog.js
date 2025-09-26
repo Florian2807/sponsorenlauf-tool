@@ -8,7 +8,12 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
     const [localConfig, setLocalConfig] = useState({
         donations: true,
         emails: true,
-        teachers: true
+        teachers: true,
+        doubleScanPrevention: {
+            enabled: true,
+            timeThresholdMinutes: 5,
+            mode: 'confirm'
+        }
     });
     const [localDonationMode, setLocalDonationMode] = useState('expected');
     const [isLoading, setIsLoading] = useState(false);
@@ -19,7 +24,23 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
 
     // Load current settings when dialog opens
     useEffect(() => {
-        setLocalConfig(globalConfig);
+        // Normalisiere die Konfiguration für Abwärtskompatibilität
+        const normalizedConfig = {
+            ...globalConfig,
+            doubleScanPrevention: typeof globalConfig.doubleScanPrevention === 'boolean' 
+                ? {
+                    enabled: globalConfig.doubleScanPrevention,
+                    timeThresholdMinutes: 5,
+                    mode: 'confirm'
+                }
+                : globalConfig.doubleScanPrevention || {
+                    enabled: true,
+                    timeThresholdMinutes: 5,
+                    mode: 'confirm'
+                }
+        };
+        
+        setLocalConfig(normalizedConfig);
         setLocalDonationMode(globalDonationMode);
     }, [globalConfig, globalDonationMode]);
 
@@ -44,9 +65,32 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
     };
 
     const handleModuleChange = (module, enabled) => {
+        if (module === 'doubleScanPrevention') {
+            setLocalConfig(prev => ({
+                ...prev,
+                doubleScanPrevention: {
+                    ...prev.doubleScanPrevention,
+                    enabled: enabled
+                }
+            }));
+        } else {
+            setLocalConfig(prev => ({
+                ...prev,
+                [module]: enabled
+            }));
+        }
+    };
+
+    const handleDoubleScanConfigChange = (setting, value) => {
         setLocalConfig(prev => ({
             ...prev,
-            [module]: enabled
+            doubleScanPrevention: {
+                enabled: true,
+                timeThresholdMinutes: 5,
+                mode: 'confirm',
+                ...prev.doubleScanPrevention,
+                [setting]: value
+            }
         }));
     };
 
@@ -239,6 +283,103 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
                                     <div className="warning-content">
                                         <strong>Achtung bei Deaktivierung:</strong>
                                         <p>Die komplette Lehrerverwaltung wird deaktiviert. E-Mail-Zuordnungen und Klassenzuweisungen werden ausgeblendet.</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="module-card">
+                        <div className="module-card-header">
+                            <div className="module-icon">🔒</div>
+                            <div className="module-header-content">
+                                <h4 className="module-title">Doppel-Scan-Schutz</h4>
+                                <p className="module-subtitle">Verhindert versehentliche Doppel-Scans</p>
+                            </div>
+                            <label className="module-toggle">
+                                <input
+                                    type="checkbox"
+                                    checked={localConfig.doubleScanPrevention?.enabled || false}
+                                    onChange={(e) => handleModuleChange('doubleScanPrevention', e.target.checked)}
+                                    disabled={isLoading}
+                                />
+                                <span className="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div className="module-card-content">
+                            <div className="module-features">
+                                <h5>Enthaltene Features:</h5>
+                                <ul>
+                                    <li>⏱️ Konfigurierbarer Zeitabstand zwischen Scans</li>
+                                    <li>⚠️ Bestätigungsdialog oder komplette Blockierung</li>
+                                    <li>✅ Flexible Einstellungen pro Einsatz</li>
+                                    <li>🚫 Verhindert versehentliche Mehrfachscans</li>
+                                    <li>🎯 Präzise Rundenzählung</li>
+                                </ul>
+                            </div>
+
+                            {localConfig.doubleScanPrevention?.enabled && (
+                                <div className="module-sub-settings">
+                                    <h6 className="sub-settings-title">Doppel-Scan-Konfiguration:</h6>
+                                    
+                                    <div className="setting-row">
+                                        <label htmlFor="timeThreshold">Mindestabstand (Minuten):</label>
+                                        <input
+                                            id="timeThreshold"
+                                            type="number"
+                                            min="1"
+                                            max="60"
+                                            value={localConfig.doubleScanPrevention?.timeThresholdMinutes || 5}
+                                            onChange={(e) => handleDoubleScanConfigChange('timeThresholdMinutes', parseInt(e.target.value))}
+                                            disabled={isLoading}
+                                            className="number-input"
+                                        />
+                                    </div>
+
+                                    <div className="setting-row">
+                                        <label>Verhalten bei Doppel-Scan:</label>
+                                        <div className="radio-group-compact">
+                                            <label className="radio-option-compact">
+                                                <input
+                                                    type="radio"
+                                                    name="doubleScanMode"
+                                                    value="confirm"
+                                                    checked={(localConfig.doubleScanPrevention?.mode || 'confirm') === 'confirm'}
+                                                    onChange={(e) => handleDoubleScanConfigChange('mode', e.target.value)}
+                                                    disabled={isLoading}
+                                                />
+                                                <span className="radio-dot"></span>
+                                                <span className="radio-text">Nach Bestätigung wird Runde gezählt</span>
+                                            </label>
+                                            <label className="radio-option-compact">
+                                                <input
+                                                    type="radio"
+                                                    name="doubleScanMode"
+                                                    value="block"
+                                                    checked={(localConfig.doubleScanPrevention?.mode || 'confirm') === 'block'}
+                                                    onChange={(e) => handleDoubleScanConfigChange('mode', e.target.value)}
+                                                    disabled={isLoading}
+                                                />
+                                                <span className="radio-dot"></span>
+                                                <span className="radio-text">Blockiert das Zählen der Runde</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <p className="sub-settings-description">
+                                        <strong>Bestätigungsdialog:</strong> Scanner kann entscheiden, ob die Runde trotzdem gezählt wird.<br/>
+                                        <strong>Blockierung:</strong> Kein Dialog, Scan wird abgelehnt bis Zeitlimit erreicht ist.
+                                    </p>
+                                </div>
+                            )}
+
+                            {!localConfig.doubleScanPrevention?.enabled && (
+                                <div className="module-warning">
+                                    <div className="warning-icon">⚠️</div>
+                                    <div className="warning-content">
+                                        <strong>Hinweis bei Deaktivierung:</strong>
+                                        <p>Ohne Doppel-Scan-Schutz können Runden versehentlich mehrfach gescannt werden. Dies kann zu ungenauer Rundenzählung führen.</p>
                                     </div>
                                 </div>
                             )}

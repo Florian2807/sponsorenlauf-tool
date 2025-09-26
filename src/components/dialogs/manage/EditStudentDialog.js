@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import BaseDialog from '../../BaseDialog';
 import { formatDate } from '../../../utils/constants';
 
@@ -15,10 +15,18 @@ const EditStudentDialog = ({
     addReplacementPopup,
     confirmDeletePopup,
     editStudent,
+    addRound,
     loading = false
 }) => {
     const handleInputChange = (field, value) => {
         setEditForm(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleAddRound = () => {
+        if (!selectedStudent || !addRound) return;
+        
+        const currentTimestamp = new Date().toISOString();
+        addRound(selectedStudent.id, currentTimestamp);
     };
 
     const actions = [
@@ -129,22 +137,46 @@ const EditStudentDialog = ({
                 </button>
             </div>
 
-            <div>
-                <h3>Gelaufene Runden: {selectedStudent?.timestamps.length}</h3>
-                <h3>Timestamps:</h3>
-                <ul className="timestamp-list">
-                    {selectedStudent?.timestamps.map((timestamp, index) => (
-                        <li key={index} className="timestamp-item">
-                            <span>{formatDate(new Date(timestamp))}</span>
-                            <button
-                                className="delete-timestamp-btn"
-                                onClick={() => deleteTimestamp(index)}
-                            >
-                                Löschen
-                            </button>
-                        </li>
-                    ))}
-                </ul>
+            <div className="rounds-section">
+                <div className="rounds-header">
+                    <h3>Gelaufene Runden: {selectedStudent?.timestamps.length || 0}</h3>
+                    <button
+                        type="button"
+                        className="btn btn-sm"
+                        onClick={handleAddRound}
+                        disabled={loading}
+                    >
+                        Runde hinzufügen
+                    </button>
+                </div>
+
+                <h4>Runden-Timestamps:</h4>
+                {selectedStudent?.timestamps && selectedStudent.timestamps.length > 0 ? (
+                    <ul className="timestamp-list">
+                        {selectedStudent.timestamps
+                            .slice() // Kopie erstellen um Original nicht zu mutieren
+                            .sort((a, b) => new Date(b) - new Date(a)) // Neueste zuerst
+                            .map((timestamp, index) => (
+                            <li key={`${timestamp}-${index}`} className="timestamp-item">
+                                <div className="timestamp-info">
+                                    <span className="timestamp-date">{formatDate(new Date(timestamp))}</span>
+                                </div>
+                                <button
+                                    className="delete-timestamp-btn"
+                                    onClick={() => deleteTimestamp(selectedStudent.timestamps.findIndex(ts => ts === timestamp))}
+                                    disabled={loading}
+                                    title="Runde löschen"
+                                >
+                                    Löschen
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                ) : (
+                    <div className="no-rounds">
+                        <p>Noch keine Runden gelaufen.</p>
+                    </div>
+                )}
             </div>
 
         </BaseDialog>

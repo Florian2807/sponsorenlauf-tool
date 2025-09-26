@@ -140,6 +140,44 @@ export const getAllSettings = async () => {
     }
 };
 
+/**
+ * Holt die Modul-Konfiguration aus der Datenbank
+ * @returns {Promise<Object>} Die Modul-Konfiguration mit Standard-Werten
+ */
+export const getModuleConfig = async () => {
+    try {
+        const moduleConfig = await getSetting('module_config', {});
+        
+        // Standard-Werte für fehlende Module ergänzen
+        return {
+            donations: moduleConfig.donations ?? true,
+            emails: moduleConfig.emails ?? true,
+            teachers: moduleConfig.teachers ?? true,
+            doubleScanPrevention: {
+                enabled: moduleConfig.doubleScanPrevention?.enabled ?? true,
+                timeThresholdMinutes: moduleConfig.doubleScanPrevention?.timeThresholdMinutes ?? 5,
+                allowManualOverride: moduleConfig.doubleScanPrevention?.allowManualOverride ?? true,
+                showDetailedWarning: moduleConfig.doubleScanPrevention?.showDetailedWarning ?? true,
+                ...moduleConfig.doubleScanPrevention
+            }
+        };
+    } catch (error) {
+        console.error('Fehler beim Abrufen der Modul-Konfiguration:', error);
+        // Fallback auf Standard-Werte
+        return {
+            donations: true,
+            emails: true,
+            teachers: true,
+            doubleScanPrevention: {
+                enabled: true,
+                timeThresholdMinutes: 5,
+                allowManualOverride: true,
+                showDetailedWarning: true
+            }
+        };
+    }
+};
+
 
 
 

@@ -75,9 +75,8 @@ const createClassSpendenWorkbook = (classData) => {
     const students = classData[klasse];
     const worksheet = workbook.addWorksheet(klasse);
 
-    // Titel-Zeile: "Sponsorenlauf 2024"
     worksheet.mergeCells('A1:G1');
-    worksheet.getCell('A1').value = 'Sponsorenlauf 2024';
+    worksheet.getCell('A1').value = `Sponsorenlauf ${new Date().getFullYear()}`;
     worksheet.getCell('A1').font = { size: 24, bold: true };
     worksheet.getCell('A1').alignment = { vertical: 'middle', horizontal: 'center' };
     worksheet.getRow(1).height = 40;
@@ -96,10 +95,10 @@ const createClassSpendenWorkbook = (classData) => {
     worksheet.columns = [
       { key: 'vorname', width: 15 },
       { key: 'nachname', width: 15 },
-      { key: 'rounds', width: 10 },
-      { key: 'expected_donations', width: 12 },
-      { key: 'received_donations', width: 12 },
-      { key: 'differenz', width: 12 },
+      { key: 'rounds', width: 8 },
+      { key: 'expected_donations', width: 8 },
+      { key: 'received_donations', width: 8 },
+      { key: 'differenz', width: 8 },
       { key: 'notizen', width: 20 }
     ];
 

@@ -1813,7 +1813,7 @@ textarea:focus {
   background: rgba(74, 144, 226, 0.05);
 }
 
-.provider-radio:checked + .provider-label {
+.provider-radio:checked+.provider-label {
   border-color: var(--primary-color);
   background: rgba(74, 144, 226, 0.1);
   color: var(--primary-color);
@@ -1861,8 +1861,13 @@ textarea:focus {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .connectivity-badge.connected {
@@ -1983,8 +1988,13 @@ textarea:focus {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* Button Styles */
@@ -2379,16 +2389,16 @@ textarea:focus {
     flex-direction: column;
     gap: var(--spacing-sm);
   }
-  
+
   .status-item {
     justify-content: center;
   }
-  
+
   .progress-steps {
     flex-direction: column;
     gap: var(--spacing-sm);
   }
-  
+
   .progress-steps::before {
     display: none;
   }

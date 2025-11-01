@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { API_ENDPOINTS } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
 import { useGlobalError } from '../contexts/ErrorContext';
+import styles from '../styles/Donations.module.css';
 
 export default function AddDonations() {
     const [students, setStudents] = useState([]);
@@ -11,7 +12,7 @@ export default function AddDonations() {
     const [message, setMessage] = useState('');
     const [studentInfo, setStudentInfo] = useState(null);
     const [highlightedIndex, setHighlightedIndex] = useState(-1);
-    const [isSpendenMode, setIsSpendenMode] = useState(false);
+    const [isSpendenMode, setIsSpendenMode] = useState(true);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -91,8 +92,8 @@ export default function AddDonations() {
         setIsDropdownOpen(false);
         setHighlightedIndex(-1);
 
-        // Fokus auf Betrag-Input
-        setTimeout(() => amountInputRef.current?.focus(), 0);
+        // Fokus direkt auf Betrag-Input
+        amountInputRef.current?.focus();
 
         // Lade sofort Schüler-Info
         fetchStudentInfo(student.id);
@@ -223,6 +224,13 @@ export default function AddDonations() {
     };
 
     const handleKeyDown = useCallback((e) => {
+        if (!isDropdownOpen && e.key === 'Enter' && searchQuery && filteredStudents.length > 0) {
+            // Wenn Dropdown geschlossen ist, aber es gibt Suchergebnisse, wähle das erste
+            e.preventDefault();
+            handleStudentSelect(filteredStudents[0]);
+            return;
+        }
+
         if (!isDropdownOpen || filteredStudents.length === 0) return;
 
         switch (e.key) {
@@ -240,7 +248,10 @@ export default function AddDonations() {
                 break;
             case 'Enter':
                 e.preventDefault();
-                if (highlightedIndex >= 0 && highlightedIndex < filteredStudents.length) {
+                if (highlightedIndex === -1 && filteredStudents.length > 0) {
+                    // Wenn kein Element hervorgehoben ist, wähle das erste
+                    handleStudentSelect(filteredStudents[0]);
+                } else if (highlightedIndex >= 0 && highlightedIndex < filteredStudents.length) {
                     handleStudentSelect(filteredStudents[highlightedIndex]);
                 }
                 break;
@@ -255,7 +266,7 @@ export default function AddDonations() {
                 }
                 break;
         }
-    }, [isDropdownOpen, filteredStudents, highlightedIndex, handleStudentSelect]);
+    }, [isDropdownOpen, filteredStudents, highlightedIndex, handleStudentSelect, searchQuery]);
 
     const formatCurrencyDisplay = (value) => {
         if (value === null || value === undefined || isNaN(value)) return '0,00€';
@@ -276,27 +287,31 @@ export default function AddDonations() {
             <h1 className="page-title">Spenden verwalten</h1>
 
             {/* Mode Toggle */}
-            <div className="form-section">
-                <div className="mode-toggle">
-                    <div className="switch-container">
-                        <label className="switch">
+            <div className={styles.formSection}>
+                <div className={styles.modeToggle}>
+                    <div className={styles.switchContainer}>
+                        <label className={styles.switch}>
                             <input
                                 type="checkbox"
                                 checked={isSpendenMode}
                                 onChange={(e) => setIsSpendenMode(e.target.checked)}
+                                aria-label="Spendenart umschalten"
                             />
-                            <span className="switch-slider"></span>
+                            <span className={styles.switchSlider}></span>
                         </label>
-                        <span className="mode-label">
-                            {isSpendenMode
-                                ? '📋 Erwartete Spenden (Schülerliste)'
-                                : '💰 Erhaltene Spenden (Kontoauszug)'}
-                        </span>
+                        <div className={styles.modeLabels}>
+                            <span className={`${styles.modeLabel} ${!isSpendenMode ? styles.active : ''}`}>
+                                📋 Erhaltene Spenden (Kontoauszug)
+                            </span>
+                            <span className={`${styles.modeLabel} ${isSpendenMode ? styles.active : ''}`}>
+                                📋 Erwartete Spenden (Schülerliste)
+                            </span>
+                        </div>
                     </div>
-                    <p className="mode-description">
+                    <p className={styles.modeDescription}>
                         {isSpendenMode
-                            ? 'Erfassen Sie erwartete Spenden basierend auf der Schülerliste'
-                            : 'Erfassen Sie bereits erhaltene Spenden aus dem Kontoauszug'}
+                            ? 'Erfassen Sie erwartete Spenden von Ihren Schülerlisten vor dem Sponsorenlauf'
+                            : 'Erfassen Sie die bereits erhaltenen Spenden aus den Kontoauszügen nach dem Sponsorenlauf'}
                     </p>
                 </div>
             </div>
@@ -305,11 +320,11 @@ export default function AddDonations() {
             <form onSubmit={handleSubmit} className="donation-form">
                 <div className="form-grid">
                     {/* Student Search */}
-                    <div className="form-group">
-                        <label htmlFor="student" className="form-label">
+                    <div className={styles.formGroup}>
+                        <label htmlFor="student" className={styles.formLabel}>
                             🔍 Schüler suchen:
                         </label>
-                        <div className="student-search" ref={dropdownRef}>
+                        <div className={styles.studentSearch} ref={dropdownRef}>
                             <input
                                 type="text"
                                 id="student"
@@ -317,7 +332,7 @@ export default function AddDonations() {
                                 onChange={handleSearchChange}
                                 onKeyDown={handleKeyDown}
                                 onFocus={() => searchQuery && setIsDropdownOpen(true)}
-                                className={`form-control ${selectedStudent ? 'has-selection' : ''}`}
+                                className={`${styles.formControl} ${selectedStudent ? styles.hasSelection : ''}`}
                                 placeholder="Name oder Klasse eingeben..."
                                 autoComplete="off"
                                 ref={searchInputRef}
@@ -325,25 +340,33 @@ export default function AddDonations() {
                             />
 
                             {selectedStudent && (
-                                <div className="selected-student">
+                                <div className={styles.selectedStudent}>
                                     ✅ {selectedStudent.vorname} {selectedStudent.nachname}
-                                    <span className="student-class">({selectedStudent.klasse})</span>
+                                    <span className={styles.studentClass}>({selectedStudent.klasse})</span>
                                 </div>
                             )}
 
                             {isDropdownOpen && filteredStudents.length > 0 && (
-                                <div className="suggestions-dropdown">
+                                <div className={styles.suggestionsDropdown}>
                                     {filteredStudents.map((student, index) => (
                                         <div
                                             key={student.id}
                                             onClick={() => handleStudentSelect(student)}
-                                            className={`suggestion-item ${highlightedIndex === index ? 'highlighted' : ''
-                                                }`}
+                                            className={`${styles.suggestionItem} ${highlightedIndex === index ? styles.highlighted : ''}`}
+                                            tabIndex={0}
+                                            role="option"
+                                            aria-selected={highlightedIndex === index}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' || e.key === ' ') {
+                                                    e.preventDefault();
+                                                    handleStudentSelect(student);
+                                                }
+                                            }}
                                         >
-                                            <div className="student-name">
+                                            <div className={styles.studentName}>
                                                 {student.vorname} {student.nachname}
                                             </div>
-                                            <div className="student-details">
+                                            <div className={styles.studentDetails}>
                                                 Klasse {student.klasse}
                                             </div>
                                         </div>
@@ -354,11 +377,11 @@ export default function AddDonations() {
                     </div>
 
                     {/* Amount Input */}
-                    <div className="form-group">
-                        <label htmlFor="amount" className="form-label">
+                    <div className={styles.formGroup}>
+                        <label htmlFor="amount" className={styles.formLabel}>
                             💶 Betrag:
                         </label>
-                        <div className="amount-input-wrapper">
+                        <div className={styles.amountInputWrapper}>
                             <input
                                 type="text"
                                 id="amount"
@@ -369,31 +392,37 @@ export default function AddDonations() {
                                         setAmount(formatCurrencyInput(e.target.value));
                                     }
                                 }}
-                                className="form-control amount-input"
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && amount && selectedStudent) {
+                                        e.preventDefault();
+                                        handleSubmit(e);
+                                    }
+                                }}
+                                className={`${styles.formControl} ${styles.amountInput}`}
                                 placeholder="0,00"
                                 ref={amountInputRef}
                                 disabled={loading || isSubmitting}
                             />
-                            <span className="currency-symbol">€</span>
+                            <span className={styles.currencySymbol}>€</span>
                         </div>
                     </div>
                 </div>
 
                 {/* Submit Button */}
-                <div className="form-actions">
+                <div className={styles.formActions}>
                     <button
                         type="submit"
-                        className={`btn btn-primary btn-lg ${isSubmitting ? 'loading' : ''}`}
+                        className={`${styles.submitButton} ${isSubmitting ? styles.loading : ''}`}
                         disabled={loading || isSubmitting || !selectedStudent || !amount}
                     >
                         {isSubmitting ? (
                             <>
-                                <span className="loading-spinner"></span>
+                                <span className={styles.loadingSpinner}></span>
                                 Wird gespeichert...
                             </>
                         ) : (
                             <>
-                                {isSpendenMode ? '📝 Erwartung erfassen' : '💰 Spende hinzufügen'}
+                                {isSpendenMode ? ' Erwartete Spende speichern' : '💰 Erhaltene Spende speichern'}
                             </>
                         )}
                     </button>
@@ -402,8 +431,8 @@ export default function AddDonations() {
 
             {/* Messages */}
             {message && (
-                <div className={`message ${message.includes('erfolgreich') ? 'message-success' :
-                    message.includes('Fehler') ? 'message-error' : 'message-info'
+                <div className={`${styles.message} ${message.includes('erfolgreich') ? styles.messageSuccess :
+                    message.includes('Fehler') ? styles.messageError : styles.messageInfo
                     }`}>
                     {message}
                 </div>
@@ -411,50 +440,57 @@ export default function AddDonations() {
 
             {/* Student Info */}
             {studentInfo && (
-                <div className="student-info-card">
-                    <div className="student-header">
+                <div className={styles.studentInfoCard}>
+                    <div className={styles.studentHeader}>
                         <h2>📊 Übersicht: {studentInfo.vorname} {studentInfo.nachname}</h2>
-                        <span className="student-class-badge">{studentInfo.klasse}</span>
+                        <span className={styles.studentClassBadge}>{studentInfo.klasse}</span>
                     </div>
 
-                    <div className="info-grid">
-                        <div className="info-item">
-                            <span className="info-label">🏃‍♂️ Gelaufene Runden:</span>
-                            <span className="info-value">{studentInfo.timestamps?.length || 0}</span>
+                    <div className={styles.infoGrid}>
+                        <div className={styles.infoItem}>
+                            <span className={styles.infoLabel}>🏃‍♂️ Gelaufene Runden:</span>
+                            <span className={styles.infoValue}>{studentInfo.timestamps?.length || 0}</span>
                         </div>
 
-                        <div className="info-item">
-                            <span className="info-label">📋 Erwartete Spenden:</span>
-                            <span className="info-value expected">
-                                {formatCurrencyDisplay(studentInfo.spenden ?? 0)}
-                            </span>
+                        <div className={styles.infoItem}>
+                            <span className={styles.infoLabel}>📋 Erwartete Spenden:</span>
+                            {(() => {
+                                const expectedAmount = studentInfo.spenden ?? 0;
+                                return (
+                                    <span className={`${styles.infoValue} ${expectedAmount > 0 ? styles.hasValue : ''}`}>
+                                        {formatCurrencyDisplay(expectedAmount)}
+                                    </span>
+                                );
+                            })()}
                         </div>
 
-                        <div className="info-item">
-                            <span className="info-label">💰 Erhaltene Spenden:</span>
-                            <span className="info-value received">
-                                {formatCurrencyDisplay(
-                                    studentInfo.spendenKonto?.reduce((a, b) => a + b, 0) ?? 0
-                                )}
-                            </span>
+                        <div className={styles.infoItem}>
+                            <span className={styles.infoLabel}>💰 Erhaltene Spenden:</span>
+                            {(() => {
+                                const receivedAmount = studentInfo.spendenKonto?.reduce((a, b) => a + b, 0) ?? 0;
+                                return (
+                                    <span className={`${styles.infoValue} ${receivedAmount > 0 ? styles.hasValue : ''}`}>
+                                        {formatCurrencyDisplay(receivedAmount)}
+                                    </span>
+                                );
+                            })()}
                         </div>
 
-                        <div className="info-item difference">
-                            <span className="info-label">📈 Differenz:</span>
-                            <span className={`info-value ${calculateDifference(
-                                studentInfo.spendenKonto?.reduce((a, b) => a + b, 0) ?? 0,
-                                studentInfo.spenden ?? 0
-                            ).isPositive ? 'positive' : 'negative'
-                                }`}>
-                                {calculateDifference(
-                                    studentInfo.spendenKonto?.reduce((a, b) => a + b, 0) ?? 0,
-                                    studentInfo.spenden ?? 0
-                                ).isPositive ? '+' : '-'}
-                                {calculateDifference(
-                                    studentInfo.spendenKonto?.reduce((a, b) => a + b, 0) ?? 0,
-                                    studentInfo.spenden ?? 0
-                                ).formatted}
-                            </span>
+                        <div className={styles.infoItem}>
+                            <span className={styles.infoLabel}>📈 Differenz:</span>
+                            {(() => {
+                                const received = studentInfo.spendenKonto?.reduce((a, b) => a + b, 0) ?? 0;
+                                const expected = studentInfo.spenden ?? 0;
+                                const difference = received - expected;
+                                const diffClass = difference === 0 ? 'matched' : 'unmatched';
+
+                                return (
+                                    <span className={`${styles.infoValue} ${styles.difference} ${styles[diffClass]}`}>
+                                        {difference !== 0 && (difference > 0 ? '+' : '-')}
+                                        {formatCurrencyDisplay(Math.abs(difference))}
+                                    </span>
+                                );
+                            })()}
                         </div>
                     </div>
 

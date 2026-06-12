@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import BaseDialog from '../../BaseDialog';
 import { formatDate, calculateTimeDifference } from '../../../utils/constants';
 
@@ -59,87 +59,128 @@ const EditStudentDialog = ({
             size="large"
             showDefaultClose={false}
         >
-            <div>
-                <label className="form-label">ID:</label>
-                <input
-                    type="text"
-                    value={selectedStudent?.id || ''}
-                    className="form-input"
-                    disabled
-                />
+            <div className="manage-dialog-stack">
+                <div className="manage-dialog-summary-grid">
+                    <div className="manage-dialog-summary-card">
+                        <span>ID</span>
+                        <strong>{selectedStudent?.id || '-'}</strong>
+                    </div>
+                    <div className="manage-dialog-summary-card">
+                        <span>Klasse</span>
+                        <strong>{selectedStudent?.klasse || 'Nicht gesetzt'}</strong>
+                    </div>
+                    <div className="manage-dialog-summary-card">
+                        <span>Runden</span>
+                        <strong>{selectedStudent?.timestamps.length || 0}</strong>
+                    </div>
+                    <div className="manage-dialog-summary-card">
+                        <span>Ersatz-IDs</span>
+                        <strong>{selectedStudent?.replacements.length || 0}</strong>
+                    </div>
+                </div>
 
-                <label className="form-label">Vorname:</label>
-                <input
-                    type="text"
-                    value={editForm.vorname}
-                    onChange={(e) => handleInputChange('vorname', e.target.value)}
-                    className="form-input"
-                />
+                <section className="manage-dialog-section">
+                    <div className="manage-dialog-section-header">
+                        <h3>Stammdaten</h3>
+                        <p>Bearbeiten Sie Name, Klasse und Geschlecht des Schülers.</p>
+                    </div>
 
-                <label className="form-label">Nachname:</label>
-                <input
-                    type="text"
-                    value={editForm.nachname}
-                    onChange={(e) => handleInputChange('nachname', e.target.value)}
-                    className="form-input"
-                />
+                    <div className="manage-dialog-form-grid">
+                        <div>
+                            <label className="form-label">ID</label>
+                            <input type="text" value={selectedStudent?.id || ''} className="form-input" disabled />
+                        </div>
+                        <div>
+                            <label className="form-label">Klasse</label>
+                            <select
+                                value={editForm.klasse}
+                                onChange={(e) => handleInputChange('klasse', e.target.value)}
+                                className="form-select"
+                            >
+                                <option value="">Klasse auswählen...</option>
+                                {availableClasses.map((className) => (
+                                    <option key={className} value={className}>{className}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="form-label">Vorname</label>
+                            <input
+                                type="text"
+                                value={editForm.vorname}
+                                onChange={(e) => handleInputChange('vorname', e.target.value)}
+                                className="form-input"
+                            />
+                        </div>
+                        <div>
+                            <label className="form-label">Nachname</label>
+                            <input
+                                type="text"
+                                value={editForm.nachname}
+                                onChange={(e) => handleInputChange('nachname', e.target.value)}
+                                className="form-input"
+                            />
+                        </div>
+                        <div className="manage-dialog-form-span-2">
+                            <label className="form-label">Geschlecht</label>
+                            <select
+                                value={editForm.geschlecht}
+                                onChange={(e) => handleInputChange('geschlecht', e.target.value)}
+                                className="form-select"
+                            >
+                                <option value="männlich">Männlich</option>
+                                <option value="weiblich">Weiblich</option>
+                                <option value="divers">Divers</option>
+                            </select>
+                        </div>
+                    </div>
+                </section>
 
-                <label className="form-label">Klasse:</label>
-                <select
-                    value={editForm.klasse}
-                    onChange={(e) => handleInputChange('klasse', e.target.value)}
-                    className="form-select"
-                >
-                    <option value="">Klasse auswählen...</option>
-                    {availableClasses.map((className) => (
-                        <option key={className} value={className}>
-                            {className}
-                        </option>
-                    ))}
-                </select>
-
-                <label className="form-label">Geschlecht:</label>
-                <select
-                    value={editForm.geschlecht}
-                    onChange={(e) => handleInputChange('geschlecht', e.target.value)}
-                    className="form-select"
-                >
-                    <option value="männlich">Männlich</option>
-                    <option value="weiblich">Weiblich</option>
-                    <option value="divers">Divers</option>
-                </select>
-            </div>
-
-            <h3>Ersatz-IDs:</h3>
-            <div className="replacement-container">
-                {selectedStudent?.replacements.map((replacement, index) => (
-                    <div key={index} className="replacement-tag">
-                        <span className="replacement-text">{replacement}</span>
+                <section className="manage-dialog-section">
+                    <div className="manage-dialog-section-header manage-dialog-section-header-inline">
+                        <div>
+                            <h3>Ersatz-IDs</h3>
+                            <p>Verwalten Sie alternative Scan-Codes für beschädigte oder verlorene Karten.</p>
+                        </div>
                         <button
-                            className="delete-replacement-btn"
-                            onClick={() => deleteReplacement(replacement)}
-                            title="Ersatz-ID löschen"
+                            type="button"
+                            className="btn btn-sm"
+                            onClick={() => {
+                                setMessage('');
+                                setNewReplacement('');
+                                addReplacementPopup.current.showModal();
+                            }}
                         >
-                            <span className="delete-icon">&times;</span>
+                            Ersatz-ID hinzufügen
                         </button>
                     </div>
-                ))}
-                <button
-                    type="button"
-                    className="replacement-tag"
-                    onClick={() => {
-                        setMessage('');
-                        setNewReplacement('');
-                        addReplacementPopup.current.showModal()
-                    }}
-                >
-                    ➕
-                </button>
-            </div>
 
-            <div className="rounds-section">
+                    {selectedStudent?.replacements.length ? (
+                        <div className="replacement-container">
+                            {selectedStudent.replacements.map((replacement, index) => (
+                                <div key={index} className="replacement-tag">
+                                    <span className="replacement-text">{replacement}</span>
+                                    <button
+                                        className="delete-replacement-btn"
+                                        onClick={() => deleteReplacement(replacement)}
+                                        title="Ersatz-ID löschen"
+                                    >
+                                        <span className="delete-icon">&times;</span>
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="empty-state">Noch keine Ersatz-IDs vorhanden.</div>
+                    )}
+                </section>
+
+                <section className="manage-dialog-section rounds-section">
                 <div className="rounds-header">
-                    <h3>Gelaufene Runden: {selectedStudent?.timestamps.length || 0}</h3>
+                    <div>
+                        <h3>Runden</h3>
+                        <p className="text-muted">Gelaufene Runden: {selectedStudent?.timestamps.length || 0}</p>
+                    </div>
                     <button
                         type="button"
                         className="btn btn-sm"
@@ -150,7 +191,6 @@ const EditStudentDialog = ({
                     </button>
                 </div>
 
-                <h4>Runden-Timestamps:</h4>
                 {selectedStudent?.timestamps && selectedStudent.timestamps.length > 0 ? (
                     <ul className="timestamp-list">
                         {selectedStudent.timestamps
@@ -188,6 +228,7 @@ const EditStudentDialog = ({
                         <p>Noch keine Runden gelaufen.</p>
                     </div>
                 )}
+                </section>
             </div>
 
         </BaseDialog>

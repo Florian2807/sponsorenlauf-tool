@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { formatDate, timeAgo, calculateTimeDifference, API_ENDPOINTS } from '../utils/constants';
+import { formatDate, timeAgo, calculateTimeDifference } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
 import { useGlobalError } from '../contexts/ErrorContext';
+import { cleanScannedStudentId } from '../utils/studentId';
 
 export default function Show() {
   const [id, setID] = useState('');
@@ -9,7 +10,7 @@ export default function Show() {
   const [currentTimestamp, setCurrentTimestamp] = useState(null);
   const [studentInfo, setStudentInfo] = useState(null);
 
-  const { request, loading, error } = useApi();
+  const { request } = useApi();
   const { showError, showSuccess } = useGlobalError();
   const inputRef = useRef(null);
 
@@ -18,7 +19,7 @@ export default function Show() {
   }, []);
 
   const cleanId = useCallback((rawId) => {
-    return rawId.replace(new RegExp(`${new Date().getFullYear()}[ß/\\-]`, 'gm'), '');
+    return cleanScannedStudentId(rawId);
   }, []);
 
   const handleSubmit = useCallback(async (event) => {
@@ -64,7 +65,9 @@ export default function Show() {
       <h1 className="page-title">Schüler anzeigen</h1>
       <p className="message message-warning">Achtung: Hier werden keine Runden hinzugefügt, nur die Schülerdaten angezeigt.</p>
       <form onSubmit={handleSubmit} className="form">
+        <label className="form-label" htmlFor="show-id">Barcode oder Schüler-ID</label>
         <input
+          id="show-id"
           type="text"
           ref={inputRef}
           value={id}
@@ -72,7 +75,9 @@ export default function Show() {
           placeholder="Barcode scannen"
           required
           className="form-control"
+          autoComplete="off"
         />
+        <span className="field-hint">Hier werden nur Daten angezeigt. Es wird keine neue Runde gespeichert.</span>
         <button type="submit" className="btn">Anzeigen</button>
       </form>
       {studentInfo && (

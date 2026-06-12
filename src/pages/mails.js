@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import JSZip from 'jszip';
 import { API_ENDPOINTS } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
 import { useGlobalError } from '../contexts/ErrorContext';
 import { useModuleConfig } from '../contexts/ModuleConfigContext';
+import BaseDialog from '../components/BaseDialog';
 import SendMailsDialog from '../components/dialogs/mails/SendMailsDialog';
 import MailTemplateSelector from '../components/dialogs/mails/MailTemplateSelector';
 
@@ -67,7 +68,7 @@ const useConnectivity = () => {
     const [isChecking, setIsChecking] = useState(false);
     const { request } = useApi();
 
-    const checkConnectivity = async () => {
+    const checkConnectivity = useCallback(async () => {
         setIsChecking(true);
         try {
             await request('/api/check-connectivity', { timeout: 5000 });
@@ -77,13 +78,13 @@ const useConnectivity = () => {
         } finally {
             setIsChecking(false);
         }
-    };
+    }, [request]);
 
     useEffect(() => {
         checkConnectivity();
         const interval = setInterval(checkConnectivity, 30000);
         return () => clearInterval(interval);
-    }, []);
+    }, [checkConnectivity]);
 
     return { isConnected, isChecking, checkConnectivity };
 };
@@ -582,7 +583,7 @@ export default function MailsPage() {
     const { request } = useApi();
     const { showError, showSuccess } = useGlobalError();
     const { isConnected, isChecking, checkConnectivity } = useConnectivity();
-    const { isAuthenticated, isAuthenticating, authMessage, authenticate } = useEmailAuth();
+    const { isAuthenticated, isAuthenticating, authMessage, authenticate, resetAuth } = useEmailAuth();
     const { files, isGenerating, generateFiles } = useFileGeneration();
 
     // State
@@ -603,6 +604,7 @@ export default function MailsPage() {
 
     // Refs
     const sendMailsPopup = useRef(null);
+    const sendConfirmPopup = useRef(null);
 
     // Initialize data when component mounts
     useEffect(() => {
@@ -835,7 +837,7 @@ export default function MailsPage() {
 
         return emailData;
     };
-    const handleSendEmails = async () => {
+    const executeSendEmails = async () => {
         if (!Object.keys(files).length) {
             showError('Bitte generieren Sie zuerst die Excel-Dateien.', 'E-Mail-Versand');
             return;
@@ -848,19 +850,6 @@ export default function MailsPage() {
                 ? 'Bitte geben Sie mindestens eine E-Mail-Adresse ein.'
                 : 'Bitte wählen Sie mindestens einen Lehrer für den E-Mail-Versand aus.';
             showError(errorMessage, 'E-Mail-Versand');
-            return;
-        }
-
-        // Confirmation dialog
-        let confirmMessage = `Sie sind dabei, E-Mails an ${summary.totalRecipients} ${emailMode === 'manual' ? 'E-Mail-Adressen' : 'Lehrer'} für ${summary.assignedClasses} von ${summary.totalClasses} Klassen zu senden.`;
-
-        if (summary.unassignedClasses.length > 0) {
-            confirmMessage += `\n\nHinweis: ${summary.unassignedClasses.length} Klassen (${summary.unassignedClasses.join(', ')}) haben keine ${emailMode === 'manual' ? 'E-Mail-Adressen' : 'Lehrer'} zugeordnet und erhalten keine E-Mails.`;
-        }
-
-        confirmMessage += '\n\nMöchten Sie fortfahren?';
-
-        if (!window.confirm(confirmMessage)) {
             return;
         }
 
@@ -901,6 +890,25 @@ export default function MailsPage() {
         } finally {
             setIsSending(false);
         }
+    };
+
+    const handleSendEmails = () => {
+        if (!Object.keys(files).length) {
+            showError('Bitte generieren Sie zuerst die Excel-Dateien.', 'E-Mail-Versand');
+            return;
+        }
+
+        const currentSummary = getCurrentSummary();
+
+        if (currentSummary.totalRecipients === 0) {
+            const errorMessage = emailMode === 'manual'
+                ? 'Bitte geben Sie mindestens eine E-Mail-Adresse ein.'
+                : 'Bitte wählen Sie mindestens einen Lehrer für den E-Mail-Versand aus.';
+            showError(errorMessage, 'E-Mail-Versand');
+            return;
+        }
+
+        sendConfirmPopup.current?.showModal();
     };
 
     // Get current summary for display
@@ -1047,7 +1055,9 @@ export default function MailsPage() {
                         />
 
                         <div className="form-group">
+                            <label className="form-label" htmlFor="mail-text">E-Mail Nachricht</label>
                             <textarea
+                                id="mail-text"
                                 value={emailSettings.mailText}
                                 onChange={(e) => handleEmailSettingsChange('mailText', e.target.value)}
                                 className="mail-textarea"
@@ -1096,6 +1106,38 @@ export default function MailsPage() {
                     </div>
                 </>
             )}
+
+            <BaseDialog
+                dialogRef={sendConfirmPopup}
+                title="E-Mail Versand bestätigen"
+                showDefaultClose={false}
+                actions={[
+                    {
+                        label: 'Abbrechen',
+                        position: 'left',
+                        onClick: () => sendConfirmPopup.current?.close(),
+                    },
+                    {
+                        label: isSending ? 'Wird gesendet...' : 'E-Mails senden',
+                        variant: 'success',
+                        onClick: async () => {
+                            sendConfirmPopup.current?.close();
+                            await executeSendEmails();
+                        },
+                        disabled: isSending,
+                    },
+                ]}
+            >
+                <p>
+                    Sie versenden E-Mails an <strong>{summary.totalRecipients} {emailMode === 'manual' ? 'E-Mail-Adressen' : 'Lehrer'}</strong> für <strong>{summary.assignedClasses} von {summary.totalClasses} Klassen</strong>.
+                </p>
+                {summary.unassignedClasses.length > 0 ? (
+                    <div className="message message-warning">
+                        {summary.unassignedClasses.length} Klassen erhalten keine E-Mail: {summary.unassignedClasses.join(', ')}
+                    </div>
+                ) : null}
+                <p className="text-muted">Die erzeugten Excel-Dateien werden direkt an die zugewiesenen Empfänger verschickt.</p>
+            </BaseDialog>
         </div>
     );
 }

@@ -111,7 +111,7 @@ Verwende **systemd**, um das Tool dauerhaft im Hintergrund laufen zu lassen.
     Type=simple
     User=pi
     WorkingDirectory=/home/pi/sponsorenlauf-tool
-    ExecStart=/usr/bin/npm start
+    ExecStart=/home/pi/sponsorenlauf-tool/scripts/start-with-update.sh
     Restart=always
     Environment=NODE_ENV=production
 
@@ -135,6 +135,33 @@ Verwende **systemd**, um das Tool dauerhaft im Hintergrund laufen zu lassen.
     ```bash
     sudo journalctl -u sponsorenlauf -f
     ```
+
+### 🔄 Frontend-Update / Auto-Update beim Neustart
+
+Damit die neue Wartungsfunktion im Frontend funktioniert und bei jedem Neustart automatisch `git pull`, `npm ci` und `npm run build` ausgeführt werden, sind auf dem Raspberry noch zwei zusätzliche Schritte nötig:
+
+1. **Skripte ausführbar machen**
+   ```bash
+   chmod +x /home/pi/sponsorenlauf-tool/scripts/start-with-update.sh
+   chmod +x /home/pi/sponsorenlauf-tool/scripts/system-maintenance-runner.mjs
+   ```
+
+2. **sudo-Recht für den Restart aus dem Frontend erlauben**
+   ```bash
+   sudo visudo -f /etc/sudoers.d/sponsorenlauf-maintenance
+   ```
+   Inhalt:
+   ```sudoers
+   pi ALL=NOPASSWD: /bin/systemctl restart sponsorenlauf
+   ```
+
+4. **Wichtiges Verhalten des Start-Skripts**
+   - Mit LAN + Internet: `git pull --ff-only` → `npm ci` → `npm run build` → `npm start`
+   - Ohne LAN oder ohne Internet: vorhandenes Build wird direkt gestartet
+   - Wenn Update oder Build fehlschlagen, wird der Fehler protokolliert und der vorhandene Stand weiter gestartet
+
+> [!TIP]
+> Eine Beispiel-Datei liegt auch im Repo unter `deployment/systemd/sponsorenlauf.service.example`.
 
 ---
 

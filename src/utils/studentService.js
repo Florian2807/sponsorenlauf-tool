@@ -3,6 +3,7 @@
  */
 
 import { dbAll, dbGet, dbRun, dbTransaction, createPlaceholders } from './database.js';
+import { ensureClassExists } from './classService.js';
 
 /**
  * Holt einen Schüler anhand seiner ID
@@ -70,6 +71,8 @@ export const getStudentByIdFast = async (id) => {
 export const createStudent = async (studentData) => {
     const { id, vorname, nachname, klasse, geschlecht } = studentData;
 
+    await ensureClassExists(klasse);
+
     return await dbRun(
         'INSERT INTO students (id, vorname, nachname, klasse, geschlecht) VALUES (?, ?, ?, ?, ?)',
         [id, vorname.trim(), nachname.trim(), klasse.trim(), geschlecht || null]
@@ -83,11 +86,42 @@ export const createStudent = async (studentData) => {
  * @returns {Promise<Object>} Ergebnis der Operation
  */
 export const updateStudent = async (id, studentData) => {
-    const { vorname, nachname, klasse, geschlecht } = studentData;
+    const updates = [];
+    const params = [];
+
+    if (studentData.klasse !== undefined) {
+        await ensureClassExists(studentData.klasse);
+    }
+
+    if (studentData.vorname !== undefined) {
+        updates.push('vorname = ?');
+        params.push(studentData.vorname.trim());
+    }
+
+    if (studentData.nachname !== undefined) {
+        updates.push('nachname = ?');
+        params.push(studentData.nachname.trim());
+    }
+
+    if (studentData.klasse !== undefined) {
+        updates.push('klasse = ?');
+        params.push(studentData.klasse.trim());
+    }
+
+    if (studentData.geschlecht !== undefined) {
+        updates.push('geschlecht = ?');
+        params.push(studentData.geschlecht || null);
+    }
+
+    if (updates.length === 0) {
+        return { changes: 0 };
+    }
+
+    params.push(id);
 
     return await dbRun(
-        'UPDATE students SET vorname = ?, nachname = ?, klasse = ?, geschlecht = ? WHERE id = ?',
-        [vorname.trim(), nachname.trim(), klasse.trim(), geschlecht || null, id]
+        `UPDATE students SET ${updates.join(', ')} WHERE id = ?`,
+        params
     );
 };
 
@@ -276,7 +310,13 @@ export const deleteRoundByIndex = async (studentId, roundIndex) => {
     const timestampToDelete = rounds[roundIndex];
 
     return await dbRun(
-        'DELETE FROM rounds WHERE student_id = ? AND timestamp = ? LIMIT 1',
+        `DELETE FROM rounds
+         WHERE id = (
+             SELECT id FROM rounds
+             WHERE student_id = ? AND timestamp = ?
+             ORDER BY id ASC
+             LIMIT 1
+         )`,
         [studentId, timestampToDelete]
     );
 };

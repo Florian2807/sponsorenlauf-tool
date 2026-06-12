@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import BaseDialog from '../../BaseDialog';
 
-const AdvancedExportDialog = ({ isOpen, onClose, onExport, loading, statistics, showSpendenExport = false }) => {
+const AdvancedExportDialog = ({ isOpen, onClose, onExport, loading, statistics, showSpendenExport = false, inline = false }) => {
     const dialogRef = useRef(null);
     const [selectedFormat, setSelectedFormat] = useState(showSpendenExport ? 'excel-spenden-klassen' : 'excel-complete');
 
@@ -32,18 +32,28 @@ const AdvancedExportDialog = ({ isOpen, onClose, onExport, loading, statistics, 
             ]
         },
         {
+            id: 'html',
+            title: '🌐 HTML Dashboard Export',
+            description: 'Statische HTML-Auswertung im Stil des aktuellen Statistik-Dashboards',
+            features: [
+                'Übersichtliche Dashboard-Struktur',
+                'Geschlechterauswertung und Klassenvergleich',
+                'Leicht im Browser teilbar oder druckbar',
+                'Passt sich aktiven Modulen an'
+            ]
+        },
+        {
             id: 'pdf-summary',
             title: '📄 PDF-Zusammenfassung',
-            description: 'Kompakte PDF-Auswertung für Präsentationen',
+            description: 'Gut lesbare PDF-Auswertung mit allen wichtigsten Kennzahlen und Rankings',
             features: [
-                'Professionelles Layout',
-                'Kompakte Übersicht',
-                'Ideal für Präsentationen',
-                'Einfach zu teilen',
-                'Hochauflösende Grafiken'
+                'Alle Kernstatistiken aufbereitet',
+                'Auffälligkeiten, Geschlechterdaten und Top-Listen',
+                'Ideal zum Ausdrucken oder Weitergeben',
+                'Passt sich aktiven Modulen an'
             ],
             comingSoon: true
-        }
+        },
     ];
 
     const spendenExportFormat = {
@@ -64,12 +74,16 @@ const AdvancedExportDialog = ({ isOpen, onClose, onExport, loading, statistics, 
         : baseExportFormats;
 
     useEffect(() => {
+        if (inline) {
+            return undefined;
+        }
+
         if (isOpen && dialogRef.current) {
             dialogRef.current.showModal();
         } else if (!isOpen && dialogRef.current) {
             dialogRef.current.close();
         }
-    }, [isOpen]);
+    }, [inline, isOpen]);
 
     const handleFormatChange = (formatId) => {
         setSelectedFormat(formatId);
@@ -88,7 +102,14 @@ const AdvancedExportDialog = ({ isOpen, onClose, onExport, loading, statistics, 
         {
             label: 'Abbrechen',
             position: 'left',
-            onClick: () => dialogRef.current.close()
+            onClick: () => {
+                if (inline) {
+                    onClose?.();
+                    return;
+                }
+
+                dialogRef.current.close();
+            }
         },
         {
             label: loading ? (
@@ -105,16 +126,8 @@ const AdvancedExportDialog = ({ isOpen, onClose, onExport, loading, statistics, 
         }
     ];
 
-    return (
-        <BaseDialog
-            dialogRef={dialogRef}
-            title="🎯 Auswertungen exportieren"
-            onClose={onClose}
-            actions={actions}
-            size="large"
-            showDefaultClose={false}
-        >
-            <div className="advanced-export-dialog">
+    const content = (
+        <div className="advanced-export-dialog">
                 <div className="export-intro">
                     <p>Wählen Sie das gewünschte Export-Format für Ihre Sponsorenlauf-Auswertung.</p>
                 </div>
@@ -167,6 +180,45 @@ const AdvancedExportDialog = ({ isOpen, onClose, onExport, loading, statistics, 
                     </div>
                 )}
             </div>
+    );
+
+    if (inline) {
+        return (
+            <div className="setup-inline-panel-shell advanced-export-panel">
+                <div className="setup-inline-panel-header">
+                    <div>
+                        <h2>Auswertungen exportieren</h2>
+                        <p>Erzeugen Sie Dateien direkt im rechten Arbeitsbereich ohne zusätzliches Pop-up.</p>
+                    </div>
+                </div>
+                <div className="setup-inline-panel-content">{content}</div>
+                <div className="setup-inline-panel-actions">
+                    {actions.map((action) => (
+                        <button
+                            key={typeof action.label === 'string' ? action.label : 'export'}
+                            type="button"
+                            className={`btn ${action.variant === 'success' ? 'btn-success' : 'btn-secondary'}`}
+                            onClick={action.onClick}
+                            disabled={action.disabled}
+                        >
+                            {action.label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <BaseDialog
+            dialogRef={dialogRef}
+            title="🎯 Auswertungen exportieren"
+            onClose={onClose}
+            actions={actions}
+            size="large"
+            showDefaultClose={false}
+        >
+            {content}
         </BaseDialog>
     );
 };

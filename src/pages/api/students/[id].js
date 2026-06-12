@@ -20,12 +20,17 @@ import { dbGet } from '../../../utils/database.js';
 export default async function handler(req, res) {
   try {
     const { id: rawId } = req.query;
+    const normalizedRawId = Array.isArray(rawId) ? rawId[0] : rawId;
     let id;
 
-    if (rawId.startsWith('E')) {
+    if (!normalizedRawId || typeof normalizedRawId !== 'string') {
+      return handleError(res, new Error('Ungültige ID'), 400);
+    }
+
+    if (normalizedRawId.startsWith('E')) {
       const replacement = await dbGet(
         'SELECT studentID FROM replacements WHERE id = ?',
-        [parseInt(rawId.replace('E', ''), 10)]
+        [parseInt(normalizedRawId.replace('E', ''), 10)]
       );
 
       if (!replacement) {
@@ -34,7 +39,7 @@ export default async function handler(req, res) {
       id = replacement.studentID;
     } else {
       // Normale ID validierung
-      id = parseInt(rawId, 10);
+      id = parseInt(normalizedRawId, 10);
       if (isNaN(id) || id <= 0) {
         return handleError(res, new Error('Ungültige ID'), 400);
       }
@@ -82,19 +87,39 @@ export default async function handler(req, res) {
         return handleNotFound(res, 'Schüler');
       }
 
-      const updatedData = {
+      const mergedData = {
         vorname: vorname !== undefined ? vorname : student.vorname,
         nachname: nachname !== undefined ? nachname : student.nachname,
         klasse: klasse !== undefined ? klasse : student.klasse,
         geschlecht: geschlecht !== undefined ? geschlecht : student.geschlecht
       };
 
-      const validationErrors = validateStudent(updatedData);
+      const validationErrors = validateStudent(mergedData);
       if (validationErrors.length > 0) {
         return handleValidationError(res, validationErrors);
       }
 
-      await updateStudent(id, updatedData);
+      const changedStudentFields = {};
+
+      if (vorname !== undefined && vorname !== student.vorname) {
+        changedStudentFields.vorname = vorname;
+      }
+
+      if (nachname !== undefined && nachname !== student.nachname) {
+        changedStudentFields.nachname = nachname;
+      }
+
+      if (klasse !== undefined && klasse !== student.klasse) {
+        changedStudentFields.klasse = klasse;
+      }
+
+      if (geschlecht !== undefined && geschlecht !== student.geschlecht) {
+        changedStudentFields.geschlecht = geschlecht;
+      }
+
+      if (Object.keys(changedStudentFields).length > 0) {
+        await updateStudent(id, changedStudentFields);
+      }
 
       if (timestamps !== undefined) {
         await updateRounds(id, timestamps);
@@ -119,7 +144,7 @@ export default async function handler(req, res) {
         if (deleteRoundIndex < 0 || deleteRoundIndex >= timestamps.length) {
           return handleError(res, new Error('Ungültiger Index'), 400);
         }
-        await deleteRoundByIndex(id, timestamps, deleteRoundIndex);
+        await deleteRoundByIndex(id, deleteRoundIndex);
         return handleSuccess(res, null, 'Runde erfolgreich gelöscht');
       } else {
         await deleteStudent(id);

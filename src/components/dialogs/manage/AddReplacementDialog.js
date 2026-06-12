@@ -28,8 +28,10 @@ const AddReplacementDialog = ({
             actions={actions}
             showDefaultClose={false}
         >
-            <p>Geben Sie eine spezifische Ersatz-ID ein oder lassen Sie das Feld leer für eine automatische ID:</p>
+            <label className="form-label" htmlFor="replacement-id-input">Ersatz-ID</label>
+            <p className="text-muted">Geben Sie eine spezifische Ersatz-ID ein oder lassen Sie das Feld leer für eine automatische ID.</p>
             <input
+                id="replacement-id-input"
                 type="text"
                 name="replacement"
                 value={newReplacement}

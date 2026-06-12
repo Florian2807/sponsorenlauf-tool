@@ -1,10 +1,12 @@
 import Topbar from './Topbar';
 
-export default function Layout({ children, className = 'page-container' }) {
+export default function Layout({ children, className = 'layout-main' }) {
   return (
     <>
       <Topbar />
-      {children}
+      <main id="main-content" className={className}>
+        {children}
+      </main>
     </>
   );
 }

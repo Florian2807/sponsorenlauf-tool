@@ -39,7 +39,7 @@ const DoubleScanConfirmationDialog = ({
     <BaseDialog
       dialogRef={dialogRef}
       title="Doppel-Scan Warnung"
-      size="medium"
+      size="large"
       actions={actions}
       showDefaultClose={false}
     >

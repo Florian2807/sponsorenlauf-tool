@@ -6,7 +6,16 @@ import { DATABASE_PATH } from './constants.js';
  * @returns {sqlite3.Database} Datenbankinstanz
  */
 export const createDbConnection = () => {
-    return new sqlite3.Database(DATABASE_PATH);
+    const db = new sqlite3.Database(DATABASE_PATH);
+
+    db.configure('busyTimeout', 5000);
+    db.serialize(() => {
+        db.run('PRAGMA foreign_keys = ON');
+        db.run('PRAGMA journal_mode = WAL');
+        db.run('PRAGMA synchronous = NORMAL');
+    });
+
+    return db;
 };
 
 /**

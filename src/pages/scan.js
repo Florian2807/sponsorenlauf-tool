@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { formatDate, timeAgo, calculateTimeDifference } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
 import { useGlobalError } from '../contexts/ErrorContext';
-import ErrorDialog from '../components/dialogs/scan/ErrorDialog';
 import DoubleScanConfirmationDialog from '../components/dialogs/scan/DoubleScanConfirmationDialog';
+import { cleanScannedStudentId } from '../utils/studentId';
 
 export default function Scan() {
   const [id, setID] = useState('');
@@ -18,8 +18,8 @@ export default function Scan() {
 
   const { request, loading } = useApi();
   const { showError } = useGlobalError();
+  const formRef = useRef(null);
   const inputRef = useRef(null);
-  const popupRef = useRef(null);
   const doubleScanDialogRef = useRef(null);
 
   useEffect(() => {
@@ -36,21 +36,6 @@ export default function Scan() {
     }
   }, [isProcessing]);
 
-  // Enter-Handler für das gesamte Dokument
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      if (event.key === 'Enter' && document.activeElement !== inputRef.current) {
-        event.preventDefault();
-        if (popupRef.current && popupRef.current.showModal) {
-          popupRef.current.showModal();
-        }
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
   // Dialog öffnen sobald doubleScanData gesetzt wird
   useEffect(() => {
     if (doubleScanData && doubleScanDialogRef.current) {
@@ -58,8 +43,53 @@ export default function Scan() {
     }
   }, [doubleScanData]);
 
+  useEffect(() => {
+    const handleGlobalKeyDown = (event) => {
+      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) {
+        return;
+      }
+
+      if (document.querySelector('dialog[open]')) {
+        return;
+      }
+
+      if (document.activeElement === inputRef.current) {
+        return;
+      }
+
+      if (event.key === 'Tab' || event.key === 'Escape') {
+        return;
+      }
+
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        inputRef.current?.focus();
+        formRef.current?.requestSubmit();
+        return;
+      }
+
+      if (event.key === 'Backspace') {
+        event.preventDefault();
+        inputRef.current?.focus();
+        setID((currentValue) => currentValue.slice(0, -1));
+        return;
+      }
+
+      if (event.key.length !== 1) {
+        return;
+      }
+
+      event.preventDefault();
+      inputRef.current?.focus();
+      setID((currentValue) => `${currentValue}${event.key}`);
+    };
+
+    document.addEventListener('keydown', handleGlobalKeyDown);
+    return () => document.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
+
   const cleanId = useCallback((rawId) => {
-    return rawId.replace(new RegExp(`${new Date().getFullYear()}[ß/\\-]`, 'gm'), '');
+    return cleanScannedStudentId(rawId);
   }, []);
 
   const handleInputChange = useCallback((e) => {
@@ -247,30 +277,39 @@ export default function Scan() {
     }
   }, [timestamps, studentInfo, request, showError]);
 
-  return (
-    <div className="page-container">
-      <h1 className="page-title-large">Sponsorenlauf {new Date().getFullYear()}</h1>
-      <form onSubmit={handleSubmit} className="form">
-        <input
-          type="text"
-          ref={inputRef}
-          value={id}
-          onChange={handleInputChange}
-          placeholder="Barcode scannen"
-          required
-          disabled={isProcessing || loading}
-          className="input"
-        />
-        <button
-          type="submit"
-          className="btn"
-          disabled={isProcessing || loading}
-        >
-          {isProcessing || loading ? 'Verarbeite...' : 'Runde zählen'}
-        </button>
-      </form>
+  const sortedTimestamps = useMemo(
+    () => timestamps.slice().sort((a, b) => new Date(b) - new Date(a)),
+    [timestamps]
+  );
 
-      <ErrorDialog dialogRef={popupRef} />
+  const latestTimestamp = sortedTimestamps[0] || null;
+  const previousTimestamp = sortedTimestamps[1] || null;
+
+  const latestTimestampMinutesAgo = useMemo(() => {
+    if (!latestTimestamp) {
+      return 'Bereit';
+    }
+
+    const previousRoundDifference = calculateTimeDifference(latestTimestamp, previousTimestamp);
+
+    if (!previousRoundDifference) {
+      return 'Erste Runde';
+    }
+
+    return previousRoundDifference;
+  }, [latestTimestamp, previousTimestamp]);
+
+  return (
+    <div className="page-container-wide scan-dashboard">
+      <div className="scan-dashboard-header">
+        <h1 className="page-title scan-dashboard-title">Runden zählen</h1>
+
+        <div className="scan-status" aria-live="polite">
+          <span className={`status-pill ${isProcessing || loading ? 'status-pill-warning' : 'status-pill-ready'}`}>
+            {isProcessing || loading ? 'Scan wird verarbeitet' : 'Scanner bereit'}
+          </span>
+        </div>
+      </div>
 
       {message && (
         <div
@@ -286,59 +325,113 @@ export default function Scan() {
         </div>
       )}
 
-      {studentInfo && (
-        <div className="student-info">
-          <h2>Schüler-Informationen</h2>
-          <div className="student-details">
-            <p><strong>Klasse:</strong> {studentInfo.klasse}</p>
-            <p><strong>Name:</strong> {studentInfo.vorname} {studentInfo.nachname}</p>
-            <p><strong>Gelaufene Runden:</strong> {studentInfo.roundCount || 0}</p>
-          </div>
+      <div className="scan-dashboard-layout">
+        <aside className="scan-sidebar">
+          <div className="scan-input-panel">
+            <div className="scan-input-panel-header">
+              <h2>Scanner</h2>
+            </div>
 
-          {timestampsLoading ? (
-            <div className="mt-2">
-              <h3>Scan-Timestamps:</h3>
-              <p className="message message-info" style={{ fontSize: '0.9em', opacity: 0.8 }}>Lade Details...</p>
+            <form ref={formRef} onSubmit={handleSubmit} className="form">
+              <input
+                id="scan-id"
+                type="text"
+                ref={inputRef}
+                value={id}
+                onChange={handleInputChange}
+                placeholder="Barcode scannen"
+                required
+                disabled={isProcessing || loading}
+                className="input scan-input-compact"
+                autoComplete="off"
+              />
+              <button
+                type="submit"
+                className="btn"
+                disabled={isProcessing || loading}
+              >
+                {isProcessing || loading ? 'Verarbeite...' : 'Runde zählen'}
+              </button>
+            </form>
+          </div>
+        </aside>
+
+        <section className="scan-primary-column">
+          {studentInfo ? (
+            <>
+              <div className="scan-student-hero">
+                <div className="scan-student-identity">
+                  <span className="scan-student-class">Klasse {studentInfo.klasse}</span>
+                  <h2>{studentInfo.vorname} {studentInfo.nachname}</h2>
+                  <p>ID {studentInfo.id}</p>
+                </div>
+
+                <div className="scan-round-summary">
+                  <span>Runden heute</span>
+                  <strong>{studentInfo.roundCount || 0}</strong>
+                </div>
+              </div>
+
+              <div className="scan-student-metrics">
+                <div className="scan-metric-card">
+                  <span>Letzte Erfassung</span>
+                  <strong>{latestTimestampMinutesAgo}</strong>
+                </div>
+                <div className="scan-metric-card">
+                  <span>Zuletzt um</span>
+                  <strong>{latestTimestamp ? `${formatDate(new Date(latestTimestamp))} Uhr` : 'Noch keine Runde'}</strong>
+                </div>
+                <div className="scan-metric-card">
+                  <span>Status</span>
+                  <strong>{messageType === 'error' ? 'Prüfen' : messageType === 'warning' ? 'Bestätigung nötig' : 'Erfasst'}</strong>
+                </div>
+              </div>
+
+              <div className="student-info-card">
+                <h3>Scan-Timestamps</h3>
+                {timestampsLoading ? (
+                  <p className="message message-info" style={{ fontSize: '0.9em', opacity: 0.8 }}>Lade Details...</p>
+                ) : sortedTimestamps.length > 0 ? (
+                  <ul className="timestamp-list">
+                    {sortedTimestamps.map((timestamp, index, sortedArray) => {
+                      const previousTimestamp = index < sortedArray.length - 1 ? sortedArray[index + 1] : null;
+                      const timeDifference = calculateTimeDifference(timestamp, previousTimestamp);
+
+                      return (
+                        <li key={`${timestamp}-${index}`} className="timestamp-item">
+                          <span>
+                            {formatDate(new Date(timestamp))} Uhr {'->'} {timeAgo(currentTimestamp, new Date(timestamp))}
+                            {timeDifference && (
+                              <span style={{ color: '#666', marginLeft: '8px', fontSize: '0.9em' }}>
+                                (+{timeDifference})
+                              </span>
+                            )}
+                          </span>
+                          <button
+                            type="button"
+                            className="btn btn-danger btn-sm"
+                            onClick={() => handleDeleteTimestamp(timestamps.findIndex(ts => ts === timestamp))}
+                            disabled={loading}
+                            aria-label={`Zeitstempel ${formatDate(new Date(timestamp))} löschen`}
+                          >
+                            {loading ? 'Lösche...' : 'Löschen'}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <div className="empty-state">Für diesen Schüler wurden noch keine Runden erfasst.</div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="scan-empty-hero">
+              <h2>Noch kein Schüler gescannt</h2>
             </div>
-          ) : timestamps && timestamps.length > 0 ? (
-            <div className="mt-2">
-              <h3>Scan-Timestamps:</h3>
-              <ul className="timestamp-list">
-                {timestamps
-                  .slice() // Kopie erstellen
-                  .sort((a, b) => new Date(b) - new Date(a)) // Neueste zuerst
-                  .map((timestamp, index, sortedArray) => {
-                    // Finde vorherige Runde (chronologisch früher)
-                    const previousTimestamp = index < sortedArray.length - 1 ? sortedArray[index + 1] : null;
-                    const timeDifference = calculateTimeDifference(timestamp, previousTimestamp);
-                    
-                    return (
-                      <li key={`${timestamp}-${index}`} className="timestamp-item">
-                        <span>
-                          {formatDate(new Date(timestamp)) + " Uhr => " + timeAgo(currentTimestamp, new Date(timestamp))}
-                          {timeDifference && (
-                            <span style={{ color: '#666', marginLeft: '8px', fontSize: '0.9em' }}>
-                              (+{timeDifference})
-                            </span>
-                          )}
-                        </span>
-                        <button
-                          type="button"
-                          className="btn btn-danger btn-sm"
-                          onClick={() => handleDeleteTimestamp(timestamps.findIndex(ts => ts === timestamp))}
-                          disabled={loading}
-                          aria-label={`Zeitstempel ${formatDate(new Date(timestamp))} löschen`}
-                        >
-                          {loading ? 'Lösche...' : 'Löschen'}
-                        </button>
-                      </li>
-                    );
-                  })}
-              </ul>
-            </div>
-          ) : null}
-        </div>
-      )}
+          )}
+        </section>
+      </div>
 
       {doubleScanData && (
         <DoubleScanConfirmationDialog

@@ -1,20 +1,20 @@
-import { useRef, useMemo } from 'react';
+import { useRef } from 'react';
 
 /**
  * Custom Hook für Dialog-Referenzen Management
  * Reduziert Boilerplate-Code für mehrere Dialog-Refs
  */
 export const useDialogs = (dialogNames) => {
-    // Erstelle Refs für alle angegebenen Dialog-Namen auf oberster Ebene
-    const refsArray = dialogNames.map(() => useRef(null));
-    
-    const refs = useMemo(() => {
-        const refsObj = {};
-        dialogNames.forEach((name, index) => {
-            refsObj[`${name}Ref`] = refsArray[index];
-        });
-        return refsObj;
-    }, [dialogNames, refsArray]);
+    const refsStore = useRef({});
+
+    dialogNames.forEach((name) => {
+        const refName = `${name}Ref`;
+        if (!refsStore.current[refName]) {
+            refsStore.current[refName] = { current: null };
+        }
+    });
+
+    const refs = refsStore.current;
 
     // Helper-Funktionen für häufige Dialog-Operationen
     const openDialog = (name) => {

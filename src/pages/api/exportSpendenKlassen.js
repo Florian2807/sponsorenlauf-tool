@@ -1,6 +1,7 @@
 import { dbAll } from '../../utils/database.js';
 import { handleMethodNotAllowed, handleError } from '../../utils/apiHelpers.js';
 import { Workbook } from 'exceljs';
+import { getClassGradeMap } from '../../utils/classService.js';
 
 /**
  * Erstellt klassenweise Spendenauswertungen im Format des ursprünglichen Systems
@@ -8,6 +9,7 @@ import { Workbook } from 'exceljs';
  */
 
 const getClassDataForSpendenExport = async () => {
+  const classGradeMap = await getClassGradeMap();
   const query = `
     SELECT 
       s.klasse, 
@@ -15,11 +17,9 @@ const getClassDataForSpendenExport = async () => {
       s.nachname,
       COALESCE((SELECT COUNT(*) FROM rounds WHERE student_id = s.id), 0) as rounds,
       COALESCE((SELECT SUM(amount) FROM expected_donations WHERE student_id = s.id), 0) as expected_donations,
-      COALESCE((SELECT SUM(amount) FROM received_donations WHERE student_id = s.id), 0) as received_donations,
-      c.grade
+      COALESCE((SELECT SUM(amount) FROM received_donations WHERE student_id = s.id), 0) as received_donations
     FROM students s
-    LEFT JOIN classes c ON s.klasse = c.class_name
-    ORDER BY c.grade, s.klasse, s.nachname
+    ORDER BY s.klasse, s.nachname
   `;
 
   const rows = await dbAll(query);
@@ -39,7 +39,7 @@ const getClassDataForSpendenExport = async () => {
       expected_donations: row.expected_donations,
       received_donations: row.received_donations,
       differenz: differenz,
-      grade: row.grade
+      grade: classGradeMap[row.klasse] || null
     });
     return acc;
   }, {});
@@ -49,20 +49,28 @@ const sortClassesByGrade = (classData) => {
   const classOrder = ['5', '6', '7', '8', '9', '10', 'EF', 'Q1', 'Q2'];
 
   return Object.keys(classData).sort((a, b) => {
-    const classA = a.match(/(\d+|EF|Q1|Q2)([a-f]?)/);
-    const classB = b.match(/(\d+|EF|Q1|Q2)([a-f]?)/);
+    const gradeAValue = classData[a]?.[0]?.grade || a;
+    const gradeBValue = classData[b]?.[0]?.grade || b;
+    const gradeA = String(gradeAValue).match(/(\d+|EF|Q1|Q2)/i);
+    const gradeB = String(gradeBValue).match(/(\d+|EF|Q1|Q2)/i);
+    const sectionA = a.match(/(\d+|EF|Q1|Q2)([a-z]?)/i);
+    const sectionB = b.match(/(\d+|EF|Q1|Q2)([a-z]?)/i);
 
-    if (!classA || !classB) {
+    if (!gradeA || !gradeB) {
       return a.localeCompare(b);
     }
 
-    const gradeA = classOrder.indexOf(classA[1]);
-    const gradeB = classOrder.indexOf(classB[1]);
+    const gradeAIndex = classOrder.indexOf(gradeA[1].toUpperCase());
+    const gradeBIndex = classOrder.indexOf(gradeB[1].toUpperCase());
 
-    if (gradeA === gradeB) {
-      return (classA[2] || '').localeCompare(classB[2] || '');
+    if (gradeAIndex === -1 || gradeBIndex === -1) {
+      return a.localeCompare(b, 'de');
+    }
+
+    if (gradeAIndex === gradeBIndex) {
+      return (sectionA?.[2] || '').localeCompare(sectionB?.[2] || '', 'de');
     } else {
-      return gradeA - gradeB;
+      return gradeAIndex - gradeBIndex;
     }
   });
 };

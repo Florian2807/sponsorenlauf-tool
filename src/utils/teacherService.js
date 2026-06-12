@@ -3,6 +3,7 @@
  */
 
 import { dbAll, dbGet, dbRun } from './database.js';
+import { ensureClassExists } from './classService.js';
 
 /**
  * Holt einen Lehrer anhand seiner ID
@@ -29,6 +30,8 @@ export const getAllTeachers = async () => {
 export const createTeacher = async (teacherData) => {
     const { id, vorname, nachname, klasse, email } = teacherData;
 
+    await ensureClassExists(klasse);
+
     return await dbRun(
         'INSERT INTO teachers (id, vorname, nachname, klasse, email) VALUES (?, ?, ?, ?, ?)',
         [id, vorname.trim(), nachname.trim(), klasse?.trim() || null, email.trim()]
@@ -43,6 +46,8 @@ export const createTeacher = async (teacherData) => {
  */
 export const updateTeacher = async (id, teacherData) => {
     const { vorname, nachname, klasse, email } = teacherData;
+
+    await ensureClassExists(klasse);
 
     return await dbRun(
         'UPDATE teachers SET vorname = ?, nachname = ?, klasse = ?, email = ? WHERE id = ?',
@@ -69,6 +74,10 @@ export const assignTeachersToClasses = async (classAssignments) => {
         .flatMap(([klasse, teachers]) =>
             teachers.map(teacher => ({ id: teacher.id, klasse }))
         );
+
+    for (const { klasse } of assignments) {
+        await ensureClassExists(klasse);
+    }
 
     // Setze zuerst alle Lehrer-Klassen auf null
     await dbRun('UPDATE teachers SET klasse = NULL');

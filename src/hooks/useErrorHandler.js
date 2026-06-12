@@ -6,7 +6,7 @@ import { useGlobalError } from '../contexts/ErrorContext';
  * Verwendet den globalen ErrorContext für einheitliche Benachrichtigungen
  */
 export const useErrorHandler = () => {
-    const { showError, showSuccess, showNotification } = useGlobalError();
+    const { showError, showSuccess } = useGlobalError();
 
     /**
      * Verarbeitet einen Fehler und zeigt eine benutzerfreundliche Nachricht

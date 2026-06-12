@@ -9,6 +9,8 @@ const StatisticsWidget = ({
     color = 'primary',
     trend,
     format = 'number',
+    badge,
+    footer,
     className = ''
 }) => {
     const formatValue = (val, formatType) => {
@@ -22,7 +24,7 @@ const StatisticsWidget = ({
             case 'decimal':
                 return val.toFixed(2);
             default:
-                return val.toString();
+                return typeof val === 'number' ? val.toLocaleString('de-DE') : val.toString();
         }
     };
 
@@ -37,13 +39,19 @@ const StatisticsWidget = ({
         <div className={`statistics-widget statistics-widget--${color} ${className}`}>
             <div className="statistics-widget__header">
                 <div className="statistics-widget__icon">{icon}</div>
-                <div className="statistics-widget__trend">{getTrendIcon()}</div>
+                <div className="statistics-widget__meta">
+                    {badge ? <span className="statistics-widget__badge">{badge}</span> : null}
+                    <div className="statistics-widget__trend">{getTrendIcon()}</div>
+                </div>
             </div>
             <div className="statistics-widget__content">
                 <div className="statistics-widget__title">{title}</div>
                 <div className="statistics-widget__value">{formatValue(value, format)}</div>
                 {subvalue && (
                     <div className="statistics-widget__subvalue">{subvalue}</div>
+                )}
+                {footer && (
+                    <div className="statistics-widget__footer">{footer}</div>
                 )}
             </div>
         </div>

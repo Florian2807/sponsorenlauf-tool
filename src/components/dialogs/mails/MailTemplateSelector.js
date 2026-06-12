@@ -31,6 +31,7 @@ const MailTemplateSelector = ({ templates, onSelect, currentText, onChange }) =>
                     className="template-toggle"
                     onClick={() => setIsOpen(!isOpen)}
                     type="button"
+                    aria-expanded={isOpen}
                 >
                     <i className="icon-template"></i>
                     E-Mail Vorlagen

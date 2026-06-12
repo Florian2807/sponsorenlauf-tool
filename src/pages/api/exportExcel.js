@@ -2,13 +2,41 @@ import { dbAll } from '../../utils/database.js';
 import { handleMethodNotAllowed, handleError } from '../../utils/apiHelpers.js';
 import { Workbook } from 'exceljs';
 import JSZip from 'jszip';
-import { getSetting } from '../../utils/settingsService.js';
+import { getClassGradeMap } from '../../utils/classService.js';
 
-const getDonationDisplayMode = async () => {
-  return await getSetting('donation_display_mode', 'expected');
+const resolveGrade = (className, classGradeMap) => {
+  if (classGradeMap[className]) {
+    return classGradeMap[className];
+  }
+
+  const fallbackMatch = String(className || '').match(/^(\d+|EF|Q1|Q2)/i);
+  return fallbackMatch ? fallbackMatch[1].toUpperCase() : '';
+};
+
+const compareByGradeAndClass = (leftClass, rightClass, classGradeMap) => {
+  const leftGrade = resolveGrade(leftClass, classGradeMap);
+  const rightGrade = resolveGrade(rightClass, classGradeMap);
+
+  const normalizedLeftGrade = leftGrade === ''
+    ? 'ZZZ'
+    : (Number.isNaN(Number(leftGrade)) ? leftGrade : Number(leftGrade));
+  const normalizedRightGrade = rightGrade === ''
+    ? 'ZZZ'
+    : (Number.isNaN(Number(rightGrade)) ? rightGrade : Number(rightGrade));
+
+  if (normalizedLeftGrade !== normalizedRightGrade) {
+    if (typeof normalizedLeftGrade === 'number' && typeof normalizedRightGrade === 'number') {
+      return normalizedLeftGrade - normalizedRightGrade;
+    }
+
+    return String(normalizedLeftGrade).localeCompare(String(normalizedRightGrade), 'de');
+  }
+
+  return String(leftClass).localeCompare(String(rightClass), 'de');
 };
 
 const getClassDataForExport = async () => {
+  const classGradeMap = await getClassGradeMap();
   const query = `
     SELECT 
       s.klasse, 
@@ -17,11 +45,9 @@ const getClassDataForExport = async () => {
       s.geschlecht,
       COALESCE((SELECT COUNT(*) FROM rounds WHERE student_id = s.id), 0) as rounds,
       COALESCE((SELECT SUM(amount) FROM expected_donations WHERE student_id = s.id), 0) as expected_donations,
-      COALESCE((SELECT SUM(amount) FROM received_donations WHERE student_id = s.id), 0) as received_donations,
-      c.grade
+      COALESCE((SELECT SUM(amount) FROM received_donations WHERE student_id = s.id), 0) as received_donations
     FROM students s
-    LEFT JOIN classes c ON s.klasse = c.class_name
-    ORDER BY c.grade, s.klasse, s.nachname
+    ORDER BY s.klasse, s.nachname
   `;
 
   const rows = await dbAll(query);
@@ -38,18 +64,18 @@ const getClassDataForExport = async () => {
       rounds: row.rounds,
       expected_donations: row.expected_donations,
       received_donations: row.received_donations,
-      grade: row.grade
+      grade: resolveGrade(row.klasse, classGradeMap)
     });
     return acc;
   }, {});
 };
 
 const getStatisticsData = async () => {
+  const classGradeMap = await getClassGradeMap();
   const queries = {
     classStats: `
       SELECT 
         s.klasse,
-        c.grade,
         COUNT(DISTINCT s.id) as student_count,
         COALESCE(SUM((SELECT COUNT(*) FROM rounds WHERE student_id = s.id)), 0) as total_rounds,
         ROUND(COALESCE(SUM((SELECT COUNT(*) FROM rounds WHERE student_id = s.id)), 0) * 1.0 / COUNT(DISTINCT s.id), 2) as average_rounds,
@@ -58,9 +84,8 @@ const getStatisticsData = async () => {
         ROUND(COALESCE(SUM((SELECT SUM(amount) FROM expected_donations WHERE student_id = s.id)), 0) * 1.0 / COUNT(DISTINCT s.id), 2) as average_expected_donations,
         ROUND(COALESCE(SUM((SELECT SUM(amount) FROM received_donations WHERE student_id = s.id)), 0) * 1.0 / COUNT(DISTINCT s.id), 2) as average_received_donations
       FROM students s
-      LEFT JOIN classes c ON s.klasse = c.class_name
-      GROUP BY s.klasse, c.grade
-      ORDER BY c.grade, s.klasse
+      GROUP BY s.klasse
+      ORDER BY s.klasse
     `,
     topStudentsRounds: `
       SELECT 
@@ -101,6 +126,13 @@ const getStatisticsData = async () => {
   for (const [key, query] of Object.entries(queries)) {
     results[key] = await dbAll(query);
   }
+
+  results.classStats = results.classStats
+    .map((row) => ({
+      ...row,
+      grade: resolveGrade(row.klasse, classGradeMap)
+    }))
+    .sort((left, right) => compareByGradeAndClass(left.klasse, right.klasse, classGradeMap));
 
   return results;
 };
@@ -486,11 +518,17 @@ export default async function handler(req, res) {
       // Klassenweise Auswertung - ZIP mit separaten Excel-Dateien
       const zip = new JSZip();
       const classData = await getClassDataForExport();
+      const classGradeMap = Object.fromEntries(
+        Object.entries(classData).map(([className, students]) => [className, students[0]?.grade || ''])
+      );
 
-      const excelPromises = Object.entries(classData).map(async ([klasse, students]) => {
-        const buffer = await createExcelForClass(klasse, students);
-        zip.file(`${klasse}.xlsx`, buffer);
-      });
+      const excelPromises = Object.keys(classData)
+        .sort((left, right) => compareByGradeAndClass(left, right, classGradeMap))
+        .map(async (klasse) => {
+          const students = classData[klasse];
+          const buffer = await createExcelForClass(klasse, students);
+          zip.file(`${klasse}.xlsx`, buffer);
+        });
 
       await Promise.all(excelPromises);
 

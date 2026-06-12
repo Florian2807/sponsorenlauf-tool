@@ -1,5 +1,7 @@
 import { dbAll, dbBatchInsert } from '../../utils/database.js';
 import { handleMethodNotAllowed, handleError, handleSuccess, handleValidationError } from '../../utils/apiHelpers.js';
+import { getAvailableClasses, syncClassNamesFromList } from '../../utils/classService.js';
+import { parseImportedStudentId } from '../../utils/studentId.js';
 
 const VALID_GENDERS = ['männlich', 'weiblich', 'divers'];
 
@@ -19,6 +21,10 @@ function formatGender(gender) {
 function validateStudent(student, index) {
     const errors = [];
     const linePrefix = `Zeile ${index + 1}:`;
+
+    if (student.id !== null && student.id !== undefined && Number.isNaN(student.id)) {
+        errors.push(`${linePrefix} Ungültige ID. Erlaubt sind nur positive ganze Zahlen.`);
+    }
 
     if (!student.vorname?.trim()) errors.push(`${linePrefix} Vorname ist erforderlich`);
     if (!student.nachname?.trim()) errors.push(`${linePrefix} Nachname ist erforderlich`);
@@ -46,13 +52,17 @@ export default async function handler(req, res) {
         // Format gender abbreviations to full names
         const formattedStudents = students.map(student => ({
             ...student,
+            id: parseImportedStudentId(student.id),
+            vorname: student.vorname?.trim() || '',
+            nachname: student.nachname?.trim() || '',
+            klasse: student.klasse?.trim() || '',
             geschlecht: formatGender(student.geschlecht)
         }));
 
         // Validate students and get available classes in parallel
         const [allErrors, availableClasses] = await Promise.all([
             Promise.resolve(formattedStudents.flatMap((student, index) => validateStudent(student, index))),
-            dbAll('SELECT DISTINCT class_name FROM classes')
+            getAvailableClasses()
         ]);
 
         if (allErrors.length > 0) {
@@ -60,7 +70,7 @@ export default async function handler(req, res) {
         }
 
         // Validate classes if any are available
-        const classNames = availableClasses.map(row => row.class_name);
+        const classNames = availableClasses;
         if (classNames.length > 0) {
             const classErrors = formattedStudents
                 .map((student, index) =>
@@ -75,14 +85,70 @@ export default async function handler(req, res) {
             }
         }
 
+        const importedIds = formattedStudents
+            .map(student => student.id)
+            .filter(id => Number.isInteger(id));
+
+        const duplicateImportedIds = [...new Set(
+            importedIds.filter((id, index) => importedIds.indexOf(id) !== index)
+        )];
+
+        if (duplicateImportedIds.length > 0) {
+            return handleValidationError(
+                res,
+                duplicateImportedIds.map(id => `ID ${id} ist im Import mehrfach vorhanden`)
+            );
+        }
+
+        const existingStudents = await dbAll('SELECT id FROM students');
+        const existingIds = new Set(existingStudents.map(student => student.id));
+        const conflictingIds = importedIds.filter(id => existingIds.has(id));
+
+        if (conflictingIds.length > 0) {
+            return handleValidationError(
+                res,
+                [...new Set(conflictingIds)].map(id => `ID ${id} ist bereits vergeben`)
+            );
+        }
+
+        let nextGeneratedId = existingStudents.reduce((maxId, student) => Math.max(maxId, student.id), 0) + 1;
+        while (existingIds.has(nextGeneratedId)) {
+            nextGeneratedId += 1;
+        }
+
+        const studentsToInsert = formattedStudents.map((student) => {
+            if (Number.isInteger(student.id)) {
+                existingIds.add(student.id);
+                return student;
+            }
+
+            while (existingIds.has(nextGeneratedId)) {
+                nextGeneratedId += 1;
+            }
+
+            const assignedId = nextGeneratedId;
+            existingIds.add(assignedId);
+            nextGeneratedId += 1;
+
+            return {
+                ...student,
+                id: assignedId
+            };
+        });
+
+        const autoAssignedCount = studentsToInsert.filter((student, index) => !Number.isInteger(formattedStudents[index].id)).length;
+
+        await syncClassNamesFromList(studentsToInsert.map((student) => student.klasse));
+
         // Insert students in batches to handle very large datasets efficiently
         const BATCH_SIZE = 500; // Process 500 students at a time
         let totalInserted = 0;
 
-        for (let i = 0; i < formattedStudents.length; i += BATCH_SIZE) {
-            const batch = formattedStudents.slice(i, i + BATCH_SIZE);
-            const placeholders = batch.map(() => '(?, ?, ?, ?)').join(', ');
-            const values = batch.flatMap(({ vorname, nachname, geschlecht, klasse }) => [
+        for (let i = 0; i < studentsToInsert.length; i += BATCH_SIZE) {
+            const batch = studentsToInsert.slice(i, i + BATCH_SIZE);
+            const placeholders = batch.map(() => '(?, ?, ?, ?, ?)').join(', ');
+            const values = batch.flatMap(({ id, vorname, nachname, geschlecht, klasse }) => [
+                id,
                 vorname.trim(),
                 nachname.trim(),
                 geschlecht || null,
@@ -90,14 +156,21 @@ export default async function handler(req, res) {
             ]);
 
             await dbBatchInsert(
-                `INSERT INTO students (vorname, nachname, geschlecht, klasse) VALUES ${placeholders}`,
+                `INSERT INTO students (id, vorname, nachname, geschlecht, klasse) VALUES ${placeholders}`,
                 values
             );
             
             totalInserted += batch.length;
         }
 
-        return handleSuccess(res, { count: totalInserted }, `${totalInserted} Schüler erfolgreich hinzugefügt`);
+        const message = autoAssignedCount > 0
+            ? `${totalInserted} Schüler erfolgreich hinzugefügt (${autoAssignedCount} IDs automatisch vergeben)`
+            : `${totalInserted} Schüler erfolgreich hinzugefügt`;
+
+        return handleSuccess(res, {
+            count: totalInserted,
+            autoAssignedCount
+        }, message);
 
     } catch (error) {
         return handleError(res, error, 500, 'Fehler beim Erstellen der Schüler');

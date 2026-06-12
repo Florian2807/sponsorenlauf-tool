@@ -1,5 +1,6 @@
 import { handleError, handleMethodNotAllowed } from '../../utils/apiHelpers';
-import { dbAll } from '../../utils/database';
+import { getStatisticsPayload } from '../../utils/statisticsService.js';
+import { renderStatisticsHtmlReport, renderStatisticsPdfReport } from '../../utils/statisticsExport.js';
 
 /**
  * API-Handler für erweiterte Export-Funktionalität
@@ -39,22 +40,8 @@ export default async function handler(req, res) {
  */
 async function handleHtmlExport(req, res, options) {
     try {
-        // HTML-Export an die bestehende HTML-Export API weiterleiten
-        // aber mit erweiterten Optionen
-        const response = await fetch(`${req.headers.origin}/api/exportStatisticsHtml`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error('Fehler beim Erstellen des HTML-Reports');
-        }
-
-        const htmlContent = await response.text();
-
-        // Optionen in den HTML-Content einbauen falls nötig
+        const { statistics, donationMode, moduleConfig } = await getStatisticsPayload();
+        const htmlContent = renderStatisticsHtmlReport({ statistics, donationMode, moduleConfig });
         const modifiedHtml = applyHtmlOptions(htmlContent, options);
 
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -114,46 +101,24 @@ async function handleExcelClassesExport(req, res, options) {
 }
 
 /**
- * PDF Summary Export (Coming Soon)
+ * PDF Summary Export
  */
 async function handlePdfSummaryExport(req, res, options) {
-    return handleError(res, new Error('PDF-Export ist noch nicht verfügbar'), 501, 'PDF-Export wird in einem zukünftigen Update implementiert');
+    try {
+        const { statistics, donationMode, moduleConfig } = await getStatisticsPayload();
+        const buffer = await renderStatisticsPdfReport({ statistics, donationMode, moduleConfig });
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'attachment; filename=sponsorenlauf_statistiken.pdf');
+        res.send(buffer);
+    } catch (error) {
+        return handleError(res, error, 500, 'Fehler beim PDF-Export');
+    }
 }
 
 /**
  * Wendet HTML-Optionen auf den HTML-Content an
  */
 function applyHtmlOptions(htmlContent, options) {
-    let modifiedHtml = htmlContent;
-
-    // Falls bestimmte Optionen deaktiviert sind, entsprechende Abschnitte entfernen
-    if (options) {
-        if (!options.includeCharts) {
-            // Charts-Tab entfernen
-            modifiedHtml = modifiedHtml.replace(/<div id="charts" class="tab-content">.*?<\/div>/s, '');
-            modifiedHtml = modifiedHtml.replace(/<button class="nav-tab".*?Charts.*?<\/button>/s, '');
-        }
-
-        if (!options.includeDetailedStats) {
-            // Detaillierte Statistiken reduzieren
-            modifiedHtml = modifiedHtml.replace(/<!-- Statistische Kennzahlen -->.*?<\/div>/s, '');
-        }
-
-        if (!options.includeGenderAnalysis) {
-            // Geschlechter-Analysen entfernen
-            modifiedHtml = modifiedHtml.replace(/<!-- Erweiterte Geschlechterverteilung -->.*?<\/div>/s, '');
-        }
-
-        if (!options.includePerformanceCategories) {
-            // Leistungskategorien entfernen
-            modifiedHtml = modifiedHtml.replace(/<!-- Leistungsanalyse nach Kategorien -->.*?<\/div>/s, '');
-        }
-
-        if (!options.includeDistanceComparisons) {
-            // Distanz-Vergleiche entfernen
-            modifiedHtml = modifiedHtml.replace(/<!-- Erweiterte Distanz-Vergleiche -->.*?<\/div>/s, '');
-        }
-    }
-
-    return modifiedHtml;
+    return htmlContent;
 }

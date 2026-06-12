@@ -31,7 +31,7 @@ export default async function handler(req, res) {
 }
 
 async function handleAddDonation(res, body) {
-    const { studentId, amount, isSpendenMode } = body;
+    const { studentId, amount, isSpendenMode, mode } = body;
 
     const missing = validateRequiredFields({ body }, ['studentId', 'amount']);
     if (missing.length > 0) {
@@ -48,8 +48,13 @@ async function handleAddDonation(res, body) {
     }
 
     const formattedAmount = parseAmount(amount);
+    const donationMode = mode || (isSpendenMode ? 'expected' : 'received');
 
-    if (isSpendenMode) {
+    if (!['expected', 'received'].includes(donationMode)) {
+        return handleValidationError(res, ['Ungültiger Spendenmodus']);
+    }
+
+    if (donationMode === 'expected') {
         await setExpectedDonation(studentId, formattedAmount);
     } else {
         await addReceivedDonation(studentId, formattedAmount);

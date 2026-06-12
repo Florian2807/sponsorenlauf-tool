@@ -14,7 +14,7 @@ const SendMailsDialog = ({
     connectivityLoading,
     checkInternetConnectivity
 }) => {
-    const [emailProvider, setEmailProvider] = useState('outlook');
+    const [emailProvider, setEmailProvider] = useState(fileData.emailProvider || 'outlook');
 
     const emailProviders = {
         outlook: {
@@ -198,7 +198,7 @@ const SendMailsDialog = ({
                             )}
                         </div>
                         <div className="form-hint">
-                            <span className="hint-icon">�</span>
+                            <span className="hint-icon">🔐</span>
                             {emailProvider === 'gmail' && 'Verwenden Sie ein App-Passwort für Gmail (nicht Ihr normales Passwort)'}
                             {emailProvider === 'outlook' && 'Verwenden Sie Ihr normales Outlook-Passwort oder ein App-Passwort'}
                             {emailProvider === 'yahoo' && 'Verwenden Sie ein App-Passwort für Yahoo Mail'}

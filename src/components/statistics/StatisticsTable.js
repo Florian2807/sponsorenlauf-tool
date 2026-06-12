@@ -9,11 +9,14 @@ const StatisticsTable = ({
     maxRows = 50,
     searchable = false,
     className = '',
+    emptyMessage = 'Keine Daten für die aktuelle Suche gefunden.',
+    highlightTopRows = false,
     allData = null, // Alle verfügbaren Daten für erweiterte Suche
     onSearchEnhance = null // Callback für erweiterte Suche
 }) => {
     const [sortConfig, setSortConfig] = useState(defaultSort || { key: null, direction: 'desc' });
     const [searchTerm, setSearchTerm] = useState('');
+    const [visibleRows, setVisibleRows] = useState(maxRows);
 
     // Enhanced data with search
     const enhancedData = React.useMemo(() => {
@@ -76,24 +79,41 @@ const StatisticsTable = ({
         );
     }, [sortedData, searchTerm, searchable]);
 
-    const displayData = filteredData.slice(0, maxRows);
+    React.useEffect(() => {
+        setVisibleRows(maxRows);
+    }, [data, maxRows, searchTerm]);
+
+    const displayData = filteredData.slice(0, visibleRows);
+    const remainingRows = Math.max(filteredData.length - visibleRows, 0);
+    const searchInputId = `statistics-search-${String(title || 'table')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')}`;
+    const getAriaSort = (columnKey) => {
+        if (sortConfig.key !== columnKey) return 'none';
+        return sortConfig.direction === 'asc' ? 'ascending' : 'descending';
+    };
 
     return (
         <div className={`statistics-table ${className}`}>
             <div className="statistics-table__header">
                 <h3>{title}</h3>
                 {searchable ? (
-                    <input
-                        type="text"
-                        placeholder="Suchen..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="statistics-table__search"
-                    />
+                    <div style={{ textAlign: 'center' }}>
+                        <label className="sr-only" htmlFor={searchInputId}>{title} durchsuchen</label>
+                        <input
+                            id={searchInputId}
+                            type="text"
+                            placeholder="Suchen..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="statistics-table__search"
+                        />
+                    </div>
                 ) : (
                     <div></div>
                 )}
-                <div></div>
+                <div className="statistics-table__count">{filteredData.length} Einträge</div>
             </div>
             {description && (
                 <div className="statistics-table__description">
@@ -105,19 +125,25 @@ const StatisticsTable = ({
                     <thead>
                         <tr>
                             {columns.map(column => (
-                                <th
-                                    key={column.key}
-                                    className={`${column.sortable ? 'sortable' : ''} ${sortConfig.key === column.key ? sortConfig.direction : ''}`}
-                                    onClick={column.sortable ? () => handleSort(column.key) : undefined}
-                                >
-                                    {column.label}
+                                <th key={column.key} aria-sort={column.sortable ? getAriaSort(column.key) : undefined}>
+                                    {column.sortable ? (
+                                        <button
+                                            type="button"
+                                            className={`table-sort-button sortable ${sortConfig.key === column.key ? sortConfig.direction : ''}`}
+                                            onClick={() => handleSort(column.key)}
+                                        >
+                                            {column.label}
+                                        </button>
+                                    ) : (
+                                        column.label
+                                    )}
                                 </th>
                             ))}
                         </tr>
                     </thead>
                     <tbody>
                         {displayData.map((row, index) => (
-                            <tr key={row.id || index}>
+                            <tr key={row.id || index} className={highlightTopRows && index < 3 ? `statistics-table__row--rank-${index + 1}` : undefined}>
                                 {columns.map(column => (
                                     <td key={column.key}>
                                         {column.format ? column.format(row[column.key], row) : row[column.key]}
@@ -129,8 +155,20 @@ const StatisticsTable = ({
                 </table>
                 {filteredData.length > maxRows && (
                     <div className="statistics-table__pagination">
-                        Zeige {maxRows} von {filteredData.length} Einträgen
+                        Zeige {displayData.length} von {filteredData.length} Einträgen
+                        {remainingRows > 0 ? (
+                            <button
+                                type="button"
+                                className="btn btn-secondary btn-sm statistics-table__load-more"
+                                onClick={() => setVisibleRows((current) => current + maxRows)}
+                            >
+                                Weitere {Math.min(remainingRows, maxRows)} anzeigen
+                            </button>
+                        ) : null}
                     </div>
+                )}
+                {filteredData.length === 0 && (
+                    <div className="empty-state">{emptyMessage}</div>
                 )}
             </div>
         </div>

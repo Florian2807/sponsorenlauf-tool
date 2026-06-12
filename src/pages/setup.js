@@ -11,9 +11,9 @@ import DetailedDeleteDialog from '../components/dialogs/setup/DetailedDeleteDial
 import ClassStructureDialog from '../components/dialogs/setup/ClassStructureDialog';
 import CombinedImportDialog from '../components/dialogs/setup/CombinedImportDialog';
 import ModuleSettingsDialog from '../components/dialogs/setup/ModuleSettingsDialog';
+import SystemMaintenanceDialog from '../components/dialogs/setup/SystemMaintenanceDialog';
 
 export default function Setup() {
-    const [file, setFile] = useState(null);
     const [insertedCount, setInsertedCount] = useState(0);
     const [replacementAmount, setReplacementAmount] = useState(0);
     const [classes, setClasses] = useState([]);
@@ -26,7 +26,7 @@ export default function Setup() {
     const { request } = useApi();
     const { showError, showSuccess } = useGlobalError();
     const { isDonationsEnabled, isEmailsEnabled, isTeachersEnabled } = useModuleConfig();
-    const { loading, executeAsync, setLoadingState } = useAsyncOperation({
+    const { loading, executeAsync } = useAsyncOperation({
         upload: false,
         labels: false,
         replacement: false,
@@ -36,7 +36,7 @@ export default function Setup() {
     // Dialog-Management
     const { refs: dialogRefs, openDialog, closeDialog } = useDialogs([
         'generateLabels', 'detailedDelete',
-        'classStructure', 'combinedImport', 'moduleSettings'
+        'classStructure', 'combinedImport', 'moduleSettings', 'systemMaintenance'
     ]);
 
     // Fetch-Funktionen mit useCallback für stabile Referenzen
@@ -255,7 +255,7 @@ export default function Setup() {
         } catch (error) {
             // Fehler wird automatisch über useApi gehandelt
         }
-    }, [request, tempClassStructure, showSuccess]);
+    }, [closeDialog, request, tempClassStructure, showSuccess]);
 
     return (
         <div className="page-container-extra-wide">
@@ -388,6 +388,15 @@ export default function Setup() {
                                 <span className="setup-btn-icon">🔧</span>
                                 <span className="setup-btn-text">Module verwalten</span>
                             </button>
+
+                            <button
+                                onClick={() => openDialog('systemMaintenance')}
+                                className="setup-action-btn setup-action-btn-info"
+                                title="Repository aktualisieren, neu builden und den Dienst neu starten."
+                            >
+                                <span className="setup-btn-icon">🔄</span>
+                                <span className="setup-btn-text">Raspberry Pi Wartung</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -442,6 +451,10 @@ export default function Setup() {
 
             <ModuleSettingsDialog
                 dialogRef={dialogRefs.moduleSettingsRef}
+            />
+
+            <SystemMaintenanceDialog
+                dialogRef={dialogRefs.systemMaintenanceRef}
             />
         </div>
     );

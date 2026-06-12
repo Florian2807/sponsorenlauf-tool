@@ -39,6 +39,7 @@ const AddStudentDialog = ({
             showDefaultClose={false}
         >
             <form onSubmit={handleSubmit}>
+                <p className="text-muted">Neue Schüler werden direkt in die aktuelle Verwaltungsliste übernommen.</p>
                 <label className="form-label">ID:</label>
                 <input
                     type="text"

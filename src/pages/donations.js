@@ -2,554 +2,671 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { API_ENDPOINTS } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
 import { useGlobalError } from '../contexts/ErrorContext';
+import BaseDialog from '../components/BaseDialog';
 import styles from '../styles/Donations.module.css';
 
-export default function AddDonations() {
+const roundMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;
+
+const formatCurrencyDisplay = (value) => {
+    const amount = roundMoney(value);
+    return `${amount.toFixed(2).replace('.', ',')}€`;
+};
+
+const parseCurrencyInput = (amountString) => {
+    if (!amountString) return 0;
+
+    const cleaned = String(amountString).replace(/[^\d,.-]/g, '').replace('.', ',');
+    const parts = cleaned.split(',');
+
+    if (parts.length === 1) {
+        return roundMoney(parseFloat(parts[0] || '0'));
+    }
+
+    const euros = parts[0] || '0';
+    const cents = (parts[1] || '').padEnd(2, '0').substring(0, 2);
+    return roundMoney(parseFloat(`${euros}.${cents}`));
+};
+
+const getStudentPaymentState = (student) => {
+    const expected = roundMoney(student?.spenden ?? 0);
+    const received = roundMoney((student?.spendenKonto || []).reduce((sum, amount) => sum + amount, 0));
+    const remaining = roundMoney(expected - received);
+
+    if (expected === 0 && received === 0) {
+        return {
+            expected,
+            received,
+            remaining,
+            status: 'unset',
+            label: 'Noch nicht festgelegt',
+            tone: 'neutral'
+        };
+    }
+
+    if (remaining > 0) {
+        return {
+            expected,
+            received,
+            remaining,
+            status: 'open',
+            label: 'Offen',
+            tone: 'warning'
+        };
+    }
+
+    if (remaining < 0) {
+        return {
+            expected,
+            received,
+            remaining,
+            status: 'overpaid',
+            label: expected === 0 ? 'Zahlung ohne Vorgabe' : 'Zu viel bezahlt',
+            tone: 'success'
+        };
+    }
+
+    return {
+        expected,
+        received,
+        remaining,
+        status: 'settled',
+        label: 'Bezahlt',
+        tone: 'success'
+    };
+};
+
+const getFilterOptions = (mode) => {
+    if (mode === 'expected') {
+        return [
+            { value: 'all', label: 'Alle' },
+            { value: 'unset', label: 'Noch ohne Betrag' },
+            { value: 'open', label: 'Noch offen' },
+            { value: 'settled', label: 'Schon bezahlt' }
+        ];
+    }
+
+    return [
+        { value: 'open', label: 'Offene Zahlungen' },
+        { value: 'settled', label: 'Bezahlt' },
+        { value: 'overpaid', label: 'Zu viel bezahlt' },
+        { value: 'unset', label: 'Ohne Vorgabe' },
+        { value: 'all', label: 'Alle' }
+    ];
+};
+
+export default function DonationsPage() {
     const [students, setStudents] = useState([]);
+    const [selectedStudentId, setSelectedStudentId] = useState(null);
+    const [selectedStudentInfo, setSelectedStudentInfo] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedStudent, setSelectedStudent] = useState(null);
     const [amount, setAmount] = useState('');
+    const [mode, setMode] = useState('expected');
+    const [filterStatus, setFilterStatus] = useState('all');
     const [message, setMessage] = useState('');
-    const [studentInfo, setStudentInfo] = useState(null);
-    const [highlightedIndex, setHighlightedIndex] = useState(-1);
-    const [isSpendenMode, setIsSpendenMode] = useState(true);
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [pendingDeletion, setPendingDeletion] = useState(null);
 
     const { request, loading } = useApi();
     const { showError } = useGlobalError();
     const searchInputRef = useRef(null);
     const amountInputRef = useRef(null);
-    const dropdownRef = useRef(null);
+    const deleteDialogRef = useRef(null);
 
-    // Optimierte Filterung mit useMemo für bessere Performance
-    const filteredStudents = useMemo(() => {
-        if (!searchQuery.trim()) return [];
-
-        const query = searchQuery.toLowerCase().trim();
-        return students
-            .filter(student => {
-                const fullName = `${student.vorname} ${student.nachname}`.toLowerCase();
-                const className = student.klasse.toLowerCase();
-                return fullName.includes(query) || className.includes(query);
-            })
-            .slice(0, 10) // Limitiere auf 10 Ergebnisse für bessere Performance
-            .sort((a, b) => {
-                // Sortiere nach Relevanz: Exact match > Starts with > Contains
-                const aName = `${a.vorname} ${a.nachname}`.toLowerCase();
-                const bName = `${b.vorname} ${b.nachname}`.toLowerCase();
-
-                if (aName.startsWith(query) && !bName.startsWith(query)) return -1;
-                if (!aName.startsWith(query) && bName.startsWith(query)) return 1;
-                return aName.localeCompare(bName);
-            });
-    }, [students, searchQuery]);
-
-    useEffect(() => {
-        fetchStudents();
-        searchInputRef.current?.focus();
-    }, []);
-
-    // Schließe Dropdown wenn außerhalb geklickt wird
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-                setIsDropdownOpen(false);
-                setHighlightedIndex(-1);
-            }
-        };
-
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    const fetchStudents = async () => {
+    const loadStudents = useCallback(async () => {
         try {
             const data = await request(API_ENDPOINTS.STUDENTS);
             setStudents(data);
         } catch (error) {
-            showError(error, 'Beim Laden der Schüler');
-            setMessage('Fehler beim Laden der Schülerdaten.');
+            showError(error, 'Beim Laden der Spendenübersicht');
+            setMessage('Fehler beim Laden der Spendenübersicht.');
         }
-    };
+    }, [request, showError]);
 
-    const handleSearchChange = useCallback((e) => {
-        const value = e.target.value;
-        setSearchQuery(value);
-        setSelectedStudent(null);
-        setHighlightedIndex(-1);
-        setIsDropdownOpen(value.length > 0);
-
-        // Verstecke Schüler-Info wenn neuer Search beginnt
-        if (value !== '' && studentInfo) {
-            setStudentInfo(null);
+    const loadStudentInfo = useCallback(async (studentId) => {
+        if (!studentId) {
+            setSelectedStudentInfo(null);
+            return;
         }
-    }, [studentInfo]);
 
-    const handleStudentSelect = useCallback((student) => {
-        setSelectedStudent(student);
+        try {
+            const data = await request(`/api/students/${studentId}`);
+            setSelectedStudentInfo(data);
+        } catch (error) {
+            showError(error, 'Beim Laden der Schülerdetails');
+        }
+    }, [request, showError]);
+
+    useEffect(() => {
+        loadStudents();
+        searchInputRef.current?.focus();
+    }, [loadStudents]);
+
+    useEffect(() => {
+        loadStudentInfo(selectedStudentId);
+    }, [selectedStudentId, loadStudentInfo]);
+
+    useEffect(() => {
+        setFilterStatus(mode === 'received' ? 'open' : 'all');
+        setAmount('');
+        setMessage('');
+    }, [mode]);
+
+    const studentRows = useMemo(() => {
+        return students.map((student) => ({
+            ...student,
+            payment: getStudentPaymentState(student)
+        }));
+    }, [students]);
+
+    const selectedStudentSummary = useMemo(() => {
+        return studentRows.find((student) => student.id === selectedStudentId) || null;
+    }, [studentRows, selectedStudentId]);
+
+    const dashboardStats = useMemo(() => {
+        return studentRows.reduce((stats, student) => {
+            stats.totalExpected += student.payment.expected;
+            stats.totalReceived += student.payment.received;
+
+            if (student.payment.status === 'open') stats.openCount += 1;
+            if (student.payment.status === 'settled') stats.settledCount += 1;
+            if (student.payment.status === 'overpaid') stats.overpaidCount += 1;
+            if (student.payment.status === 'unset') stats.unsetCount += 1;
+
+            return stats;
+        }, {
+            totalExpected: 0,
+            totalReceived: 0,
+            openCount: 0,
+            settledCount: 0,
+            overpaidCount: 0,
+            unsetCount: 0
+        });
+    }, [studentRows]);
+
+    const filteredStudents = useMemo(() => {
+        const normalizedSearch = searchQuery.trim().toLowerCase();
+
+        return studentRows
+            .filter((student) => {
+                const matchesSearch = !normalizedSearch || [
+                    `${student.vorname} ${student.nachname}`,
+                    `${student.nachname} ${student.vorname}`,
+                    student.klasse,
+                    String(student.id)
+                ].some((value) => value.toLowerCase().includes(normalizedSearch));
+
+                const matchesFilter = filterStatus === 'all' || student.payment.status === filterStatus;
+
+                return matchesSearch && matchesFilter;
+            })
+            .sort((left, right) => {
+                const statusPriority = {
+                    open: 0,
+                    unset: 1,
+                    overpaid: 2,
+                    settled: 3
+                };
+
+                const statusDiff = (statusPriority[left.payment.status] ?? 99) - (statusPriority[right.payment.status] ?? 99);
+                if (statusDiff !== 0) return statusDiff;
+
+                if (left.payment.remaining !== right.payment.remaining) {
+                    return right.payment.remaining - left.payment.remaining;
+                }
+
+                if (left.klasse !== right.klasse) {
+                    return left.klasse.localeCompare(right.klasse, 'de');
+                }
+
+                return `${left.nachname} ${left.vorname}`.localeCompare(`${right.nachname} ${right.vorname}`, 'de');
+            });
+    }, [filterStatus, searchQuery, studentRows]);
+
+    const selectedStudentPayment = selectedStudentInfo
+        ? getStudentPaymentState({
+            spenden: selectedStudentInfo.spenden,
+            spendenKonto: selectedStudentInfo.spendenKonto
+        })
+        : selectedStudentSummary?.payment || null;
+
+    const handleSelectStudent = useCallback((student) => {
+        setSelectedStudentId(student.id);
         setSearchQuery(`${student.vorname} ${student.nachname}`);
-        setIsDropdownOpen(false);
-        setHighlightedIndex(-1);
+        setMessage('');
+        setTimeout(() => amountInputRef.current?.focus(), 50);
+    }, []);
 
-        // Fokus direkt auf Betrag-Input
+    const handleAmountChange = useCallback((event) => {
+        const value = event.target.value.replace(/[^\d,.-]/g, '').replace('.', ',');
+        setAmount(value);
+    }, []);
+
+    const handleQuickFillRemaining = useCallback(() => {
+        if (!selectedStudentPayment || selectedStudentPayment.remaining <= 0) return;
+        setAmount(selectedStudentPayment.remaining.toFixed(2).replace('.', ','));
         amountInputRef.current?.focus();
+    }, [selectedStudentPayment]);
 
-        // Lade sofort Schüler-Info
-        fetchStudentInfo(student.id);
-    }, []);
+    const refreshData = useCallback(async () => {
+        await loadStudents();
+        await loadStudentInfo(selectedStudentId);
+    }, [loadStudentInfo, loadStudents, selectedStudentId]);
 
-    const handleAmountChange = useCallback((e) => {
-        const value = e.target.value;
+    const handleSubmit = useCallback(async (event) => {
+        event.preventDefault();
 
-        // Erlaube nur Zahlen, Kommas und Punkte
-        const cleanValue = value.replace(/[^\d,.-]/g, '');
-
-        // Konvertiere Punkt zu Komma für deutsche Eingabe
-        const normalizedValue = cleanValue.replace('.', ',');
-
-        setAmount(normalizedValue);
-    }, []);
-
-    const parseAmount = (amountString) => {
-        if (!amountString) return 0;
-
-        // Entferne alle Zeichen außer Zahlen und dem letzten Komma
-        const cleaned = amountString.replace(/[^\d,]/g, '');
-        const parts = cleaned.split(',');
-
-        if (parts.length === 1) {
-            // Nur Euros eingegeben
-            return parseFloat(parts[0] || '0');
-        } else if (parts.length === 2) {
-            // Euros und Cents eingegeben
-            const euros = parts[0] || '0';
-            const cents = parts[1].padEnd(2, '0').substring(0, 2);
-            return parseFloat(`${euros}.${cents}`);
-        }
-
-        return 0;
-    };
-
-    const formatCurrencyInput = (value) => {
-        const num = parseAmount(value);
-        return num.toFixed(2).replace('.', ',');
-    };
-
-    const validateForm = () => {
-        if (!selectedStudent) {
-            setMessage('Bitte wählen Sie einen Schüler aus.');
+        if (!selectedStudentId) {
+            setMessage('Bitte zuerst einen Schüler auswählen.');
             searchInputRef.current?.focus();
-            return false;
+            return;
         }
 
-        const amountNum = parseAmount(amount);
-        if (amountNum <= 0) {
-            setMessage('Bitte geben Sie einen gültigen Betrag ein.');
+        const parsedAmount = parseCurrencyInput(amount);
+        if (parsedAmount <= 0) {
+            setMessage('Bitte einen gültigen Betrag eingeben.');
             amountInputRef.current?.focus();
-            return false;
+            return;
         }
 
-        return true;
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-
-        if (!validateForm()) return;
-
-        setIsSubmitting(true);
+        setIsSaving(true);
         setMessage('');
 
         try {
-            const amountNum = parseAmount(amount);
             await request(API_ENDPOINTS.DONATIONS, {
                 method: 'POST',
                 data: {
-                    studentId: selectedStudent.id,
-                    amount: formatCurrencyDisplay(amountNum),
-                    isSpendenMode
+                    studentId: selectedStudentId,
+                    amount: formatCurrencyDisplay(parsedAmount),
+                    mode
                 }
             });
 
-            const successMessage = isSpendenMode
-                ? 'Erwartete Spende erfolgreich aktualisiert.'
-                : 'Erhaltene Spende erfolgreich hinzugefügt.';
-            setMessage(successMessage);
-
-            // Reset Form
-            setSearchQuery('');
-            setSelectedStudent(null);
+            await refreshData();
             setAmount('');
-
-            // Aktualisiere Schüler-Info
-            await fetchStudentInfo(selectedStudent.id);
-
-            // Fokus zurück auf Schüler-Eingabe
-            setTimeout(() => searchInputRef.current?.focus(), 100);
-
+            setMessage(mode === 'expected'
+                ? 'Soll-Betrag erfolgreich gespeichert.'
+                : 'Zahlungseingang erfolgreich gespeichert.');
+            amountInputRef.current?.focus();
         } catch (error) {
-            showError(error, 'Beim Hinzufügen der Spende');
-            setMessage('Fehler beim Hinzufügen der Spende.');
+            showError(error, 'Beim Speichern der Spende');
+            setMessage('Fehler beim Speichern der Spende.');
         } finally {
-            setIsSubmitting(false);
+            setIsSaving(false);
         }
-    };
+    }, [amount, mode, refreshData, request, selectedStudentId, showError]);
 
-    const fetchStudentInfo = async (studentId) => {
-        try {
-            const response = await request(`/api/students/${studentId}`);
-            setStudentInfo(response);
-        } catch (error) {
-            showError(error, 'Beim Laden der Schüler-Info');
-        }
-    };
+    const confirmDeleteDonation = useCallback((donation, type) => {
+        setPendingDeletion({ donation, type });
+        deleteDialogRef.current?.showModal();
+    }, []);
 
-    const handleDeleteDonation = async (donationId, type) => {
-        if (!confirm('Sind Sie sicher, dass Sie diese Spende löschen möchten?')) {
-            return;
-        }
+    const handleDeleteDonation = useCallback(async () => {
+        if (!selectedStudentInfo || !pendingDeletion) return;
 
         try {
             await request(API_ENDPOINTS.DONATIONS, {
                 method: 'DELETE',
-                data: { donationId, type }
+                data: { donationId: pendingDeletion.donation.id, type: pendingDeletion.type }
             });
-            setMessage('Spende erfolgreich gelöscht.');
-            await fetchStudentInfo(studentInfo.id);
+
+            await refreshData();
+            setMessage('Eintrag erfolgreich gelöscht.');
+            setPendingDeletion(null);
+            deleteDialogRef.current?.close();
         } catch (error) {
-            showError(error, 'Beim Löschen der Spende');
-            setMessage('Fehler beim Löschen der Spende.');
+            showError(error, 'Beim Löschen des Spenden-Eintrags');
+            setMessage('Fehler beim Löschen des Eintrags.');
         }
-    };
-
-    const handleKeyDown = useCallback((e) => {
-        if (!isDropdownOpen && e.key === 'Enter' && searchQuery && filteredStudents.length > 0) {
-            // Wenn Dropdown geschlossen ist, aber es gibt Suchergebnisse, wähle das erste
-            e.preventDefault();
-            handleStudentSelect(filteredStudents[0]);
-            return;
-        }
-
-        if (!isDropdownOpen || filteredStudents.length === 0) return;
-
-        switch (e.key) {
-            case 'ArrowDown':
-                e.preventDefault();
-                setHighlightedIndex(prev =>
-                    prev < filteredStudents.length - 1 ? prev + 1 : 0
-                );
-                break;
-            case 'ArrowUp':
-                e.preventDefault();
-                setHighlightedIndex(prev =>
-                    prev > 0 ? prev - 1 : filteredStudents.length - 1
-                );
-                break;
-            case 'Enter':
-                e.preventDefault();
-                if (highlightedIndex === -1 && filteredStudents.length > 0) {
-                    // Wenn kein Element hervorgehoben ist, wähle das erste
-                    handleStudentSelect(filteredStudents[0]);
-                } else if (highlightedIndex >= 0 && highlightedIndex < filteredStudents.length) {
-                    handleStudentSelect(filteredStudents[highlightedIndex]);
-                }
-                break;
-            case 'Escape':
-                setIsDropdownOpen(false);
-                setHighlightedIndex(-1);
-                break;
-            case 'Tab':
-                if (highlightedIndex >= 0 && highlightedIndex < filteredStudents.length) {
-                    e.preventDefault();
-                    handleStudentSelect(filteredStudents[highlightedIndex]);
-                }
-                break;
-        }
-    }, [isDropdownOpen, filteredStudents, highlightedIndex, handleStudentSelect, searchQuery]);
-
-    const formatCurrencyDisplay = (value) => {
-        if (value === null || value === undefined || isNaN(value)) return '0,00€';
-        return `${value.toFixed(2).replace('.', ',')}€`;
-    };
-
-    const calculateDifference = (received, expected) => {
-        const diff = received - expected;
-        return {
-            value: diff,
-            formatted: formatCurrencyDisplay(Math.abs(diff)),
-            isPositive: diff >= 0
-        };
-    };
+    }, [pendingDeletion, refreshData, request, selectedStudentInfo, showError]);
 
     return (
-        <div className="page-container">
-            <h1 className="page-title">Spenden verwalten</h1>
-
-            {/* Mode Toggle */}
-            <div className={styles.formSection}>
-                <div className={styles.modeToggle}>
-                    <div className={styles.switchContainer}>
-                        <label className={styles.switch}>
-                            <input
-                                type="checkbox"
-                                checked={isSpendenMode}
-                                onChange={(e) => setIsSpendenMode(e.target.checked)}
-                                aria-label="Spendenart umschalten"
-                            />
-                            <span className={styles.switchSlider}></span>
-                        </label>
-                        <div className={styles.modeLabels}>
-                            <span className={`${styles.modeLabel} ${!isSpendenMode ? styles.active : ''}`}>
-                                📋 Erhaltene Spenden (Kontoauszug)
-                            </span>
-                            <span className={`${styles.modeLabel} ${isSpendenMode ? styles.active : ''}`}>
-                                📋 Erwartete Spenden (Schülerliste)
-                            </span>
+        <div className="page-container-wide">
+            <div className={styles.pageIntro}>
+                <div>
+                    <h1 className="page-title">Spendenabgleich</h1>
+                    <p className={styles.subtitle}>
+                        Erst den fälligen Betrag pro Schülerin oder Schüler erfassen, danach die realen Zahlungseingänge aus dem Kontoauszug verbuchen.
+                    </p>
+                </div>
+                <div className={styles.workflowCard}>
+                    <div className={styles.workflowStep}>
+                        <span className={styles.workflowNumber}>1</span>
+                        <div>
+                            <strong>Betrag festlegen</strong>
+                            <p>Lehrer meldet den Betrag, der überwiesen werden muss.</p>
                         </div>
                     </div>
-                    <p className={styles.modeDescription}>
-                        {isSpendenMode
-                            ? 'Erfassen Sie erwartete Spenden von Ihren Schülerlisten vor dem Sponsorenlauf'
-                            : 'Erfassen Sie die bereits erhaltenen Spenden aus den Kontoauszügen nach dem Sponsorenlauf'}
-                    </p>
+                    <div className={styles.workflowStep}>
+                        <span className={styles.workflowNumber}>2</span>
+                        <div>
+                            <strong>Zahlung abgleichen</strong>
+                            <p>Kontoauszug prüfen und tatsächliche Zahlungseingänge buchen.</p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            {/* Main Form */}
-            <form onSubmit={handleSubmit} className="donation-form">
-                <div className="form-grid">
-                    {/* Student Search */}
-                    <div className={styles.formGroup}>
-                        <label htmlFor="student" className={styles.formLabel}>
-                            🔍 Schüler suchen:
-                        </label>
-                        <div className={styles.studentSearch} ref={dropdownRef}>
-                            <input
-                                type="text"
-                                id="student"
-                                value={searchQuery}
-                                onChange={handleSearchChange}
-                                onKeyDown={handleKeyDown}
-                                onFocus={() => searchQuery && setIsDropdownOpen(true)}
-                                className={`${styles.formControl} ${selectedStudent ? styles.hasSelection : ''}`}
-                                placeholder="Name oder Klasse eingeben..."
-                                autoComplete="off"
-                                ref={searchInputRef}
-                                disabled={loading}
-                            />
+            <div className={styles.dashboardGrid}>
+                <div className={styles.statCard}>
+                    <span className={styles.statLabel}>Zu zahlen gesamt</span>
+                    <strong>{formatCurrencyDisplay(dashboardStats.totalExpected)}</strong>
+                </div>
+                <div className={styles.statCard}>
+                    <span className={styles.statLabel}>Ist gesamt</span>
+                    <strong>{formatCurrencyDisplay(dashboardStats.totalReceived)}</strong>
+                </div>
+                <div className={styles.statCard}>
+                    <span className={styles.statLabel}>Noch offen</span>
+                    <strong>{dashboardStats.openCount}</strong>
+                </div>
+                <div className={styles.statCard}>
+                    <span className={styles.statLabel}>Bezahlt</span>
+                    <strong>{dashboardStats.settledCount}</strong>
+                </div>
+                <div className={styles.statCard}>
+                    <span className={styles.statLabel}>Ohne Betrag</span>
+                    <strong>{dashboardStats.unsetCount}</strong>
+                </div>
+            </div>
 
-                            {selectedStudent && (
-                                <div className={styles.selectedStudent}>
-                                    ✅ {selectedStudent.vorname} {selectedStudent.nachname}
-                                    <span className={styles.studentClass}>({selectedStudent.klasse})</span>
+            <div className={styles.layoutGrid}>
+                <div className={styles.primaryColumn}>
+                    <section className={styles.panel}>
+                        <div className={styles.modeTabs}>
+                            <button
+                                type="button"
+                                className={`${styles.modeTab} ${mode === 'expected' ? styles.modeTabActive : ''}`}
+                                onClick={() => setMode('expected')}
+                                aria-pressed={mode === 'expected'}
+                            >
+                                Fälligen Betrag erfassen
+                            </button>
+                            <button
+                                type="button"
+                                className={`${styles.modeTab} ${mode === 'received' ? styles.modeTabActive : ''}`}
+                                onClick={() => setMode('received')}
+                                aria-pressed={mode === 'received'}
+                            >
+                                Zahlungseingang buchen
+                            </button>
+                        </div>
+
+                        <p className={styles.panelHint}>
+                            {mode === 'expected'
+                                ? 'Setzt den Betrag, den der Schüler laut Lehrer überweisen muss.'
+                                : 'Erfasst eine eingegangene Zahlung aus dem Kontoauszug. Mehrere Teilzahlungen bleiben möglich.'}
+                        </p>
+
+                        <form onSubmit={handleSubmit} className={styles.editorForm}>
+                            <div className={styles.formGroup}>
+                                <label htmlFor="student-search" className={styles.formLabel}>Schüler suchen</label>
+                                <input
+                                    id="student-search"
+                                    ref={searchInputRef}
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(event) => setSearchQuery(event.target.value)}
+                                    className={styles.formControl}
+                                    placeholder="Name, Klasse oder ID"
+                                    autoComplete="off"
+                                    disabled={loading || isSaving}
+                                />
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <label htmlFor="donation-amount" className={styles.formLabel}>
+                                    {mode === 'expected' ? 'Fälliger Betrag' : 'Zahlungseingang'}
+                                </label>
+                                <div className={styles.amountInputWrapper}>
+                                    <input
+                                        id="donation-amount"
+                                        ref={amountInputRef}
+                                        type="text"
+                                        value={amount}
+                                        onChange={handleAmountChange}
+                                        onBlur={() => {
+                                            if (amount) {
+                                                setAmount(parseCurrencyInput(amount).toFixed(2).replace('.', ','));
+                                            }
+                                        }}
+                                        className={`${styles.formControl} ${styles.amountInput}`}
+                                        placeholder="0,00"
+                                        disabled={loading || isSaving}
+                                    />
+                                    <span className={styles.currencySymbol}>€</span>
+                                </div>
+                            </div>
+
+                            {selectedStudentSummary && (
+                                <div className={styles.selectionBox}>
+                                    <div>
+                                        <strong>{selectedStudentSummary.vorname} {selectedStudentSummary.nachname}</strong>
+                                        <div className={styles.selectionMeta}>
+                                            Klasse {selectedStudentSummary.klasse} · ID {selectedStudentSummary.id}
+                                        </div>
+                                    </div>
+                                    <span className={`${styles.statusBadge} ${styles[`status${selectedStudentSummary.payment.tone}`]}`}>
+                                        {selectedStudentSummary.payment.label}
+                                    </span>
                                 </div>
                             )}
 
-                            {isDropdownOpen && filteredStudents.length > 0 && (
-                                <div className={styles.suggestionsDropdown}>
-                                    {filteredStudents.map((student, index) => (
-                                        <div
-                                            key={student.id}
-                                            onClick={() => handleStudentSelect(student)}
-                                            className={`${styles.suggestionItem} ${highlightedIndex === index ? styles.highlighted : ''}`}
-                                            tabIndex={0}
-                                            role="option"
-                                            aria-selected={highlightedIndex === index}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter' || e.key === ' ') {
-                                                    e.preventDefault();
-                                                    handleStudentSelect(student);
-                                                }
-                                            }}
-                                        >
-                                            <div className={styles.studentName}>
-                                                {student.vorname} {student.nachname}
-                                            </div>
-                                            <div className={styles.studentDetails}>
-                                                Klasse {student.klasse}
+                            {mode === 'received' && selectedStudentPayment?.remaining > 0 && (
+                                <button
+                                    type="button"
+                                    className={styles.secondaryAction}
+                                    onClick={handleQuickFillRemaining}
+                                >
+                                    Restbetrag übernehmen ({formatCurrencyDisplay(selectedStudentPayment.remaining)})
+                                </button>
+                            )}
+
+                            <div className={styles.formActions}>
+                                <button
+                                    type="submit"
+                                    className={styles.primaryAction}
+                                    disabled={loading || isSaving || !selectedStudentId || !amount}
+                                >
+                                    {isSaving
+                                        ? 'Wird gespeichert...'
+                                        : mode === 'expected'
+                                            ? 'Betrag speichern'
+                                            : 'Zahlungseingang speichern'}
+                                </button>
+                            </div>
+                        </form>
+
+                        {message && (
+                            <div
+                                className={`${styles.message} ${message.includes('Fehler') ? styles.messageError : styles.messageSuccess}`}
+                                role={message.includes('Fehler') ? 'alert' : 'status'}
+                                aria-live={message.includes('Fehler') ? 'assertive' : 'polite'}
+                            >
+                                {message}
+                            </div>
+                        )}
+                    </section>
+
+                    {selectedStudentInfo && selectedStudentPayment && (
+                        <section className={styles.panel}>
+                            <div className={styles.detailHeader}>
+                                <div>
+                                    <h2>{selectedStudentInfo.vorname} {selectedStudentInfo.nachname}</h2>
+                                    <p>Klasse {selectedStudentInfo.klasse} · {selectedStudentInfo.timestamps?.length || 0} gelaufene Runden</p>
+                                </div>
+                                <span className={`${styles.statusBadge} ${styles[`status${selectedStudentPayment.tone}`]}`}>
+                                    {selectedStudentPayment.label}
+                                </span>
+                            </div>
+
+                            <div className={styles.detailStats}>
+                                <div className={styles.detailStatCard}>
+                                    <span>Zu zahlen</span>
+                                    <strong>{formatCurrencyDisplay(selectedStudentPayment.expected)}</strong>
+                                </div>
+                                <div className={styles.detailStatCard}>
+                                    <span>Ist</span>
+                                    <strong>{formatCurrencyDisplay(selectedStudentPayment.received)}</strong>
+                                </div>
+                                <div className={styles.detailStatCard}>
+                                    <span>Offen</span>
+                                    <strong>{formatCurrencyDisplay(Math.max(selectedStudentPayment.remaining, 0))}</strong>
+                                </div>
+                                <div className={styles.detailStatCard}>
+                                    <span>Abweichung</span>
+                                    <strong>{formatCurrencyDisplay(Math.abs(selectedStudentPayment.remaining))}</strong>
+                                </div>
+                            </div>
+
+                            <div className={styles.historyGrid}>
+                                <div className={styles.historySection}>
+                                    <h3>Festgelegte Beträge</h3>
+                                    {selectedStudentInfo.expectedDonations?.length ? (
+                                        <div className={styles.historyList}>
+                                            {selectedStudentInfo.expectedDonations.map((donation) => (
+                                                <div key={donation.id} className={styles.historyItem}>
+                                                    <div>
+                                                        <strong>{formatCurrencyDisplay(donation.amount)}</strong>
+                                                        <div className={styles.historyMeta}>
+                                                            {new Date(donation.created_at).toLocaleString('de-DE')}
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        className={styles.deleteButton}
+                                                        onClick={() => confirmDeleteDonation(donation, 'expected')}
+                                                    >
+                                                        Löschen
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className={styles.emptyState}>Noch kein Betrag festgelegt.</p>
+                                    )}
+                                </div>
+
+                                <div className={styles.historySection}>
+                                    <h3>Zahlungseingänge</h3>
+                                    {selectedStudentInfo.receivedDonations?.length ? (
+                                        <div className={styles.historyList}>
+                                            {selectedStudentInfo.receivedDonations.map((donation) => (
+                                                <div key={donation.id} className={styles.historyItem}>
+                                                    <div>
+                                                        <strong>{formatCurrencyDisplay(donation.amount)}</strong>
+                                                        <div className={styles.historyMeta}>
+                                                            {new Date(donation.created_at).toLocaleString('de-DE')}
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        className={styles.deleteButton}
+                                                        onClick={() => confirmDeleteDonation(donation, 'received')}
+                                                    >
+                                                        Löschen
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className={styles.emptyState}>Noch keine Zahlungseingänge verbucht.</p>
+                                    )}
+                                </div>
+                            </div>
+                        </section>
+                    )}
+                </div>
+
+                <aside className={styles.sideColumn}>
+                    <section className={styles.panel}>
+                        <div className={styles.sideHeader}>
+                            <h2>{mode === 'expected' ? 'Betragsliste' : 'Abgleichsliste'}</h2>
+                            <span>{filteredStudents.length} Treffer</span>
+                        </div>
+
+                        <div className={styles.filterChips}>
+                            {getFilterOptions(mode).map((option) => (
+                                <button
+                                    key={option.value}
+                                    type="button"
+                                    className={`${styles.filterChip} ${filterStatus === option.value ? styles.filterChipActive : ''}`}
+                                    onClick={() => setFilterStatus(option.value)}
+                                    aria-pressed={filterStatus === option.value}
+                                >
+                                    {option.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className={styles.studentQueue}>
+                            {filteredStudents.length > 0 ? filteredStudents.map((student) => (
+                                <button
+                                    key={student.id}
+                                    type="button"
+                                    className={`${styles.queueItem} ${selectedStudentId === student.id ? styles.queueItemActive : ''}`}
+                                    onClick={() => handleSelectStudent(student)}
+                                >
+                                    <div className={styles.queueMain}>
+                                        <div>
+                                            <strong>{student.vorname} {student.nachname}</strong>
+                                            <div className={styles.queueMeta}>
+                                                Klasse {student.klasse} · ID {student.id}
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
+                                        <span className={`${styles.statusBadge} ${styles[`status${student.payment.tone}`]}`}>
+                                            {student.payment.label}
+                                        </span>
+                                    </div>
+                                    <div className={styles.queueAmounts}>
+                                        <span>Zu zahlen {formatCurrencyDisplay(student.payment.expected)}</span>
+                                        <span>Ist {formatCurrencyDisplay(student.payment.received)}</span>
+                                        <span>
+                                            {student.payment.remaining > 0 ? 'Offen' : 'Abweichung'} {formatCurrencyDisplay(Math.abs(student.payment.remaining))}
+                                        </span>
+                                    </div>
+                                </button>
+                            )) : (
+                                <p className={styles.emptyState}>Keine Schüler für den aktuellen Filter gefunden.</p>
                             )}
                         </div>
+                    </section>
+                </aside>
+            </div>
+
+            <BaseDialog
+                dialogRef={deleteDialogRef}
+                title="Spenden-Eintrag löschen"
+                onClose={() => setPendingDeletion(null)}
+                showDefaultClose={false}
+                actions={[
+                    {
+                        label: 'Abbrechen',
+                        position: 'left',
+                        onClick: () => deleteDialogRef.current?.close(),
+                    },
+                    {
+                        label: 'Eintrag löschen',
+                        variant: 'danger',
+                        onClick: handleDeleteDonation,
+                        disabled: !pendingDeletion,
+                    },
+                ]}
+            >
+                {pendingDeletion ? (
+                    <div>
+                        <p>Möchten Sie diesen Eintrag wirklich löschen?</p>
+                        <p>
+                            <strong>Schüler:</strong> {selectedStudentInfo?.vorname} {selectedStudentInfo?.nachname}
+                        </p>
+                        <p>
+                            <strong>Typ:</strong> {pendingDeletion.type === 'expected' ? 'Festgelegter Betrag' : 'Zahlungseingang'}
+                        </p>
+                        <p>
+                            <strong>Betrag:</strong> {formatCurrencyDisplay(pendingDeletion.donation.amount)}
+                        </p>
                     </div>
-
-                    {/* Amount Input */}
-                    <div className={styles.formGroup}>
-                        <label htmlFor="amount" className={styles.formLabel}>
-                            💶 Betrag:
-                        </label>
-                        <div className={styles.amountInputWrapper}>
-                            <input
-                                type="text"
-                                id="amount"
-                                value={amount}
-                                onChange={handleAmountChange}
-                                onBlur={(e) => {
-                                    if (e.target.value) {
-                                        setAmount(formatCurrencyInput(e.target.value));
-                                    }
-                                }}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && amount && selectedStudent) {
-                                        e.preventDefault();
-                                        handleSubmit(e);
-                                    }
-                                }}
-                                className={`${styles.formControl} ${styles.amountInput}`}
-                                placeholder="0,00"
-                                ref={amountInputRef}
-                                disabled={loading || isSubmitting}
-                            />
-                            <span className={styles.currencySymbol}>€</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Submit Button */}
-                <div className={styles.formActions}>
-                    <button
-                        type="submit"
-                        className={`${styles.submitButton} ${isSubmitting ? styles.loading : ''}`}
-                        disabled={loading || isSubmitting || !selectedStudent || !amount}
-                    >
-                        {isSubmitting ? (
-                            <>
-                                <span className={styles.loadingSpinner}></span>
-                                Wird gespeichert...
-                            </>
-                        ) : (
-                            <>
-                                {isSpendenMode ? ' Erwartete Spende speichern' : '💰 Erhaltene Spende speichern'}
-                            </>
-                        )}
-                    </button>
-                </div>
-            </form>
-
-            {/* Messages */}
-            {message && (
-                <div className={`${styles.message} ${message.includes('erfolgreich') ? styles.messageSuccess :
-                    message.includes('Fehler') ? styles.messageError : styles.messageInfo
-                    }`}>
-                    {message}
-                </div>
-            )}
-
-            {/* Student Info */}
-            {studentInfo && (
-                <div className={styles.studentInfoCard}>
-                    <div className={styles.studentHeader}>
-                        <h2>📊 Übersicht: {studentInfo.vorname} {studentInfo.nachname}</h2>
-                        <span className={styles.studentClassBadge}>{studentInfo.klasse}</span>
-                    </div>
-
-                    <div className={styles.infoGrid}>
-                        <div className={styles.infoItem}>
-                            <span className={styles.infoLabel}>🏃‍♂️ Gelaufene Runden:</span>
-                            <span className={styles.infoValue}>{studentInfo.timestamps?.length || 0}</span>
-                        </div>
-
-                        <div className={styles.infoItem}>
-                            <span className={styles.infoLabel}>📋 Erwartete Spenden:</span>
-                            {(() => {
-                                const expectedAmount = studentInfo.spenden ?? 0;
-                                return (
-                                    <span className={`${styles.infoValue} ${expectedAmount > 0 ? styles.hasValue : ''}`}>
-                                        {formatCurrencyDisplay(expectedAmount)}
-                                    </span>
-                                );
-                            })()}
-                        </div>
-
-                        <div className={styles.infoItem}>
-                            <span className={styles.infoLabel}>💰 Erhaltene Spenden:</span>
-                            {(() => {
-                                const receivedAmount = studentInfo.spendenKonto?.reduce((a, b) => a + b, 0) ?? 0;
-                                return (
-                                    <span className={`${styles.infoValue} ${receivedAmount > 0 ? styles.hasValue : ''}`}>
-                                        {formatCurrencyDisplay(receivedAmount)}
-                                    </span>
-                                );
-                            })()}
-                        </div>
-
-                        <div className={styles.infoItem}>
-                            <span className={styles.infoLabel}>📈 Differenz:</span>
-                            {(() => {
-                                const received = studentInfo.spendenKonto?.reduce((a, b) => a + b, 0) ?? 0;
-                                const expected = studentInfo.spenden ?? 0;
-                                const difference = received - expected;
-                                const diffClass = difference === 0 ? 'matched' : 'unmatched';
-
-                                return (
-                                    <span className={`${styles.infoValue} ${styles.difference} ${styles[diffClass]}`}>
-                                        {difference !== 0 && (difference > 0 ? '+' : '-')}
-                                        {formatCurrencyDisplay(Math.abs(difference))}
-                                    </span>
-                                );
-                            })()}
-                        </div>
-                    </div>
-
-                    {/* Donation Details */}
-                    <div className="donations-details">
-                        {studentInfo.expectedDonations && studentInfo.expectedDonations.length > 0 && (
-                            <div className="donation-section">
-                                <h3>📋 Erwartete Spenden</h3>
-                                <div className="donation-list">
-                                    {studentInfo.expectedDonations.map((donation) => (
-                                        <div key={donation.id} className="donation-item expected">
-                                            <div className="donation-info">
-                                                <span className="amount">{formatCurrencyDisplay(donation.amount)}</span>
-                                                <span className="date">
-                                                    {new Date(donation.created_at).toLocaleDateString('de-DE')}
-                                                </span>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                className="btn btn-danger btn-sm"
-                                                onClick={() => handleDeleteDonation(donation.id, 'expected')}
-                                                title="Spende löschen"
-                                            >
-                                                🗑️
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {studentInfo.receivedDonations && studentInfo.receivedDonations.length > 0 && (
-                            <div className="donation-section">
-                                <h3>💰 Erhaltene Spenden</h3>
-                                <div className="donation-list">
-                                    {studentInfo.receivedDonations.map((donation) => (
-                                        <div key={donation.id} className="donation-item received">
-                                            <div className="donation-info">
-                                                <span className="amount">{formatCurrencyDisplay(donation.amount)}</span>
-                                                <span className="date">
-                                                    {new Date(donation.created_at).toLocaleDateString('de-DE')}
-                                                </span>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                className="btn btn-danger btn-sm"
-                                                onClick={() => handleDeleteDonation(donation.id, 'received')}
-                                                title="Spende löschen"
-                                            >
-                                                🗑️
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
+                ) : null}
+            </BaseDialog>
         </div>
     );
 }

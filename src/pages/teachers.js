@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { getNextId, API_ENDPOINTS } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
 import { useGlobalError } from '../contexts/ErrorContext';
@@ -26,23 +26,18 @@ export default function Teachers() {
     });
     const [classTeacher, setClassTeacher] = useState({});
 
-    const { request, loading, error } = useApi();
+    const { request, loading } = useApi();
     const { showError, showSuccess } = useGlobalError();
 
     const { sortField, sortDirection, sortData, sortedData } = useSortableTable(teachers, allPossibleClasses);
-    const { searchTerm, setSearchTerm, filteredData } = useSearch(sortedData);
+    const { searchTerm, setSearchTerm, filteredData } = useSearch(sortedData, ['id', 'vorname', 'nachname', 'klasse', 'email']);
 
     const editTeacherPopup = useRef(null);
     const addTeacherPopup = useRef(null);
     const confirmDeletePopup = useRef(null);
     const classTeacherPopup = useRef(null);
 
-    useEffect(() => {
-        fetchTeachers();
-        fetchAvailableClasses();
-    }, []);
-
-    const fetchAvailableClasses = async () => {
+    const fetchAvailableClasses = useCallback(async () => {
         try {
             const data = await request(API_ENDPOINTS.CLASS_STRUCTURE, {
                 errorContext: 'Beim Laden der Klassenstruktur'
@@ -52,9 +47,9 @@ export default function Teachers() {
         } catch (error) {
             // Fehler wird automatisch über useApi gehandelt
         }
-    };
+    }, [request]);
 
-    const fetchTeachers = async () => {
+    const fetchTeachers = useCallback(async () => {
         try {
             const data = await request(API_ENDPOINTS.TEACHERS, {
                 errorContext: 'Beim Laden der Lehrerdaten'
@@ -63,7 +58,12 @@ export default function Teachers() {
         } catch (error) {
             // Fehler wird automatisch über useApi gehandelt
         }
-    };
+    }, [request]);
+
+    useEffect(() => {
+        fetchTeachers();
+        fetchAvailableClasses();
+    }, [fetchTeachers, fetchAvailableClasses]);
 
     const sortTeachersFunc = (field) => {
         sortData(field);
@@ -75,7 +75,7 @@ export default function Teachers() {
 
         // Check if the teacher is already selected
         if (newT.some((teacher, i) => teacher.id === newId && i !== index)) {
-            alert('Dieser Lehrer ist bereits ausgewählt.');
+            showError('Dieser Lehrer ist bereits ausgewählt.', 'Klassenlehrer');
             return;
         }
 
@@ -215,40 +215,59 @@ export default function Teachers() {
                     <button className="btn" onClick={addTeacherClick}>Lehrer hinzufügen</button>
                     <button className="btn btn-secondary" onClick={classTeacherClick}>Klassenlehrer Konfigurieren</button>
                 </div>
+                <label className="sr-only" htmlFor="teachers-search">Lehrer suchen</label>
                 <input
+                    id="teachers-search"
                     type="text"
-                    placeholder="Suche..."
+                    placeholder="Name, Klasse oder E-Mail suchen"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="search-input"
                 />
             </div>
-            <table className="table">
-                <thead>
-                    <tr>
-                        <th className={`sortable ${sortField === 'id' ? sortDirection : ''}`} onClick={() => sortTeachersFunc('id')}>ID</th>
-                        <th className={`sortable ${sortField === 'klasse' ? sortDirection : ''}`} onClick={() => sortTeachersFunc('klasse')}>Klasse</th>
-                        <th className={`sortable ${sortField === 'vorname' ? sortDirection : ''}`} onClick={() => sortTeachersFunc('vorname')}>Vorname</th>
-                        <th className={`sortable ${sortField === 'nachname' ? sortDirection : ''}`} onClick={() => sortTeachersFunc('nachname')}>Nachname</th>
-                        <th className={`sortable ${sortField === 'email' ? sortDirection : ''}`} onClick={() => sortTeachersFunc('email')}>E-Mail Adresse</th>
-                        <th>Aktion</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {filteredTeachers.map((teacher) => (
-                        <tr key={teacher.id}>
-                            <td>{teacher.id}</td>
-                            <td>{teacher.klasse}</td>
-                            <td>{teacher.vorname}</td>
-                            <td>{teacher.nachname}</td>
-                            <td>{teacher.email}</td>
-                            <td>
-                                <button className="btn btn-sm" onClick={() => editTeacherClick(teacher)}>Bearbeiten</button>
-                            </td>
+
+            {loading && teachers.length === 0 ? <div className="message message-info">Lehrerdaten werden geladen...</div> : null}
+
+            <div className="table-responsive">
+                <table className="table">
+                    <thead>
+                        <tr>
+                            <th aria-sort={sortField === 'id' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                                <button type="button" className={`table-sort-button sortable ${sortField === 'id' ? sortDirection : ''}`} onClick={() => sortTeachersFunc('id')}>ID</button>
+                            </th>
+                            <th aria-sort={sortField === 'klasse' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                                <button type="button" className={`table-sort-button sortable ${sortField === 'klasse' ? sortDirection : ''}`} onClick={() => sortTeachersFunc('klasse')}>Klasse</button>
+                            </th>
+                            <th aria-sort={sortField === 'vorname' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                                <button type="button" className={`table-sort-button sortable ${sortField === 'vorname' ? sortDirection : ''}`} onClick={() => sortTeachersFunc('vorname')}>Vorname</button>
+                            </th>
+                            <th aria-sort={sortField === 'nachname' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                                <button type="button" className={`table-sort-button sortable ${sortField === 'nachname' ? sortDirection : ''}`} onClick={() => sortTeachersFunc('nachname')}>Nachname</button>
+                            </th>
+                            <th aria-sort={sortField === 'email' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                                <button type="button" className={`table-sort-button sortable ${sortField === 'email' ? sortDirection : ''}`} onClick={() => sortTeachersFunc('email')}>E-Mail Adresse</button>
+                            </th>
+                            <th>Aktion</th>
                         </tr>
-                    ))}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {filteredTeachers.map((teacher) => (
+                            <tr key={teacher.id}>
+                                <td>{teacher.id}</td>
+                                <td>{teacher.klasse}</td>
+                                <td>{teacher.vorname}</td>
+                                <td>{teacher.nachname}</td>
+                                <td>{teacher.email}</td>
+                                <td>
+                                    <button className="btn btn-sm" onClick={() => editTeacherClick(teacher)}>Bearbeiten</button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            {!loading && filteredTeachers.length === 0 ? <div className="empty-state">Keine Lehrer für die aktuelle Suche gefunden.</div> : null}
 
             <EditTeacherDialog
                 dialogRef={editTeacherPopup}

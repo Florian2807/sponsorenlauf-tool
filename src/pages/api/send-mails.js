@@ -47,6 +47,21 @@ const createTransporter = (email, password, provider = 'outlook') => {
   return nodemailer.createTransport(transporterConfig);
 };
 
+const applyTemplateVariables = (mailText, className, currentYear) => {
+  return mailText
+    .replaceAll('{jahr}', String(currentYear))
+    .replaceAll('{klasse}', className);
+};
+
+const escapeHtml = (value) => {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+};
+
 const sendClassEmail = async (transporter, className, teacherData, classFileBase64, mailText, senderName, senderEmail, sendCopyToSender = false) => {
   if (!classFileBase64 || !teacherData.length) {
     console.warn(`Überspringe Klasse ${className}: Keine Datei oder Lehrer`);
@@ -61,12 +76,14 @@ const sendClassEmail = async (transporter, className, teacherData, classFileBase
   }
 
   const currentYear = new Date().getFullYear();
+  const resolvedMailText = applyTemplateVariables(mailText, className, currentYear);
+  const resolvedMailHtml = escapeHtml(resolvedMailText).replace(/\n/g, '<br>');
   const mailOptions = {
     from: `${senderName} <${senderEmail}>`,
     to: teacherEmails[0],
     cc: teacherEmails.slice(1).join(', '),
     subject: `Sponsorenlauf ${currentYear} - Ergebnisliste Klasse ${className}`,
-    text: mailText,
+    text: resolvedMailText,
     html: `
       <!DOCTYPE html>
       <html lang="de">
@@ -143,7 +160,7 @@ const sendClassEmail = async (transporter, className, teacherData, classFileBase
               
               <!-- Mail Text -->
               <div class="mail-text" style="background: #f8fafc; border-left: 4px solid #3b82f6; padding: 20px; margin-bottom: 32px; border-radius: 4px; font-size: 15px; line-height: 1.6; word-wrap: break-word; overflow-wrap: break-word;">
-${mailText.replace(/\n/g, '<br>')}
+${resolvedMailHtml}
               </div>
               
             <!-- Attachment Info -->

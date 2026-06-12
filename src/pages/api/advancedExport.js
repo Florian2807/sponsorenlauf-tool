@@ -1,4 +1,4 @@
-import { handleError, handleMethodNotAllowed } from '../../utils/apiHelpers';
+import { handleError, handleMethodNotAllowed } from '../../utils/apiHelpers.js';
 import { getStatisticsPayload } from '../../utils/statisticsService.js';
 import { renderStatisticsHtmlReport, renderStatisticsPdfReport } from '../../utils/statisticsExport.js';
 

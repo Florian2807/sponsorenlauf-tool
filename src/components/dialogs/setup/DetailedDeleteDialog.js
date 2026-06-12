@@ -41,7 +41,7 @@ const DetailedDeleteDialog = ({
             dialog.addEventListener('show', handleShow);
             return () => dialog.removeEventListener('show', handleShow);
         }
-    }, []);
+    }, [dialogRef]);
 
     const handleOptionChange = (option) => {
         setSelectedOptions(prev => {

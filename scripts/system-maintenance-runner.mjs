@@ -109,6 +109,13 @@ try {
 
   await updateSystemMaintenanceStatus({
     state: 'running',
+    currentStep: 'sqlite3-rebuild',
+    message: 'sqlite3 wird lokal für den Raspberry neu gebaut',
+  });
+  await runCommand(npmCommand, ['rebuild', 'sqlite3', '--build-from-source'], 'npm rebuild sqlite3 --build-from-source');
+
+  await updateSystemMaintenanceStatus({
+    state: 'running',
     currentStep: 'build',
     message: 'Build wird erstellt',
   });

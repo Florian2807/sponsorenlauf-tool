@@ -360,15 +360,13 @@ export default function Setup() {
                                 </button>
                             )}
 
-                            {isDonationsEnabled && (
-                                <button
-                                    onClick={handleExportButtonClick}
-                                    className="setup-action-btn"
-                                >
-                                    <span className="setup-btn-icon">📊</span>
-                                    <span className="setup-btn-text">Auswertungen exportieren</span>
-                                </button>
-                            )}
+                            <button
+                                onClick={handleExportButtonClick}
+                                className="setup-action-btn"
+                            >
+                                <span className="setup-btn-icon">📊</span>
+                                <span className="setup-btn-text">Auswertungen exportieren</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -421,16 +419,14 @@ export default function Setup() {
                 onClose={() => closeDialog('combinedImport')}
             />
 
-            {isDonationsEnabled && (
-                <AdvancedExportDialog
-                    isOpen={exportDialogOpen}
-                    onClose={() => setExportDialogOpen(false)}
-                    onExport={handleExport}
-                    showSpendenExport={true}
-                    loading={loading.downloadResults}
-                    statistics={stats}
-                />
-            )}
+            <AdvancedExportDialog
+                isOpen={exportDialogOpen}
+                onClose={() => setExportDialogOpen(false)}
+                onExport={handleExport}
+                showSpendenExport={isDonationsEnabled}
+                loading={loading.downloadResults}
+                statistics={stats}
+            />
 
             <DetailedDeleteDialog
                 dialogRef={dialogRefs.detailedDeleteRef}

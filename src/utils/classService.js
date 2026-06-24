@@ -5,8 +5,44 @@
 import { dbAll, dbRun } from './database.js';
 import { getSetting, setSetting } from './settingsService.js';
 
+export const sanitizeClassName = (className) => {
+    const trimmedClassName = String(className || '').trim();
+
+    if (!trimmedClassName) {
+        return '';
+    }
+
+    const classMatch = trimmedClassName.match(/^0*(\d+)(.*)$/);
+
+    if (!classMatch) {
+        return trimmedClassName;
+    }
+
+    const [, numericPart, suffix = ''] = classMatch;
+    return `${parseInt(numericPart, 10)}${suffix}`;
+};
+
+export const normalizeClassNameForComparison = (className) => {
+    return sanitizeClassName(className).toLowerCase();
+};
+
+export const resolveCanonicalClassName = (className, availableClasses = []) => {
+    const sanitizedClassName = sanitizeClassName(className);
+
+    if (!sanitizedClassName) {
+        return '';
+    }
+
+    const normalizedInput = normalizeClassNameForComparison(sanitizedClassName);
+    const canonicalClassName = availableClasses.find((availableClass) => (
+        normalizeClassNameForComparison(availableClass) === normalizedInput
+    ));
+
+    return canonicalClassName || sanitizedClassName;
+};
+
 const deriveGradeFromClassName = (className) => {
-    const normalizedClassName = String(className || '').trim();
+    const normalizedClassName = sanitizeClassName(className);
     const gradeMatch = normalizedClassName.match(/^\d+/);
 
     if (gradeMatch) {
@@ -44,7 +80,7 @@ export const getAvailableClasses = async () => {
         return classes;
     }
 
-    const existingClasses = await dbAll('SELECT DISTINCT klasse FROM students WHERE klasse IS NOT NULL AND TRIM(klasse) != "" ORDER BY klasse');
+    const existingClasses = await dbAll("SELECT DISTINCT klasse FROM students WHERE klasse IS NOT NULL AND TRIM(klasse) != '' ORDER BY klasse");
     return existingClasses.map((row) => row.klasse);
 };
 
@@ -110,7 +146,9 @@ export const validateClassNames = async (classNames) => {
     const errors = [];
 
     classNames.forEach(className => {
-        if (!availableClasses.includes(className)) {
+        const resolvedClassName = resolveCanonicalClassName(className, availableClasses);
+
+        if (!availableClasses.includes(resolvedClassName)) {
             errors.push(`Ungültige Klasse: ${className}`);
         }
     });
@@ -140,18 +178,19 @@ export const syncClassesToDatabase = async (structure = null) => {
 };
 
 export const ensureClassExists = async (className) => {
-    const normalizedClassName = String(className || '').trim();
+    const normalizedClassName = sanitizeClassName(className);
 
     if (!normalizedClassName) {
         return;
     }
 
     const gradeMap = await getClassGradeMap();
-    const grade = gradeMap[normalizedClassName] || deriveGradeFromClassName(normalizedClassName);
+    const canonicalClassName = resolveCanonicalClassName(normalizedClassName, Object.keys(gradeMap));
+    const grade = gradeMap[canonicalClassName] || deriveGradeFromClassName(canonicalClassName);
 
     await dbRun(
         'INSERT OR IGNORE INTO classes (grade, class_name) VALUES (?, ?)',
-        [grade, normalizedClassName]
+        [grade, canonicalClassName]
     );
 };
 

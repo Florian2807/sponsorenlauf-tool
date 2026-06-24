@@ -1,6 +1,6 @@
 import { dbAll, dbBatchInsert } from '../../utils/database.js';
 import { handleMethodNotAllowed, handleError, handleSuccess, handleValidationError } from '../../utils/apiHelpers.js';
-import { getAvailableClasses, syncClassNamesFromList } from '../../utils/classService.js';
+import { getAvailableClasses, resolveCanonicalClassName, sanitizeClassName, syncClassNamesFromList } from '../../utils/classService.js';
 
 function validateTeacher(teacher, index) {
     const errors = [];
@@ -35,7 +35,7 @@ export default async function handler(req, res) {
             ...teacher,
             vorname: teacher.vorname?.trim() || '',
             nachname: teacher.nachname?.trim() || '',
-            klasse: teacher.klasse?.trim() || '',
+            klasse: sanitizeClassName(teacher.klasse),
             email: teacher.email?.trim() || ''
         }));
 
@@ -70,15 +70,19 @@ export default async function handler(req, res) {
             return handleValidationError(res, [...new Set(emailErrors)]);
         }
 
-        // Validate classes if any are available and teacher has a class assigned
         const classNames = availableClasses;
+        const teachersWithResolvedClasses = normalizedTeachers.map((teacher) => ({
+            ...teacher,
+            klasse: resolveCanonicalClassName(teacher.klasse, classNames),
+        }));
+
         if (classNames.length > 0) {
-            const classErrors = normalizedTeachers
-                .map((teacher, index) =>
+            const classErrors = teachersWithResolvedClasses
+                .map((teacher, index) => (
                     teacher.klasse && !classNames.includes(teacher.klasse)
-                        ? `Zeile ${index + 1}: Ungültige Klasse "${teacher.klasse}". Verfügbare Klassen: ${classNames.join(', ')}`
+                        ? `Zeile ${index + 1}: Ungültige Klasse "${normalizedTeachers[index].klasse}". Verfügbare Klassen: ${classNames.join(', ')}`
                         : null
-                )
+                ))
                 .filter(Boolean);
 
             if (classErrors.length > 0) {
@@ -94,14 +98,14 @@ export default async function handler(req, res) {
 
         let nextId = await getNextId();
 
-        await syncClassNamesFromList(normalizedTeachers.map((teacher) => teacher.klasse).filter(Boolean));
+        await syncClassNamesFromList(teachersWithResolvedClasses.map((teacher) => teacher.klasse).filter(Boolean));
 
         // Insert teachers in batches with automatically assigned IDs
         const BATCH_SIZE = 500; // Process 500 teachers at a time
         let totalInserted = 0;
 
-        for (let i = 0; i < normalizedTeachers.length; i += BATCH_SIZE) {
-            const batch = normalizedTeachers.slice(i, i + BATCH_SIZE);
+        for (let i = 0; i < teachersWithResolvedClasses.length; i += BATCH_SIZE) {
+            const batch = teachersWithResolvedClasses.slice(i, i + BATCH_SIZE);
             const placeholders = batch.map(() => '(?, ?, ?, ?, ?)').join(', ');
             const values = batch.flatMap((teacher) => [
                 nextId++,

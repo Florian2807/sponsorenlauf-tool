@@ -1,6 +1,6 @@
 import { dbAll, dbBatchInsert } from '../../utils/database.js';
 import { handleMethodNotAllowed, handleError, handleSuccess, handleValidationError } from '../../utils/apiHelpers.js';
-import { getAvailableClasses, syncClassNamesFromList } from '../../utils/classService.js';
+import { getAvailableClasses, resolveCanonicalClassName, sanitizeClassName, syncClassNamesFromList } from '../../utils/classService.js';
 import { parseImportedStudentId } from '../../utils/studentId.js';
 
 const VALID_GENDERS = ['männlich', 'weiblich', 'divers'];
@@ -10,12 +10,15 @@ function formatGender(gender) {
     
     const genderMap = {
         'w': 'weiblich',
-        'm': 'männlich', 
-        'd': 'divers'
+        'm': 'männlich',
+        'd': 'divers',
+        'weiblich': 'weiblich',
+        'männlich': 'männlich',
+        'divers': 'divers'
     };
     
     const normalizedGender = gender.toLowerCase().trim();
-    return genderMap[normalizedGender] || gender;
+    return genderMap[normalizedGender] || gender.trim();
 }
 
 function validateStudent(student, index) {
@@ -55,7 +58,7 @@ export default async function handler(req, res) {
             id: parseImportedStudentId(student.id),
             vorname: student.vorname?.trim() || '',
             nachname: student.nachname?.trim() || '',
-            klasse: student.klasse?.trim() || '',
+            klasse: sanitizeClassName(student.klasse),
             geschlecht: formatGender(student.geschlecht)
         }));
 
@@ -69,15 +72,20 @@ export default async function handler(req, res) {
             return handleValidationError(res, allErrors);
         }
 
-        // Validate classes if any are available
         const classNames = availableClasses;
+        const studentsWithResolvedClasses = formattedStudents.map((student) => ({
+            ...student,
+            klasse: resolveCanonicalClassName(student.klasse, classNames),
+        }));
+
         if (classNames.length > 0) {
-            const classErrors = formattedStudents
-                .map((student, index) =>
-                    !classNames.includes(student.klasse)
-                        ? `Zeile ${index + 1}: Ungültige Klasse "${student.klasse}". Verfügbare Klassen: ${classNames.join(', ')}`
-                        : null
-                )
+            const classErrors = studentsWithResolvedClasses
+                .map((student, index) => {
+                    const hasCanonicalMatch = classNames.includes(student.klasse);
+                    return !hasCanonicalMatch
+                        ? `Zeile ${index + 1}: Ungültige Klasse "${formattedStudents[index].klasse}". Verfügbare Klassen: ${classNames.join(', ')}`
+                        : null;
+                })
                 .filter(Boolean);
 
             if (classErrors.length > 0) {
@@ -85,7 +93,7 @@ export default async function handler(req, res) {
             }
         }
 
-        const importedIds = formattedStudents
+        const importedIds = studentsWithResolvedClasses
             .map(student => student.id)
             .filter(id => Number.isInteger(id));
 
@@ -116,7 +124,7 @@ export default async function handler(req, res) {
             nextGeneratedId += 1;
         }
 
-        const studentsToInsert = formattedStudents.map((student) => {
+        const studentsToInsert = studentsWithResolvedClasses.map((student) => {
             if (Number.isInteger(student.id)) {
                 existingIds.add(student.id);
                 return student;
@@ -136,7 +144,7 @@ export default async function handler(req, res) {
             };
         });
 
-        const autoAssignedCount = studentsToInsert.filter((student, index) => !Number.isInteger(formattedStudents[index].id)).length;
+        const autoAssignedCount = studentsToInsert.filter((student, index) => !Number.isInteger(studentsWithResolvedClasses[index].id)).length;
 
         await syncClassNamesFromList(studentsToInsert.map((student) => student.klasse));
 

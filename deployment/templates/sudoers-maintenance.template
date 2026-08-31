@@ -1,0 +1,1 @@
+__PI_USER__ ALL=NOPASSWD: /bin/systemctl restart __SERVICE_NAME__

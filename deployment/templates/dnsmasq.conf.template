@@ -1,0 +1,3 @@
+interface=__WLAN_INTERFACE__
+dhcp-range=__DHCP_RANGE_START__,__DHCP_RANGE_END__,255.255.255.0,24h
+address=/__AP_DOMAIN__/__AP_IP__

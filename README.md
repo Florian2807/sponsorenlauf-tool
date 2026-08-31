@@ -49,6 +49,32 @@ Jeder Schüler erhält eine eindeutige ID, die in der Datenbank hinterlegt ist. 
 ### 🖥️ Raspberry Pi Setup
 Schau dir die [Anleitung](/raspberrySetup.md) an, wie du den Raspberry Pi installieren musst. 
 
+Für die geplante Vereinfachung per Setup-Script gibt es zusätzlich einen technischen Plan unter [docs/raspberry-setup-script-plan.md](./docs/raspberry-setup-script-plan.md).
+
+Vor der eigentlichen Automatisierung kannst du bereits einen reinen Vorabcheck ausführen:
+
+```bash
+cp deployment/install.example.env deployment/install.env
+bash ./scripts/check-raspberry-setup.sh
+```
+
+Das Script prüft unter anderem zuerst, ob Internet vorhanden ist, und validiert danach OS, Interfaces, Node, `systemd` und wichtige Zielpfade, ohne etwas zu verändern.
+
+Für die eigentliche automatisierte Installation gibt es jetzt außerdem ein erstes Setup-Script:
+
+```bash
+cp deployment/install.example.env deployment/install.env
+bash ./scripts/install-raspberry.sh
+```
+
+Aktuell orientiert sich das Script eng an den bestehenden Schritten aus dieser README:
+
+- Internet wird vor dem eigentlichen Lauf geprüft
+- Systempakete werden installiert
+- Repository und App werden vorbereitet
+- `npm ci`, `npm rebuild sqlite3 --build-from-source`, versionierte Datenbankmigrationen und `npm run build` werden ausgeführt
+- `systemd`, `sudoers`, `hostapd`, `dnsmasq`, `dhcpcd` und `iptables` werden gesetzt
+
 ### ⚙️ Node.js + NPM Installation
 1. Verbinde dich per SSH mit deinem Raspberry:
     ```bash
@@ -138,6 +164,8 @@ Verwende **systemd**, um das Tool dauerhaft im Hintergrund laufen zu lassen.
 
 ### 🔄 Frontend-Update / Auto-Update beim Neustart
 
+Der vollständige Ablauf, die Aktivierung auf bestehenden Kundengeräten und Regeln für neue Migrationen sind in [docs/startup-updates.md](./docs/startup-updates.md) beschrieben.
+
 Damit die neue Wartungsfunktion im Frontend funktioniert und bei jedem Neustart automatisch `git pull`, `npm ci` und `npm run build` ausgeführt werden, sind auf dem Raspberry noch zwei zusätzliche Schritte nötig:
 
 1. **Skripte ausführbar machen**
@@ -156,9 +184,30 @@ Damit die neue Wartungsfunktion im Frontend funktioniert und bei jedem Neustart 
    ```
 
 4. **Wichtiges Verhalten des Start-Skripts**
-   - Mit LAN + Internet: `git pull --ff-only` → `npm ci` → `npm run build` → `npm start`
-   - Ohne LAN oder ohne Internet: vorhandenes Build wird direkt gestartet
-   - Wenn Update oder Build fehlschlagen, wird der Fehler protokolliert und der vorhandene Stand weiter gestartet
+   - Vor Migrationen wird eine geprüfte SQLite-Sicherheitskopie unter `backups/` erstellt.
+   - Die Migrationen der bereits installierten Version laufen bei jedem Start – auch ohne Internet.
+   - Mit Internet wird `origin/main` abgerufen. Nur wenn ein neuer Fast-Forward-Stand vorhanden ist, folgen `npm ci`, der lokale `sqlite3`-Build, die Migrationen der neuen Version und `npm run build`.
+   - Ist kein Update vorhanden, werden die langsamen Installations- und Build-Schritte übersprungen.
+   - Bei lokalen Änderungen oder einem abweichenden Git-Verlauf wird kein automatisches Update erzwungen.
+   - Schlägt ein Update nach dem Git-Wechsel fehl, werden Git-Stand, Abhängigkeiten, Datenbank und Produktions-Build automatisch auf den vorherigen Stand zurückgesetzt.
+   - Die Anwendung startet nicht, wenn bereits die lokalen Datenbankmigrationen fehlschlagen. So läuft kein neuer Code gegen ein unbekanntes Schema.
+   - Standardmäßig bleiben die neuesten 20 automatisch erzeugten Datenbank-Sicherungen erhalten. Der Wert kann über `SPONSORENLAUF_MAX_BACKUPS` geändert werden.
+
+   Die Update-Quelle kann in der systemd-Unit konfiguriert werden:
+   ```ini
+   Environment=SPONSORENLAUF_UPDATE_REMOTE=origin
+   Environment=SPONSORENLAUF_UPDATE_BRANCH=main
+   Environment=SPONSORENLAUF_MAX_BACKUPS=20
+   ```
+
+5. **Hinweis zu Raspberry Pi OS Bookworm und sqlite3**
+   `Raspberry Pi OS Lite (64-bit)` auf Basis von Debian Bookworm ist dafür grundsätzlich korrekt.
+   Auf einigen Geräten zieht `npm ci` für `sqlite3` jedoch ein vorgebautes Binary, das eine neuere `glibc` erwartet als auf Bookworm vorhanden ist.
+   Deshalb baut das Wartungsskript `sqlite3` nach `npm ci` zusätzlich lokal neu:
+   ```bash
+   npm rebuild sqlite3
+   ```
+   Das kann auf dem Raspberry mehrere Minuten dauern und ist beim ersten Lauf normal.
 
 > [!TIP]
 > Eine Beispiel-Datei liegt auch im Repo unter `deployment/systemd/sponsorenlauf.service.example`.

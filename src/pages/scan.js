@@ -5,13 +5,23 @@ import { useGlobalError } from '../contexts/ErrorContext';
 import DoubleScanConfirmationDialog from '../components/dialogs/scan/DoubleScanConfirmationDialog';
 import { cleanScannedStudentId } from '../utils/studentId';
 
+const PENDING_SCAN_STORAGE_KEY = 'sponsorenlauf.pendingScan';
+const DEVICE_ID_STORAGE_KEY = 'sponsorenlauf.deviceId';
+
+const createClientId = (prefix) => {
+  const randomPart = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  return `${prefix}_${randomPart}`;
+};
+
 export default function Scan() {
   const [id, setID] = useState('');
   const [currentTimestamp, setCurrentTimestamp] = useState(null);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
   const [studentInfo, setStudentInfo] = useState(null);
-  const [timestamps, setTimestamps] = useState([]);
+  const [rounds, setRounds] = useState([]);
   const [timestampsLoading, setTimestampsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [doubleScanData, setDoubleScanData] = useState(null);
@@ -21,8 +31,34 @@ export default function Scan() {
   const formRef = useRef(null);
   const inputRef = useRef(null);
   const doubleScanDialogRef = useRef(null);
+  const idRef = useRef('');
+  const pendingScanRef = useRef(null);
+  const deviceIdRef = useRef(null);
 
   useEffect(() => {
+    let deviceId = window.localStorage.getItem(DEVICE_ID_STORAGE_KEY);
+    if (!deviceId) {
+      deviceId = createClientId('device');
+      window.localStorage.setItem(DEVICE_ID_STORAGE_KEY, deviceId);
+    }
+    deviceIdRef.current = deviceId;
+
+    const storedPendingScan = window.localStorage.getItem(PENDING_SCAN_STORAGE_KEY);
+    if (storedPendingScan) {
+      try {
+        const pendingScan = JSON.parse(storedPendingScan);
+        if (pendingScan?.cleanedId && pendingScan?.scanId) {
+          pendingScanRef.current = pendingScan;
+          idRef.current = pendingScan.cleanedId;
+          setID(pendingScan.cleanedId);
+          setMessage('Nicht bestätigter Scan wiederhergestellt – bitte erneut senden');
+          setMessageType('warning');
+        }
+      } catch {
+        window.localStorage.removeItem(PENDING_SCAN_STORAGE_KEY);
+      }
+    }
+
     inputRef.current?.focus();
   }, []);
 
@@ -71,7 +107,9 @@ export default function Scan() {
       if (event.key === 'Backspace') {
         event.preventDefault();
         inputRef.current?.focus();
-        setID((currentValue) => currentValue.slice(0, -1));
+        const nextValue = idRef.current.slice(0, -1);
+        idRef.current = nextValue;
+        setID(nextValue);
         return;
       }
 
@@ -81,7 +119,9 @@ export default function Scan() {
 
       event.preventDefault();
       inputRef.current?.focus();
-      setID((currentValue) => `${currentValue}${event.key}`);
+      const nextValue = `${idRef.current}${event.key}`;
+      idRef.current = nextValue;
+      setID(nextValue);
     };
 
     document.addEventListener('keydown', handleGlobalKeyDown);
@@ -93,7 +133,18 @@ export default function Scan() {
   }, []);
 
   const handleInputChange = useCallback((e) => {
+    idRef.current = e.target.value;
     setID(e.target.value);
+  }, []);
+
+  const rememberPendingScan = useCallback((pendingScan) => {
+    pendingScanRef.current = pendingScan;
+    window.localStorage.setItem(PENDING_SCAN_STORAGE_KEY, JSON.stringify(pendingScan));
+  }, []);
+
+  const clearPendingScan = useCallback(() => {
+    pendingScanRef.current = null;
+    window.localStorage.removeItem(PENDING_SCAN_STORAGE_KEY);
   }, []);
 
   // Funktion zum asynchronen Laden der Timestamps
@@ -101,22 +152,30 @@ export default function Scan() {
     setTimestampsLoading(true);
     try {
       const response = await request(`/api/students/${studentId}/timestamps`);
-      setTimestamps(response.timestamps || []);
+      const loadedRounds = response.rounds
+        || (response.timestamps || []).map((timestamp, index) => ({ id: `legacy-${index}`, timestamp }));
+      setRounds(loadedRounds);
     } catch (error) {
       console.warn('Timestamps konnten nicht geladen werden:', error);
-      setTimestamps([]);
+      setRounds([]);
     } finally {
       setTimestampsLoading(false);
     }
   }, [request]);
 
-  const performScan = useCallback(async (cleanedId, confirmDoubleScan = false) => {
+  const performScan = useCallback(async (cleanedId, confirmDoubleScan = false, scanId) => {
     let processingHandled = false; // Flag um sicherzustellen, dass Loading-State korrekt behandelt wird
     
     try {
       const response = await request('/api/runden', {
         method: 'POST',
-        data: { id: cleanedId, date: new Date(), confirmDoubleScan }
+        showErrorMessage: false,
+        data: {
+          id: cleanedId,
+          confirmDoubleScan,
+          scanId,
+          sourceDeviceId: deviceIdRef.current,
+        }
       });
 
       // Server antwortet IMMER mit 200 bei gültigen Anfragen
@@ -129,7 +188,8 @@ export default function Scan() {
             student: response.student,
             lastRoundTime: response.lastRoundTime,
             thresholdMinutes: response.thresholdMinutes || 5,
-            cleanedId
+            cleanedId,
+            scanId,
           });
           setMessage('Doppel-Scan erkannt - bitte bestätigen');
           setMessageType('warning');
@@ -143,16 +203,36 @@ export default function Scan() {
         setCurrentTimestamp(new Date());
         setMessage(response.message || 'Runde erfolgreich gezählt!');
         setMessageType('success');
+        idRef.current = '';
         setID('');
         setDoubleScanData(null);
+        clearPendingScan();
+
+        if (response.round) {
+          setRounds((currentRounds) => [
+            response.round,
+            ...currentRounds.filter((round) => round.id !== response.round.id)
+          ]);
+        }
 
         // Timestamps asynchron laden
         loadTimestamps(cleanedId);
       }
     } catch (error) {
       // Echte Fehler und Block-Modus landen hier
+      const isRecoverableFailure = !error.status || error.status >= 500 || error.status === 429;
+
+      if (isRecoverableFailure) {
+        setMessage('Scan nicht bestätigt – Verbindung prüfen und erneut senden');
+        setMessageType('error');
+        showError(error, 'Beim Speichern der Runde');
+        return;
+      }
+
+      idRef.current = '';
       setID('');
-      
+      clearPendingScan();
+
       if (error.status === 404) {
         setMessage('Schüler mit dieser ID nicht gefunden');
         setMessageType('error');
@@ -184,23 +264,20 @@ export default function Scan() {
           setMessage(errorMessage || 'Ungültige ID oder Eingabe');
           setMessageType('error');
         }
-      } else {
-        setMessage('Fehler beim Speichern der Runde');
-        setMessageType('error');
-        showError(error, 'Beim Speichern der Runde');
       }
       
-      if (error.status !== 400 || error.data?.error !== 'DOUBLE_SCAN_BLOCKED') {
+      const responseErrorCode = error.response?.data?.error;
+      if (error.status !== 400 || responseErrorCode !== 'DOUBLE_SCAN_BLOCKED') {
         setStudentInfo(null);
       }
-      setTimestamps([]);
+      setRounds([]);
     } finally {
       // Stelle sicher, dass Processing immer gestoppt wird (außer bei Dialog)
       if (!processingHandled) {
         setIsProcessing(false);
       }
     }
-  }, [request, showError, loadTimestamps]);
+  }, [request, showError, loadTimestamps, clearPendingScan]);
 
   const handleDoubleScanConfirm = useCallback(async () => {
     if (!doubleScanData) return;
@@ -210,7 +287,7 @@ export default function Scan() {
     setMessage('Verarbeite...');
     setMessageType('info');
 
-    await performScan(doubleScanData.cleanedId, true); // confirmDoubleScan = true
+    await performScan(doubleScanData.cleanedId, true, doubleScanData.scanId); // confirmDoubleScan = true
     // performScan handled setIsProcessing(false)
 
     setTimeout(() => inputRef.current?.focus(), 100);
@@ -219,17 +296,20 @@ export default function Scan() {
   const handleDoubleScanCancel = useCallback(() => {
     doubleScanDialogRef.current?.close();
     setDoubleScanData(null);
+    clearPendingScan();
+    idRef.current = '';
+    setID('');
     setMessage('Scan abgebrochen - möglicher Doppel-Scan erkannt');
     setMessageType('warning');
     setTimeout(() => inputRef.current?.focus(), 100);
-  }, []);
+  }, [clearPendingScan]);
 
   const handleSubmit = useCallback(async (event) => {
     event.preventDefault();
 
     if (isProcessing) return; // Verhindere mehrfache Submissions
 
-    const cleanedId = cleanId(id);
+    const cleanedId = cleanId(idRef.current);
     if (!cleanedId.trim()) {
       setMessage('Bitte geben Sie eine gültige ID ein');
       setMessageType('error');
@@ -242,32 +322,37 @@ export default function Scan() {
     setMessage('Verarbeite...');
     setMessageType('info');
 
-    await performScan(cleanedId, false); // confirmDoubleScan = false
+    const existingPendingScan = pendingScanRef.current;
+    const scanId = existingPendingScan?.cleanedId === cleanedId
+      ? existingPendingScan.scanId
+      : createClientId('scan');
+    rememberPendingScan({ cleanedId, scanId, createdAt: new Date().toISOString() });
+
+    await performScan(cleanedId, false, scanId); // confirmDoubleScan = false
     
     // Fokus nach Verarbeitung wiederherstellen (performScan handled setIsProcessing)
     setTimeout(() => inputRef.current?.focus(), 100);
-  }, [cleanId, id, isProcessing, performScan]);
+  }, [cleanId, isProcessing, performScan, rememberPendingScan]);
 
-  const handleDeleteTimestamp = useCallback(async (indexToRemove) => {
-    if (!timestamps || indexToRemove < 0 || indexToRemove >= timestamps.length || !studentInfo) {
-      showError('Ungültiger Zeitstempel-Index oder fehlende Schülerinformationen', 'Beim Löschen des Zeitstempels');
+  const handleDeleteTimestamp = useCallback(async (roundId) => {
+    if (!roundId || !studentInfo) {
+      showError('Ungültige Runden-ID oder fehlende Schülerinformationen', 'Beim Löschen des Zeitstempels');
       return;
     }
 
-    const updatedTimestamps = timestamps.filter((_, index) => index !== indexToRemove);
-
     try {
-      await request(`/api/students/${studentInfo.id}`, {
-        method: 'PUT',
-        data: { timestamps: updatedTimestamps }
+      await request(`/api/rounds/${roundId}`, {
+        method: 'DELETE',
+        data: { studentId: studentInfo.id }
       });
 
-      setTimestamps(updatedTimestamps);
+      const updatedRounds = rounds.filter((round) => round.id !== roundId);
+      setRounds(updatedRounds);
 
       // Aktualisiere auch die Rundenzahl im studentInfo
       setStudentInfo(prevStudentInfo => ({
         ...prevStudentInfo,
-        roundCount: updatedTimestamps.length,
+        roundCount: Math.max(0, Number(prevStudentInfo.roundCount) - 1),
       }));
 
       setMessage('Zeitstempel erfolgreich gelöscht');
@@ -275,15 +360,15 @@ export default function Scan() {
     } catch (error) {
       showError(error, 'Beim Löschen des Zeitstempels');
     }
-  }, [timestamps, studentInfo, request, showError]);
+  }, [rounds, studentInfo, request, showError]);
 
-  const sortedTimestamps = useMemo(
-    () => timestamps.slice().sort((a, b) => new Date(b) - new Date(a)),
-    [timestamps]
+  const sortedRounds = useMemo(
+    () => rounds.slice().sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)),
+    [rounds]
   );
 
-  const latestTimestamp = sortedTimestamps[0] || null;
-  const previousTimestamp = sortedTimestamps[1] || null;
+  const latestTimestamp = sortedRounds[0]?.timestamp || null;
+  const previousTimestamp = sortedRounds[1]?.timestamp || null;
 
   const latestTimestampMinutesAgo = useMemo(() => {
     if (!latestTimestamp) {
@@ -305,8 +390,8 @@ export default function Scan() {
         <h1 className="page-title scan-dashboard-title">Runden zählen</h1>
 
         <div className="scan-status" aria-live="polite">
-          <span className={`status-pill ${isProcessing || loading ? 'status-pill-warning' : 'status-pill-ready'}`}>
-            {isProcessing || loading ? 'Scan wird verarbeitet' : 'Scanner bereit'}
+          <span className={`status-pill ${isProcessing ? 'status-pill-warning' : 'status-pill-ready'}`}>
+            {isProcessing ? 'Scan wird verarbeitet' : 'Scanner bereit'}
           </span>
         </div>
       </div>
@@ -341,16 +426,16 @@ export default function Scan() {
                 onChange={handleInputChange}
                 placeholder="Barcode scannen"
                 required
-                disabled={isProcessing || loading}
+                disabled={isProcessing}
                 className="input scan-input-compact"
                 autoComplete="off"
               />
               <button
                 type="submit"
                 className="btn"
-                disabled={isProcessing || loading}
+                disabled={isProcessing}
               >
-                {isProcessing || loading ? 'Verarbeite...' : 'Runde zählen'}
+                {isProcessing ? 'Verarbeite...' : 'Runde zählen'}
               </button>
             </form>
           </div>
@@ -367,7 +452,7 @@ export default function Scan() {
                 </div>
 
                 <div className="scan-round-summary">
-                  <span>Runden heute</span>
+                  <span>Runden gesamt</span>
                   <strong>{studentInfo.roundCount || 0}</strong>
                 </div>
               </div>
@@ -391,14 +476,15 @@ export default function Scan() {
                 <h3>Scan-Timestamps</h3>
                 {timestampsLoading ? (
                   <p className="message message-info" style={{ fontSize: '0.9em', opacity: 0.8 }}>Lade Details...</p>
-                ) : sortedTimestamps.length > 0 ? (
+                ) : sortedRounds.length > 0 ? (
                   <ul className="timestamp-list">
-                    {sortedTimestamps.map((timestamp, index, sortedArray) => {
-                      const previousTimestamp = index < sortedArray.length - 1 ? sortedArray[index + 1] : null;
+                    {sortedRounds.map((round, index, sortedArray) => {
+                      const timestamp = round.timestamp;
+                      const previousTimestamp = index < sortedArray.length - 1 ? sortedArray[index + 1].timestamp : null;
                       const timeDifference = calculateTimeDifference(timestamp, previousTimestamp);
 
                       return (
-                        <li key={`${timestamp}-${index}`} className="timestamp-item">
+                        <li key={round.id} className="timestamp-item">
                           <span>
                             {formatDate(new Date(timestamp))} Uhr {'->'} {timeAgo(currentTimestamp, new Date(timestamp))}
                             {timeDifference && (
@@ -410,8 +496,8 @@ export default function Scan() {
                           <button
                             type="button"
                             className="btn btn-danger btn-sm"
-                            onClick={() => handleDeleteTimestamp(timestamps.findIndex(ts => ts === timestamp))}
-                            disabled={loading}
+                            onClick={() => handleDeleteTimestamp(round.id)}
+                            disabled={isProcessing || loading}
                             aria-label={`Zeitstempel ${formatDate(new Date(timestamp))} löschen`}
                           >
                             {loading ? 'Lösche...' : 'Löschen'}

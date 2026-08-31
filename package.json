@@ -7,7 +7,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "migrate": "node initDB.js",
+    "start:managed": "bash scripts/start-with-update.sh",
+    "lint": "eslint .",
+    "test": "node --test --test-concurrency=1"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.2.0",
@@ -42,5 +45,9 @@
   },
   "author": "",
   "license": "ISC",
-  "type": "module"
+  "type": "module",
+  "allowScripts": {
+    "sqlite3@6.0.1": true,
+    "unrs-resolver@1.11.1": true
+  }
 }

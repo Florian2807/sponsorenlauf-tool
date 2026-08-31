@@ -1,4 +1,4 @@
-import { getRoundsByStudentId } from '../../../../utils/studentService.js';
+import { getRoundRecordsByStudentId } from '../../../../utils/studentService.js';
 import {
   handleMethodNotAllowed,
   handleError,
@@ -29,9 +29,10 @@ export default async function handler(req, res) {
       }
     }
 
-    const timestamps = await getRoundsByStudentId(studentId);
+    const rounds = await getRoundRecordsByStudentId(studentId);
+    const timestamps = rounds.map((round) => round.timestamp);
 
-    return handleSuccess(res, { timestamps }, 'Timestamps erfolgreich geladen');
+    return handleSuccess(res, { rounds, timestamps }, 'Timestamps erfolgreich geladen');
   } catch (error) {
     return handleError(res, error, 500, 'Fehler beim Laden der Timestamps');
   }

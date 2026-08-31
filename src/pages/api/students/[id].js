@@ -7,7 +7,7 @@ import {
   updateReplacements,
   deleteRoundByIndex
 } from '../../../utils/studentService.js';
-import { validateStudent } from '../../../utils/validation.js';
+import { validateStudent, validateStudentId, validateTimestamps } from '../../../utils/validation.js';
 import {
   handleMethodNotAllowed,
   handleError,
@@ -27,6 +27,10 @@ export default async function handler(req, res) {
       return handleError(res, new Error('Ungültige ID'), 400);
     }
 
+    if (!validateStudentId(normalizedRawId)) {
+      return handleError(res, new Error('Ungültige ID'), 400);
+    }
+
     if (normalizedRawId.startsWith('E')) {
       const replacement = await dbGet(
         'SELECT studentID FROM replacements WHERE id = ?',
@@ -38,11 +42,7 @@ export default async function handler(req, res) {
       }
       id = replacement.studentID;
     } else {
-      // Normale ID validierung
-      id = parseInt(normalizedRawId, 10);
-      if (isNaN(id) || id <= 0) {
-        return handleError(res, new Error('Ungültige ID'), 400);
-      }
+      id = Number(normalizedRawId);
     }
 
     if (req.method === 'GET') {
@@ -56,6 +56,9 @@ export default async function handler(req, res) {
       const { vorname, nachname, klasse, geschlecht, timestamps, replacements } = req.body;
 
       const validationErrors = validateStudent({ vorname, nachname, klasse, geschlecht });
+      if (timestamps !== undefined) {
+        validationErrors.push(...validateTimestamps(timestamps));
+      }
       if (validationErrors.length > 0) {
         return handleValidationError(res, validationErrors);
       }
@@ -81,6 +84,12 @@ export default async function handler(req, res) {
 
     } else if (req.method === 'PUT') {
       const { vorname, nachname, klasse, geschlecht, timestamps, replacements } = req.body;
+
+      if (timestamps !== undefined || replacements !== undefined) {
+        return handleValidationError(res, [
+          'Runden und Ersatz-IDs können nicht über die Schüler-Aktualisierung ersetzt werden'
+        ]);
+      }
 
       const student = await getStudentById(id);
       if (!student) {
@@ -121,14 +130,6 @@ export default async function handler(req, res) {
         await updateStudent(id, changedStudentFields);
       }
 
-      if (timestamps !== undefined) {
-        await updateRounds(id, timestamps);
-      }
-
-      if (replacements !== undefined) {
-        await updateReplacements(id, replacements);
-      }
-
       return handleSuccess(res, null, 'Schüler erfolgreich aktualisiert');
 
     } else if (req.method === 'DELETE') {
@@ -147,8 +148,10 @@ export default async function handler(req, res) {
         await deleteRoundByIndex(id, deleteRoundIndex);
         return handleSuccess(res, null, 'Runde erfolgreich gelöscht');
       } else {
-        await deleteStudent(id);
-        return handleSuccess(res, null, 'Schüler erfolgreich gelöscht');
+        const result = await deleteStudent(id);
+        return handleSuccess(res, {
+          backupFilename: result.backupFilename,
+        }, 'Schüler wurde gesichert und erfolgreich gelöscht');
       }
 
     } else {

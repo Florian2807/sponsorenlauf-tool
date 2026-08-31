@@ -156,6 +156,7 @@ export const getModuleConfig = async () => {
             doubleScanPrevention: {
                 enabled: moduleConfig.doubleScanPrevention?.enabled ?? true,
                 timeThresholdMinutes: moduleConfig.doubleScanPrevention?.timeThresholdMinutes ?? 5,
+                mode: moduleConfig.doubleScanPrevention?.mode ?? 'confirm',
                 allowManualOverride: moduleConfig.doubleScanPrevention?.allowManualOverride ?? true,
                 showDetailedWarning: moduleConfig.doubleScanPrevention?.showDetailedWarning ?? true,
                 ...moduleConfig.doubleScanPrevention
@@ -171,13 +172,13 @@ export const getModuleConfig = async () => {
             doubleScanPrevention: {
                 enabled: true,
                 timeThresholdMinutes: 5,
+                mode: 'confirm',
                 allowManualOverride: true,
                 showDetailedWarning: true
             }
         };
     }
 };
-
 
 
 

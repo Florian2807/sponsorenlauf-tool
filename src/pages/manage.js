@@ -131,16 +131,36 @@ export default function Manage() {
     editStudentPopup.current.showModal();
   }, []);
 
-  const deleteTimestamp = useCallback((indexToRemove) => {
+  const deleteTimestamp = useCallback(async (roundId) => {
     if (!selectedStudent) return;
 
-    setSelectedStudent(prev => ({
-      ...prev,
-      timestamps: prev.timestamps.filter((_, index) => index !== indexToRemove)
-    }));
-  }, [selectedStudent]);
+    try {
+      await request(`/api/rounds/${roundId}`, {
+        method: 'DELETE',
+        data: { studentId: selectedStudent.id },
+        errorContext: 'Beim Löschen der Runde'
+      });
 
-  const addRound = useCallback(async (studentId, timestamp) => {
+      const removeRound = (student) => {
+        const rounds = (student.rounds || []).filter((round) => round.id !== roundId);
+        return {
+          ...student,
+          rounds,
+          timestamps: rounds.map((round) => round.timestamp),
+        };
+      };
+
+      setSelectedStudent((currentStudent) => removeRound(currentStudent));
+      setStudents((currentStudents) => currentStudents.map((student) => (
+        student.id === selectedStudent.id ? removeRound(student) : student
+      )));
+      showSuccess('Runde erfolgreich gelöscht');
+    } catch (error) {
+      // Fehler wird automatisch über useApi angezeigt.
+    }
+  }, [request, selectedStudent, showSuccess]);
+
+  const addRound = useCallback(async (studentId) => {
     if (!selectedStudent || selectedStudent.id !== studentId) return;
 
     try {
@@ -149,23 +169,29 @@ export default function Manage() {
         method: 'POST',
         data: { 
           id: studentId, 
-          date: new Date(timestamp),
+          scanId: crypto.randomUUID(),
           confirmDoubleScan: true // Bypass double-scan check in manual mode
         }
       });
 
       if (response?.success) {
+        const savedRound = response.round;
         // Sofortige UI-Aktualisierung
         setSelectedStudent(prev => ({
           ...prev,
-          timestamps: [...prev.timestamps, timestamp].sort((a, b) => new Date(b) - new Date(a))
+          rounds: [savedRound, ...(prev.rounds || [])],
+          timestamps: [savedRound.timestamp, ...prev.timestamps]
         }));
 
         // Auch die Hauptliste aktualisieren
         setStudents(prevStudents => 
           prevStudents.map(student => 
             student.id === studentId 
-              ? { ...student, timestamps: [...student.timestamps, timestamp].sort((a, b) => new Date(b) - new Date(a)) }
+              ? {
+                  ...student,
+                  rounds: [savedRound, ...(student.rounds || [])],
+                  timestamps: [savedRound.timestamp, ...student.timestamps]
+                }
               : student
           )
         );
@@ -280,15 +306,14 @@ export default function Manage() {
     e.preventDefault();
     if (!selectedStudent) return;
 
-    const updatedStudent = {
-      ...selectedStudent,
-      ...editForm
-    };
+    const updatedStudent = { ...selectedStudent, ...editForm };
 
     try {
       const data = await request(`/api/students/${selectedStudent.id}`, {
         method: 'PUT',
-        data: updatedStudent,
+        // Stammdaten dürfen niemals eine möglicherweise veraltete Rundenliste
+        // mitsenden. Runden haben eigene append/delete Endpunkte.
+        data: editForm,
         errorContext: 'Beim Speichern der Schüleränderungen'
       });
 
@@ -310,14 +335,15 @@ export default function Manage() {
     if (!selectedStudent) return;
 
     try {
-      await request(`/api/students/${selectedStudent.id}`, { method: 'DELETE' });
+      const result = await request(`/api/students/${selectedStudent.id}`, { method: 'DELETE' });
       setStudents(prev => prev.filter(student => student.id !== selectedStudent.id));
       setSelectedStudent(null);
       editStudentPopup.current?.close();
+      showSuccess(`Schüler gelöscht. Sicherheitskopie: ${result.backupFilename}`, 'Schüler löschen');
     } catch (error) {
       showError(error, 'Beim Löschen des Schülers');
     }
-  }, [request, selectedStudent, showError]);
+  }, [request, selectedStudent, showError, showSuccess]);
 
   const addStudentClick = () => {
     setNewStudent({

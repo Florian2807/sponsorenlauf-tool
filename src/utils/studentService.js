@@ -2,7 +2,8 @@
  * Service für Schüler-Operationen
  */
 
-import { dbAll, dbGet, dbRun, dbTransaction, createPlaceholders } from './database.js';
+import { dbAll, dbGet, dbRun, dbTransaction, dbImmediateTransaction, createPlaceholders } from './database.js';
+import { createDatabaseBackup } from './backupService.js';
 import { ensureClassExists } from './classService.js';
 
 /**
@@ -18,7 +19,7 @@ export const getStudentById = async (id) => {
     // Lade zusätzliche Daten
     const [replacements, rounds, expectedDonations, receivedDonations] = await Promise.all([
         getReplacementsByStudentId(id),
-        getRoundsByStudentId(id),
+        getRoundRecordsByStudentId(id),
         getExpectedDonationsByStudentId(id),
         getReceivedDonationsByStudentId(id)
     ]);
@@ -26,7 +27,8 @@ export const getStudentById = async (id) => {
     return {
         ...student,
         replacements,
-        timestamps: rounds,
+        rounds,
+        timestamps: rounds.map((round) => round.timestamp),
         spenden: expectedDonations.reduce((sum, d) => sum + d.amount, 0),
         spendenKonto: receivedDonations.map(d => d.amount),
         expectedDonations: expectedDonations,
@@ -131,7 +133,9 @@ export const updateStudent = async (id, studentData) => {
  * @returns {Promise<Object>} Ergebnis der Operation
  */
 export const deleteStudent = async (id) => {
-    return await dbTransaction(async (db) => {
+    return await dbImmediateTransaction(async (db) => {
+        const backup = await createDatabaseBackup({ reason: `before-delete-student-${id}` });
+
         // Lösche abhängige Daten in der richtigen Reihenfolge
         await new Promise((resolve, reject) => {
             db.run('DELETE FROM replacements WHERE studentID = ?', [id], (err) => {
@@ -168,7 +172,7 @@ export const deleteStudent = async (id) => {
             });
         });
 
-        return result;
+        return { ...result, backupFilename: backup.filename };
     });
 };
 
@@ -187,7 +191,7 @@ export const getAllStudents = async () => {
     // Lade alle zusätzlichen Daten parallel
     const [replacements, rounds, expectedDonations, receivedDonations] = await Promise.all([
         dbAll(`SELECT studentID, id FROM replacements WHERE studentID IN (${placeholders})`, studentIds),
-        dbAll(`SELECT student_id, timestamp FROM rounds WHERE student_id IN (${placeholders}) ORDER BY student_id, timestamp DESC`, studentIds),
+        dbAll(`SELECT id, student_id, timestamp FROM rounds WHERE student_id IN (${placeholders}) ORDER BY student_id, id DESC`, studentIds),
         dbAll(`SELECT student_id, SUM(amount) as total FROM expected_donations WHERE student_id IN (${placeholders}) GROUP BY student_id`, studentIds),
         dbAll(`SELECT student_id, amount FROM received_donations WHERE student_id IN (${placeholders}) ORDER BY student_id, created_at DESC`, studentIds)
     ]);
@@ -199,9 +203,9 @@ export const getAllStudents = async () => {
         return acc;
     }, {});
 
-    const roundsMap = rounds.reduce((acc, { student_id, timestamp }) => {
+    const roundsMap = rounds.reduce((acc, { id, student_id, timestamp }) => {
         if (!acc[student_id]) acc[student_id] = [];
-        acc[student_id].push(timestamp);
+        acc[student_id].push({ id, timestamp });
         return acc;
     }, {});
 
@@ -220,7 +224,8 @@ export const getAllStudents = async () => {
     return students.map(student => ({
         ...student,
         replacements: replacementsMap[student.id] || [],
-        timestamps: roundsMap[student.id] || [],
+        rounds: roundsMap[student.id] || [],
+        timestamps: (roundsMap[student.id] || []).map((round) => round.timestamp),
         spenden: expectedMap[student.id] || 0,
         spendenKonto: receivedMap[student.id] || []
     }));
@@ -301,23 +306,31 @@ export const updateReplacements = async (studentId, replacementIds) => {
  * @returns {Promise<void>}
  */
 export const deleteRoundByIndex = async (studentId, roundIndex) => {
-    const rounds = await getRoundsByStudentId(studentId);
+    const rounds = await getRoundRecordsByStudentId(studentId);
 
     if (roundIndex < 0 || roundIndex >= rounds.length) {
         throw new Error('Ungültiger Runden-Index');
     }
 
-    const timestampToDelete = rounds[roundIndex];
+    return await deleteRoundById(rounds[roundIndex].id, studentId);
+};
+
+/**
+ * Deletes exactly one immutable round record. The optional student ID prevents
+ * a stale UI from deleting a round belonging to a different student.
+ */
+export const deleteRoundById = async (roundId, studentId = null) => {
+    if (!Number.isInteger(Number(roundId)) || Number(roundId) <= 0) {
+        throw new Error('Ungültige Runden-ID');
+    }
+
+    if (studentId === null || studentId === undefined) {
+        return await dbRun('DELETE FROM rounds WHERE id = ?', [Number(roundId)]);
+    }
 
     return await dbRun(
-        `DELETE FROM rounds
-         WHERE id = (
-             SELECT id FROM rounds
-             WHERE student_id = ? AND timestamp = ?
-             ORDER BY id ASC
-             LIMIT 1
-         )`,
-        [studentId, timestampToDelete]
+        'DELETE FROM rounds WHERE id = ? AND student_id = ?',
+        [Number(roundId), Number(studentId)]
     );
 };
 
@@ -349,9 +362,6 @@ export const getMaxStudentId = async () => {
     return result?.maxId || 0;
 };
 
-// Exportiere getRoundsByStudentId für die neue Timestamps-API
-export { getRoundsByStudentId };
-
 /**
  * Hilfsfunktionen
  */
@@ -361,9 +371,16 @@ const getReplacementsByStudentId = async (studentId) => {
     return rows.map(row => row.id);
 };
 
-const getRoundsByStudentId = async (studentId) => {
-    const rows = await dbAll('SELECT timestamp FROM rounds WHERE student_id = ? ORDER BY timestamp DESC', [studentId]);
-    return rows.map(row => row.timestamp);
+export const getRoundRecordsByStudentId = async (studentId) => (
+    await dbAll(
+        'SELECT id, timestamp FROM rounds WHERE student_id = ? ORDER BY id DESC',
+        [studentId]
+    )
+);
+
+export const getRoundsByStudentId = async (studentId) => {
+    const rounds = await getRoundRecordsByStudentId(studentId);
+    return rounds.map((round) => round.timestamp);
 };
 
 const getRoundCountByStudentId = async (studentId) => {

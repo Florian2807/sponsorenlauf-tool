@@ -37,6 +37,7 @@ const SystemMaintenanceDialog = ({ dialogRef }) => {
     const [statusData, setStatusData] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [confirmationText, setConfirmationText] = useState('');
 
     const { request } = useApi();
     const { showError, showSuccess } = useGlobalError();
@@ -66,6 +67,7 @@ const SystemMaintenanceDialog = ({ dialogRef }) => {
 
         const observer = new MutationObserver(() => {
             if (dialog.open) {
+                setConfirmationText('');
                 fetchStatus();
                 intervalId = window.setInterval(fetchStatus, POLL_INTERVAL_MS);
             } else if (intervalId) {
@@ -84,24 +86,26 @@ const SystemMaintenanceDialog = ({ dialogRef }) => {
         };
     }, [dialogRef, fetchStatus]);
 
-    const canRunUpdate = statusData?.canRunUpdate && !['queued', 'running'].includes(statusData?.status?.state);
+    const canRunUpdate = statusData?.canRunUpdate
+        && !['queued', 'running'].includes(statusData?.status?.state)
+        && confirmationText === 'UPDATE';
 
     const handleUpdateRestart = useCallback(async () => {
         try {
             setIsSubmitting(true);
-            await request('/api/systemMaintenance', {
+            const result = await request('/api/systemMaintenance', {
                 method: 'POST',
-                data: { action: 'update-and-restart' },
+                data: { action: 'update-and-restart', confirmation: confirmationText },
                 errorContext: 'Beim Einplanen von Update und Neustart',
             });
-            showSuccess('Aktualisierung und Neustart wurden eingeplant. Die Verbindung wird gleich kurz unterbrochen.', 'Raspberry-System');
+            showSuccess(`Aktualisierung und Neustart wurden eingeplant. Sicherheitskopie: ${result.backupFilename}`, 'Raspberry-System');
             await fetchStatus();
         } catch {
             // Fehler werden bereits zentral gezeigt.
         } finally {
             setIsSubmitting(false);
         }
-    }, [fetchStatus, request, showSuccess]);
+    }, [confirmationText, fetchStatus, request, showSuccess]);
 
     const currentState = statusData?.status?.state || 'idle';
     const currentTone = toneMap[currentState] || 'neutral';
@@ -154,6 +158,21 @@ const SystemMaintenanceDialog = ({ dialogRef }) => {
             <div className={`setup-message setup-message--${currentTone}`}>
                 {statusData?.status?.message || 'Bereit'}
             </div>
+
+            {statusData?.canRunUpdate ? (
+                <label htmlFor="maintenance-confirmation">
+                    Zum Bestätigen exakt <strong>UPDATE</strong> eingeben:
+                    <input
+                        id="maintenance-confirmation"
+                        type="text"
+                        className="input"
+                        value={confirmationText}
+                        onChange={(event) => setConfirmationText(event.target.value)}
+                        disabled={isSubmitting}
+                        autoComplete="off"
+                    />
+                </label>
+            ) : null}
 
             <div className="system-maintenance-grid">
                 <div className="system-maintenance-card">

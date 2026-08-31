@@ -1,12 +1,14 @@
 import sqlite3 from 'sqlite3';
 import { DATABASE_PATH } from './constants.js';
 
+export const getDatabasePath = () => process.env.SPONSORENLAUF_DATABASE_PATH || DATABASE_PATH;
+
 /**
  * Erstellt eine neue Datenbankverbindung
  * @returns {sqlite3.Database} Datenbankinstanz
  */
 export const createDbConnection = () => {
-    const db = new sqlite3.Database(DATABASE_PATH);
+    const db = new sqlite3.Database(getDatabasePath());
 
     db.configure('busyTimeout', 5000);
     db.serialize(() => {
@@ -74,30 +76,43 @@ export const dbRun = (query, params = []) => {
  * @param {Function} operations Funktion mit den Datenbankoperationen
  * @returns {Promise} Ergebnis der Transaktion
  */
-export const dbTransaction = (operations) => {
+export const dbTransaction = (operations, { mode = 'DEFERRED' } = {}) => {
     return new Promise((resolve, reject) => {
         const db = createDbConnection();
 
-        db.serialize(() => {
-            db.run('BEGIN TRANSACTION');
+        const normalizedMode = mode === 'IMMEDIATE' ? 'IMMEDIATE' : 'DEFERRED';
 
-            Promise.resolve(operations(db))
-                .then(result => {
-                    db.run('COMMIT', (err) => {
-                        db.close();
-                        if (err) reject(err);
-                        else resolve(result);
-                    });
-                })
-                .catch(error => {
-                    db.run('ROLLBACK', () => {
-                        db.close();
-                        reject(error);
-                    });
+        db.run(`BEGIN ${normalizedMode} TRANSACTION`, async (beginError) => {
+            if (beginError) {
+                db.close();
+                reject(beginError);
+                return;
+            }
+
+            try {
+                const result = await operations(db);
+                db.run('COMMIT', (commitError) => {
+                    db.close();
+                    if (commitError) reject(commitError);
+                    else resolve(result);
                 });
+            } catch (error) {
+                db.run('ROLLBACK', () => {
+                    db.close();
+                    reject(error);
+                });
+            }
         });
     });
 };
+
+/**
+ * Starts a write transaction before any reads are performed. This is required
+ * for read-check-write flows such as accepting a scan from multiple laptops.
+ */
+export const dbImmediateTransaction = (operations) => (
+    dbTransaction(operations, { mode: 'IMMEDIATE' })
+);
 
 /**
  * Führt einen Batch-Insert mit Transaktion aus

@@ -25,8 +25,7 @@ const EditStudentDialog = ({
     const handleAddRound = () => {
         if (!selectedStudent || !addRound) return;
         
-        const currentTimestamp = new Date().toISOString();
-        addRound(selectedStudent.id, currentTimestamp);
+        addRound(selectedStudent.id);
     };
 
     const actions = [
@@ -191,18 +190,19 @@ const EditStudentDialog = ({
                     </button>
                 </div>
 
-                {selectedStudent?.timestamps && selectedStudent.timestamps.length > 0 ? (
+                {selectedStudent?.rounds && selectedStudent.rounds.length > 0 ? (
                     <ul className="timestamp-list">
-                        {selectedStudent.timestamps
+                        {selectedStudent.rounds
                             .slice() // Kopie erstellen um Original nicht zu mutieren
-                            .sort((a, b) => new Date(b) - new Date(a)) // Neueste zuerst
-                            .map((timestamp, index, sortedArray) => {
+                            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)) // Neueste zuerst
+                            .map((round, index, sortedArray) => {
+                                const timestamp = round.timestamp;
                                 // Finde vorherige Runde (chronologisch früher)
-                                const previousTimestamp = index < sortedArray.length - 1 ? sortedArray[index + 1] : null;
+                                const previousTimestamp = index < sortedArray.length - 1 ? sortedArray[index + 1].timestamp : null;
                                 const timeDifference = calculateTimeDifference(timestamp, previousTimestamp);
                                 
                                 return (
-                                    <li key={`${timestamp}-${index}`} className="timestamp-item">
+                                    <li key={round.id} className="timestamp-item">
                                         <div className="timestamp-info">
                                             <span className="timestamp-date">{formatDate(new Date(timestamp))}</span>
                                             {timeDifference && (
@@ -213,7 +213,7 @@ const EditStudentDialog = ({
                                         </div>
                                         <button
                                             className="delete-timestamp-btn"
-                                            onClick={() => deleteTimestamp(selectedStudent.timestamps.findIndex(ts => ts === timestamp))}
+                                            onClick={() => deleteTimestamp(round.id)}
                                             disabled={loading}
                                             title="Runde löschen"
                                         >

@@ -17,7 +17,7 @@ const DetailedDeleteDialog = ({
         receivedDonations: false
     });
 
-    const [confirmChecked, setConfirmChecked] = useState(false);
+    const [confirmationText, setConfirmationText] = useState('');
     const [isDeleting, setIsDeleting] = useState(false);
     const { request } = useApi();
     const { showError, showSuccess } = useGlobalError();
@@ -36,7 +36,7 @@ const DetailedDeleteDialog = ({
                     expectedDonations: false,
                     receivedDonations: false
                 });
-                setConfirmChecked(false);
+                setConfirmationText('');
             };
             dialog.addEventListener('show', handleShow);
             return () => dialog.removeEventListener('show', handleShow);
@@ -80,7 +80,7 @@ const DetailedDeleteDialog = ({
     };
 
     const isConfirmValid = () => {
-        return confirmChecked && getSelectedCount() > 0;
+        return confirmationText === 'LÖSCHEN' && getSelectedCount() > 0;
     };
 
     const handleDelete = async () => {
@@ -89,69 +89,16 @@ const DetailedDeleteDialog = ({
         setIsDeleting(true);
 
         try {
-            const deleteOperations = [];
-            let deletedItems = [];
+            const selectedTypes = Object.keys(selectedOptions).filter((key) => selectedOptions[key]);
+            const result = await request('/api/detailedDelete', {
+                method: 'DELETE',
+                data: {
+                    types: selectedTypes,
+                    confirmation: confirmationText,
+                }
+            });
 
-            // Reihenfolge ist wichtig: Erst Abhängigkeiten, dann Hauptdaten
-            if (selectedOptions.rounds && !selectedOptions.students) {
-                deleteOperations.push(
-                    request('/api/detailedDelete', {
-                        method: 'DELETE',
-                        data: { type: 'rounds' }
-                    }).then(() => deletedItems.push('Runden-Daten'))
-                );
-            }
-
-            if (selectedOptions.replacements && !selectedOptions.students) {
-                deleteOperations.push(
-                    request('/api/detailedDelete', {
-                        method: 'DELETE',
-                        data: { type: 'replacements' }
-                    }).then(() => deletedItems.push('Ersatz-IDs'))
-                );
-            }
-
-            if (selectedOptions.expectedDonations && !selectedOptions.students) {
-                deleteOperations.push(
-                    request('/api/detailedDelete', {
-                        method: 'DELETE',
-                        data: { type: 'expectedDonations' }
-                    }).then(() => deletedItems.push('erwartete Spenden'))
-                );
-            }
-
-            if (selectedOptions.receivedDonations && !selectedOptions.students) {
-                deleteOperations.push(
-                    request('/api/detailedDelete', {
-                        method: 'DELETE',
-                        data: { type: 'receivedDonations' }
-                    }).then(() => deletedItems.push('erhaltene Spenden'))
-                );
-            }
-
-            // Lehrer löschen
-            if (selectedOptions.teachers) {
-                deleteOperations.push(
-                    request('/api/deleteAllTeachers', {
-                        method: 'DELETE'
-                    }).then(() => deletedItems.push('alle Lehrerdaten'))
-                );
-            }
-
-            // Schüler zuletzt löschen (cascaded alle anderen Daten automatisch)
-            if (selectedOptions.students) {
-                deleteOperations.push(
-                    request('/api/deleteAllStudents', {
-                        method: 'DELETE'
-                    }).then(() => deletedItems.push('alle Schülerdaten'))
-                );
-            }
-
-            await Promise.all(deleteOperations);
-
-            const successMessage = deletedItems.length === 1
-                ? `${deletedItems[0]} wurden erfolgreich gelöscht.`
-                : `Folgende Daten wurden erfolgreich gelöscht: ${deletedItems.join(', ')}.`;
+            const successMessage = `Die ausgewählten Daten wurden gelöscht. Sicherheitskopie: ${result.backupFilename}`;
 
             showSuccess(successMessage, 'Löschvorgang abgeschlossen');
 
@@ -326,17 +273,19 @@ const DetailedDeleteDialog = ({
                         </div>
 
                         <div className="confirmation-checkbox">
-                            <label className="checkbox-confirm-label">
-                                <input
-                                    type="checkbox"
-                                    checked={confirmChecked}
-                                    onChange={(e) => setConfirmChecked(e.target.checked)}
-                                    disabled={isDeleting}
-                                    className="checkbox-confirm"
-                                />
+                            <label className="checkbox-confirm-label" htmlFor="delete-confirmation">
                                 <span className="checkbox-text">
-                                    Ich bestätige, dass ich diese Daten unwiderruflich löschen möchte
+                                    Zum Bestätigen exakt <strong>LÖSCHEN</strong> eingeben:
                                 </span>
+                                <input
+                                    id="delete-confirmation"
+                                    type="text"
+                                    value={confirmationText}
+                                    onChange={(e) => setConfirmationText(e.target.value)}
+                                    disabled={isDeleting}
+                                    autoComplete="off"
+                                    className="input"
+                                />
                             </label>
                         </div>
                     </div>

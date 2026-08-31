@@ -1,0 +1,13 @@
+interface=__WLAN_INTERFACE__
+driver=nl80211
+country_code=DE
+ssid=__AP_SSID__
+hw_mode=a
+channel=44
+ieee80211n=1
+ieee80211ac=1
+wmm_enabled=1
+wpa=2
+wpa_passphrase=__AP_PASSPHRASE__
+wpa_key_mgmt=WPA-PSK
+rsn_pairwise=CCMP

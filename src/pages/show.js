@@ -6,7 +6,6 @@ import { cleanScannedStudentId } from '../utils/studentId';
 
 export default function Show() {
   const [id, setID] = useState('');
-  const [savedID, setSavedID] = useState('');
   const [currentTimestamp, setCurrentTimestamp] = useState(null);
   const [studentInfo, setStudentInfo] = useState(null);
 
@@ -40,25 +39,27 @@ export default function Show() {
     }
   }, [id, cleanId, request, showError]);
 
-  const handleDeleteTimestamp = useCallback(async (selectedStudent, indexToRemove) => {
-    const updatedTimestamps = selectedStudent.timestamps.filter((_, index) => index !== indexToRemove);
-    const cleanedId = cleanId(savedID);
-
+  const handleDeleteTimestamp = useCallback(async (roundId) => {
+    if (!studentInfo) return;
     try {
-      await request(`/api/students/${cleanedId}`, {
-        method: 'PUT',
-        data: { timestamps: updatedTimestamps },
+      await request(`/api/rounds/${roundId}`, {
+        method: 'DELETE',
+        data: { studentId: studentInfo.id },
         errorContext: 'Beim Löschen des Zeitstempels'
       });
-      setStudentInfo(prevStudentInfo => ({
-        ...prevStudentInfo,
-        timestamps: updatedTimestamps,
-      }));
+      setStudentInfo((currentStudent) => {
+        const rounds = currentStudent.rounds.filter((round) => round.id !== roundId);
+        return {
+          ...currentStudent,
+          rounds,
+          timestamps: rounds.map((round) => round.timestamp),
+        };
+      });
       showSuccess('Zeitstempel erfolgreich gelöscht', 'Zeitstempel löschen');
     } catch (error) {
       // Fehler wird automatisch über useApi gehandelt
     }
-  }, [cleanId, savedID, request, showSuccess]);
+  }, [request, showSuccess, studentInfo]);
 
   return (
     <div className="page-container">
@@ -71,7 +72,7 @@ export default function Show() {
           type="text"
           ref={inputRef}
           value={id}
-          onChange={(e) => { setSavedID(e.target.value); setID(e.target.value) }}
+          onChange={(e) => setID(e.target.value)}
           placeholder="Barcode scannen"
           required
           className="form-control"
@@ -86,22 +87,23 @@ export default function Show() {
           <p><strong>Klasse:</strong> {studentInfo.klasse}</p>
           <p><strong>Name:</strong> {studentInfo.vorname} {studentInfo.nachname}</p>
           <p><strong>Geschlecht:</strong> {studentInfo.geschlecht || 'Nicht angegeben'}</p>
-          <p><strong>Gelaufene Runden:</strong> {studentInfo.timestamps.length}</p>
+          <p><strong>Gelaufene Runden:</strong> {studentInfo.rounds.length}</p>
 
-          {studentInfo.timestamps && studentInfo.timestamps.length > 0 && (
+          {studentInfo.rounds && studentInfo.rounds.length > 0 && (
             <div className="mt-3">
               <h3>Scan-Timestamps:</h3>
               <ul className="timestamp-list">
-                {studentInfo.timestamps
+                {studentInfo.rounds
                   .slice() // Kopie erstellen
-                  .sort((a, b) => new Date(b) - new Date(a)) // Neueste zuerst
-                  .map((timestamp, index, sortedArray) => {
+                  .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)) // Neueste zuerst
+                  .map((round, index, sortedArray) => {
+                    const timestamp = round.timestamp;
                     // Finde vorherige Runde (chronologisch früher)
-                    const previousTimestamp = index < sortedArray.length - 1 ? sortedArray[index + 1] : null;
+                    const previousTimestamp = index < sortedArray.length - 1 ? sortedArray[index + 1].timestamp : null;
                     const timeDifference = calculateTimeDifference(timestamp, previousTimestamp);
                     
                     return (
-                      <li key={`${timestamp}-${index}`} className="timestamp-item">
+                      <li key={round.id} className="timestamp-item">
                         <span>
                           {formatDate(new Date(timestamp)) + " Uhr => " + timeAgo(currentTimestamp, new Date(timestamp))}
                           {timeDifference && (
@@ -113,7 +115,7 @@ export default function Show() {
                         <button
                           type="button"
                           className="btn btn-danger btn-sm"
-                          onClick={() => handleDeleteTimestamp(studentInfo, studentInfo.timestamps.findIndex(ts => ts === timestamp))}
+                          onClick={() => handleDeleteTimestamp(round.id)}
                         >
                           Löschen
                         </button>

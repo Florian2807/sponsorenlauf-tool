@@ -1,0 +1,18 @@
+[Unit]
+Description=Sponsorenlauf Tool
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=__PI_USER__
+WorkingDirectory=__APP_DIR__
+ExecStart=__APP_DIR__/scripts/start-with-update.sh
+Restart=always
+Environment=NODE_ENV=production
+Environment=SPONSORENLAUF_UPDATE_REMOTE=origin
+Environment=SPONSORENLAUF_UPDATE_BRANCH=__REPO_BRANCH__
+Environment=SPONSORENLAUF_MAX_BACKUPS=__MAX_BACKUPS__
+
+[Install]
+WantedBy=multi-user.target

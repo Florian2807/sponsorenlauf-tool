@@ -7,6 +7,9 @@ NPM_BIN="${NPM_BIN:-/usr/bin/npm}"
 
 cd "$REPO_DIR" || exit 1
 
-"$NODE_BIN" "$REPO_DIR/scripts/system-maintenance-runner.mjs" startup || true
+if ! "$NODE_BIN" "$REPO_DIR/scripts/system-maintenance-runner.mjs" startup; then
+  printf '[FAIL] Startprüfung oder Datenbankmigration fehlgeschlagen; Anwendung wird nicht mit unbekanntem Schema gestartet.\n' >&2
+  exit 1
+fi
 
 exec "$NPM_BIN" start

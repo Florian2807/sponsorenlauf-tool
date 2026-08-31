@@ -100,16 +100,18 @@ export const parseAmount = (amount) => {
  * @returns {boolean} True wenn gültig
  */
 export const validateStudentId = (id) => {
-    if (!id) return false;
+    if (id === null || id === undefined) return false;
 
     // Normale ID oder Ersatz-ID (E-prefix)
-    if (typeof id === 'string' && id.startsWith('E')) {
-        const numPart = id.substring(1);
-        return !isNaN(parseInt(numPart, 10));
+    if (typeof id === 'string') {
+        const normalizedId = id.trim();
+        if (/^E[1-9]\d*$/.test(normalizedId)) {
+            return true;
+        }
+        return /^[1-9]\d*$/.test(normalizedId);
     }
 
-    const numId = parseInt(id, 10);
-    return !isNaN(numId) && numId > 0;
+    return Number.isInteger(id) && id > 0;
 };
 
 /**

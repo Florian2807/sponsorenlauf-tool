@@ -40,7 +40,9 @@ export const handleSuccess = (res, data = null, message = 'Operation successful'
  * @returns {Object} Fehler-Response
  */
 export const handleError = (res, error, status = 500, customMessage = null) => {
-    console.error('API Error:', error);
+    if (status >= 500) {
+        console.error('API Error:', error);
+    }
 
     const message = customMessage || error.message || 'Ein unerwarteter Fehler ist aufgetreten';
 

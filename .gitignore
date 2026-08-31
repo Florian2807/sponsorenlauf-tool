@@ -1,5 +1,7 @@
 .env*
 database.db
+backups/
+.update-rollback/
 .next/
 .idea/
 

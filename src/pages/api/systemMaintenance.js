@@ -12,6 +12,7 @@ import {
     getSystemctlPath,
     updateSystemMaintenanceStatus,
 } from '../../utils/systemMaintenance.js';
+import { createDatabaseBackup } from '../../utils/backupService.js';
 
 const RESTART_DELAY_SECONDS = 1;
 
@@ -64,6 +65,10 @@ async function handlePostSystemMaintenance(req, res) {
         return handleError(res, new Error('Ungültige Wartungsaktion'), 400);
     }
 
+    if (req.body?.confirmation !== 'UPDATE') {
+        return handleError(res, new Error('Zur Bestätigung muss exakt „UPDATE“ eingegeben werden'), 400);
+    }
+
     const [connectivity, currentStatus] = await Promise.all([
         getSystemConnectivity(),
         getSystemMaintenanceStatus(),
@@ -77,6 +82,8 @@ async function handlePostSystemMaintenance(req, res) {
         return handleError(res, new Error('Es läuft bereits eine Systemaktion'), 409);
     }
 
+    const backup = await createDatabaseBackup({ reason: 'before-system-update' });
+
     await updateSystemMaintenanceStatus({
         state: 'queued',
         action: 'update-and-restart',
@@ -85,12 +92,13 @@ async function handlePostSystemMaintenance(req, res) {
         lastRequestedAt: new Date().toISOString(),
         lastError: null,
     });
-    await appendSystemMaintenanceLog('Frontend hat einen Update-Neustart angefordert.');
+    await appendSystemMaintenanceLog(`Frontend hat einen Update-Neustart angefordert. Sicherheitskopie: ${backup.filename}`);
 
     spawnDelayedRestart();
 
     return handleSuccess(res, {
         queued: true,
         restartInSeconds: RESTART_DELAY_SECONDS,
+        backupFilename: backup.filename,
     }, 'Aktualisierung und Neustart wurden eingeplant');
 }

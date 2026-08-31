@@ -64,6 +64,7 @@ export const useApi = () => {
             const enhancedError = new Error(errorMessage);
             enhancedError.originalError = err;
             enhancedError.response = err.response;
+            enhancedError.data = err.response?.data;
             enhancedError.status = err.response?.status;
 
             throw enhancedError;

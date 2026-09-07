@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 
 /**
  * Checkbox Component
@@ -20,7 +20,8 @@ export default function Checkbox({
   className = '',
   ...props
 }) {
-  const checkboxId = id || name || `checkbox-${Math.random().toString(36).substr(2, 9)}`;
+  const generatedId = useId();
+  const checkboxId = id || name || `checkbox-${generatedId}`;
 
   return (
     <label className={`checkbox-wrapper ${className}`} htmlFor={checkboxId}>

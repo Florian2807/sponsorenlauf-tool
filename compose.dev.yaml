@@ -1,0 +1,26 @@
+name: sponsorenlauf-dev
+
+services:
+  app:
+    build:
+      context: .
+      target: development
+    environment:
+      APP_ENV: development
+      NODE_ENV: development
+      SPONSORENLAUF_RUNTIME: development
+      SPONSORENLAUF_DATABASE_PATH: /data/development.db
+      SPONSORENLAUF_BACKUP_DIRECTORY: /data/backups
+      SPONSORENLAUF_SECRET_KEY: development-only-secret
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - dev-node-modules:/app/node_modules
+      - dev-data:/data
+
+volumes:
+  dev-node-modules:
+    name: sponsorenlauf-dev-node-modules
+  dev-data:
+    name: sponsorenlauf-dev-data

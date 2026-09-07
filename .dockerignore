@@ -1,0 +1,13 @@
+.git
+.github
+.idea
+.next
+.update-rollback
+backups
+database.db
+.local-data
+deployment/production.env
+deployment/install.env
+node_modules
+npm-debug.log*
+screenshots

@@ -11,8 +11,7 @@ export const API_ENDPOINTS = {
     EXPORT_SPENDEN: '/api/exportSpenden',
     EXPORT_STATISTICS_HTML: '/api/exportStatisticsHtml',
     SEND_MAILS: '/api/send-mails',
-    DONATIONS: '/api/donations',
-    SYSTEM_MAINTENANCE: '/api/systemMaintenance'
+    DONATIONS: '/api/donations'
 };
 
 // Database configuration

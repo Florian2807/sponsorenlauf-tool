@@ -1,5 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 import BaseDialog from '../../BaseDialog';
+
+const PRESETS = {
+    microsoft: { host: 'smtp.office365.com', port: 587, security: 'starttls' },
+    gmail: { host: 'smtp.gmail.com', port: 587, security: 'starttls' },
+    custom: {},
+};
 
 const SendMailsDialog = ({
     dialogRef,
@@ -9,294 +15,114 @@ const SendMailsDialog = ({
     handleLogin,
     status,
     handleUpload,
-    onTestEmail,
     internetConnected,
     connectivityLoading,
-    checkInternetConnectivity
+    checkInternetConnectivity,
 }) => {
-    const [emailProvider, setEmailProvider] = useState(fileData.emailProvider || 'outlook');
-
-    const emailProviders = {
-        outlook: {
-            name: 'Outlook/Hotmail',
-            service: 'Outlook365',
-            placeholder: 'beispiel@outlook.com'
-        },
-        gmail: {
-            name: 'Gmail',
-            service: 'gmail',
-            placeholder: 'beispiel@gmail.com'
-        },
-        yahoo: {
-            name: 'Yahoo',
-            service: 'yahoo',
-            placeholder: 'beispiel@yahoo.com'
-        },
-        custom: {
-            name: 'Benutzerdefiniert',
-            service: 'custom',
-            placeholder: 'beispiel@domain.com'
-        }
-    };
+    const setField = (field, value) => setFileData((current) => ({ ...current, [field]: value }));
+    const hasRequiredSettings = fileData.host
+        && fileData.port
+        && fileData.fromAddress
+        && fileData.fromName
+        && (!fileData.username || fileData.password || fileData.passwordConfigured);
 
     const actions = [
+        { label: 'Abbrechen', onClick: () => dialogRef.current?.close(), variant: 'secondary' },
         {
-            label: 'Abbrechen',
-            onClick: () => dialogRef.current.close(),
-            variant: 'secondary'
-        },
-        {
-            label: status.loginLoading ? 'Verbinde...' : (credentialsCorrect ? 'Verbunden ✓' : 'Verbindung testen'),
-            onClick: () => handleLogin(),
+            label: status.loginLoading ? 'Teste…' : credentialsCorrect ? 'Erneut testen' : 'Testen & speichern',
+            onClick: handleLogin,
             variant: credentialsCorrect ? 'success' : 'primary',
-            disabled: !fileData.email || !fileData.password || status.loginLoading || internetConnected === false,
+            disabled: !hasRequiredSettings || status.loginLoading || internetConnected === false,
         },
         {
-            label: status.uploadLoading ? 'Lade...' : 'Weiter zu E-Mail Konfiguration',
+            label: status.uploadLoading ? 'Erzeuge Dateien…' : 'Weiter zur E-Mail-Auswahl',
             variant: 'success',
             onClick: handleUpload,
-            disabled: !credentialsCorrect || status.uploadLoading || internetConnected === false
-        }
+            disabled: !credentialsCorrect || status.uploadLoading || internetConnected === false,
+        },
     ];
 
     return (
-        <BaseDialog
-            dialogRef={dialogRef}
-            title="E-Mail Konfiguration & Authentifizierung"
-            actions={actions}
-            size="xl"
-            showDefaultClose={false}
-        >
+        <BaseDialog dialogRef={dialogRef} title="SMTP-Server einrichten" actions={actions} size="xl" showDefaultClose={false}>
             <div className="mail-dialog-content">
-                {/* Progress Steps Indicator */}
-                <div className="setup-progress">
-                    <div className="progress-steps">
-                        <div className={`progress-step ${internetConnected ? 'completed' : 'active'}`}>
-                            <span className="step-number">1</span>
-                            <span className="step-label">Internet</span>
-                        </div>
-                        <div className={`progress-step ${credentialsCorrect ? 'completed' : (internetConnected ? 'active' : 'disabled')}`}>
-                            <span className="step-number">2</span>
-                            <span className="step-label">E-Mail Login</span>
-                        </div>
-                        <div className={`progress-step ${credentialsCorrect ? 'active' : 'disabled'}`}>
-                            <span className="step-number">3</span>
-                            <span className="step-label">Dateien laden</span>
-                        </div>
-                    </div>
+                <div className="setup-summary-box">
+                    <strong>Eigener SMTP-Server</strong>
+                    <p>Die Zugangsdaten werden verschlüsselt auf dem Raspberry Pi gespeichert. Serverzertifikate werden immer geprüft.</p>
                 </div>
 
-                {/* Kompakte Internet-Konnektivitätsstatus */}
                 <div className="connectivity-dialog-compact">
-                    {connectivityLoading ? (
-                        <div className="connectivity-badge-dialog loading">
-                            <span className="spinner-mini"></span>
-                            Prüfe Internetverbindung...
-                        </div>
-                    ) : internetConnected === true ? (
-                        <div className="connectivity-badge-dialog connected">
-                            ✅ Internetverbindung verfügbar
-                        </div>
-                    ) : internetConnected === false ? (
-                        <div className="connectivity-badge-dialog disconnected">
-                            ❌ Keine Internetverbindung - E-Mail-Versand nicht möglich
-                            <button 
-                                className="connectivity-retry-btn"
-                                onClick={checkInternetConnectivity}
-                                disabled={connectivityLoading}
-                                title="Erneut prüfen"
-                            >
-                                🔄
-                            </button>
-                        </div>
-                    ) : null}
+                    {connectivityLoading ? 'Prüfe Internetverbindung…' : internetConnected
+                        ? '✅ Internetverbindung verfügbar'
+                        : <span>❌ Kein Internet <button type="button" onClick={checkInternetConnectivity}>Erneut prüfen</button></span>}
                 </div>
 
                 <div className="mail-config-section">
-                    <h3 className="section-subtitle">
-                        <span className="subtitle-icon">📧</span>
-                        E-Mail Anbieter
-                    </h3>
-
+                    <h3 className="section-subtitle">Schnellauswahl</h3>
                     <div className="provider-selection">
-                        {Object.entries(emailProviders).map(([key, provider]) => (
-                            <div key={key} className="provider-option">
-                                <input
-                                    type="radio"
-                                    id={`provider-${key}`}
-                                    name="emailProvider"
-                                    value={key}
-                                    checked={emailProvider === key}
-                                    onChange={(e) => {
-                                        setEmailProvider(e.target.value);
-                                        setFileData((prev) => ({ ...prev, emailProvider: e.target.value }));
-                                    }}
-                                    className="provider-radio"
-                                />
-                                <label htmlFor={`provider-${key}`} className="provider-label">
-                                    <span className="provider-icon">
-                                        {key === 'outlook' && '🔷'}
-                                        {key === 'gmail' && '📮'}
-                                        {key === 'yahoo' && '💌'}
-                                        {key === 'custom' && '⚙️'}
-                                    </span>
-                                    {provider.name}
-                                </label>
-                            </div>
+                        {[
+                            ['microsoft', 'Microsoft 365'],
+                            ['gmail', 'Gmail'],
+                            ['custom', 'Eigener Server'],
+                        ].map(([key, label]) => (
+                            <button
+                                key={key}
+                                type="button"
+                                className="btn btn-secondary"
+                                onClick={() => setFileData((current) => ({ ...current, ...PRESETS[key] }))}
+                            >
+                                {label}
+                            </button>
                         ))}
                     </div>
                 </div>
 
                 <div className="mail-config-section">
-                    <h3 className="section-subtitle">
-                        <span className="subtitle-icon">🔐</span>
-                        Anmeldedaten
-                    </h3>
-
-                    <div className="form-group">
-                        <label className="form-label">E-Mail Adresse</label>
-                        <div className="input-wrapper">
-                            <input
-                                type="email"
-                                name="email"
-                                placeholder={emailProviders[emailProvider].placeholder}
-                                value={fileData.email}
-                                onChange={(e) => setFileData((prev) => ({ ...prev, email: e.target.value }))}
-                                disabled={credentialsCorrect}
-                                required
-                                className={`form-control ${credentialsCorrect ? 'success' : ''}`}
-                                autoComplete="email"
-                            />
-                            {credentialsCorrect && (
-                                <span className="success-indicator">✓</span>
-                            )}
+                    <h3 className="section-subtitle">Server</h3>
+                    <div className="form-row">
+                        <div className="form-group">
+                            <label className="form-label" htmlFor="smtp-host">SMTP-Server</label>
+                            <input id="smtp-host" className="form-control" value={fileData.host} onChange={(event) => setField('host', event.target.value)} placeholder="smtp.example.org" required />
                         </div>
-                        {!credentialsCorrect && fileData.email && (
-                            <div className="form-hint">
-                                <span className="hint-icon">💡</span>
-                                Verwenden Sie Ihre vollständige E-Mail-Adresse
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="form-group">
-                        <label className="form-label">Passwort</label>
-                        <div className="input-wrapper">
-                            <input
-                                type="password"
-                                name="password"
-                                placeholder="Ihr E-Mail Passwort oder App-Passwort"
-                                value={fileData.password}
-                                onChange={(e) => setFileData((prev) => ({ ...prev, password: e.target.value }))}
-                                disabled={credentialsCorrect}
-                                required
-                                className={`form-control ${credentialsCorrect ? 'success' : ''}`}
-                                autoComplete="current-password"
-                            />
-                            {credentialsCorrect && (
-                                <span className="success-indicator">✓</span>
-                            )}
+                        <div className="form-group">
+                            <label className="form-label" htmlFor="smtp-port">Port</label>
+                            <input id="smtp-port" className="form-control" type="number" min="1" max="65535" value={fileData.port} onChange={(event) => setField('port', Number(event.target.value))} required />
                         </div>
-                        <div className="form-hint">
-                            <span className="hint-icon">🔐</span>
-                            {emailProvider === 'gmail' && 'Verwenden Sie ein App-Passwort für Gmail (nicht Ihr normales Passwort)'}
-                            {emailProvider === 'outlook' && 'Verwenden Sie Ihr normales Outlook-Passwort oder ein App-Passwort'}
-                            {emailProvider === 'yahoo' && 'Verwenden Sie ein App-Passwort für Yahoo Mail'}
-                            {emailProvider === 'custom' && 'Verwenden Sie die von Ihrem Administrator bereitgestellten Anmeldedaten'}
-                        </div>
-                    </div>
-
-                    <div className="form-group">
-                        <label className="form-label">Absender-Name</label>
-                        <div className="input-wrapper">
-                            <input
-                                type="text"
-                                name="senderName"
-                                placeholder="z.B. Schülervertretung Max-Mustermann-Schule"
-                                value={fileData.senderName}
-                                onChange={(e) => setFileData((prev) => ({ ...prev, senderName: e.target.value }))}
-                                required
-                                className="form-control"
-                                maxLength="100"
-                            />
-                        </div>
-                        <div className="form-hint">
-                            <span className="hint-icon">ℹ️</span>
-                            Dieser Name wird als Absender in den E-Mails angezeigt
+                        <div className="form-group">
+                            <label className="form-label" htmlFor="smtp-security">Verschlüsselung</label>
+                            <select id="smtp-security" className="form-control" value={fileData.security} onChange={(event) => setField('security', event.target.value)}>
+                                <option value="starttls">STARTTLS (empfohlen)</option>
+                                <option value="tls">TLS direkt</option>
+                                <option value="none">Keine – nur für vertrauenswürdige lokale Server</option>
+                            </select>
                         </div>
                     </div>
                 </div>
 
-                {/* Status und Fortschritt */}
-                <div className="status-section">
-                    {status.loginLoading && (
-                        <div className="status-message loading">
-                            <div className="status-icon">
-                                <div className="loading-spinner"></div>
-                            </div>
-                            <div className="status-text">
-                                <strong>Verbindung wird getestet...</strong>
-                                <p>Überprüfe E-Mail-Anmeldedaten bei {emailProviders[emailProvider].name}</p>
-                            </div>
+                <div className="mail-config-section">
+                    <h3 className="section-subtitle">Anmeldung und Absender</h3>
+                    <div className="form-row">
+                        <div className="form-group">
+                            <label className="form-label" htmlFor="smtp-user">Benutzername</label>
+                            <input id="smtp-user" className="form-control" value={fileData.username} onChange={(event) => setField('username', event.target.value)} autoComplete="username" placeholder="Meist die vollständige E-Mail-Adresse" />
                         </div>
-                    )}
-
-                    {credentialsCorrect && !status.loginLoading && (
-                        <div className="status-message success">
-                            <div className="status-icon">
-                                <span className="status-emoji">✅</span>
-                            </div>
-                            <div className="status-text">
-                                <strong>Verbindung erfolgreich!</strong>
-                                <p>Ihre E-Mail-Konfiguration wurde erfolgreich überprüft. Sie können nun mit dem nächsten Schritt fortfahren.</p>
-                            </div>
+                        <div className="form-group">
+                            <label className="form-label" htmlFor="smtp-password">Passwort oder App-Passwort</label>
+                            <input id="smtp-password" className="form-control" type="password" value={fileData.password} onChange={(event) => setField('password', event.target.value)} autoComplete="new-password" placeholder={fileData.passwordConfigured ? 'Gespeichertes Passwort beibehalten' : ''} />
                         </div>
-                    )}
-
-                    {status.loginMessage && !credentialsCorrect && !status.loginLoading && (
-                        <div className="status-message error">
-                            <div className="status-icon">
-                                <span className="status-emoji">❌</span>
-                            </div>
-                            <div className="status-text">
-                                <strong>Verbindungsfehler</strong>
-                                <p>{status.loginMessage}</p>
-                                <div className="error-suggestions">
-                                    <strong>Mögliche Lösungen:</strong>
-                                    <ul>
-                                        <li>Überprüfen Sie Ihre E-Mail-Adresse und Passwort</li>
-                                        {emailProvider === 'gmail' && <li>Verwenden Sie ein App-Passwort anstelle Ihres normalen Passworts</li>}
-                                        {emailProvider === 'outlook' && <li>Stellen Sie sicher, dass 2-Faktor-Authentifizierung konfiguriert ist</li>}
-                                        <li>Prüfen Sie Ihre Internetverbindung</li>
-                                    </ul>
-                                </div>
-                            </div>
+                        <div className="form-group">
+                            <label className="form-label" htmlFor="smtp-from-address">Absenderadresse</label>
+                            <input id="smtp-from-address" className="form-control" type="email" value={fileData.fromAddress} onChange={(event) => setField('fromAddress', event.target.value)} required />
                         </div>
-                    )}
-
-                    {status.uploadLoading && (
-                        <div className="status-message loading">
-                            <div className="status-icon">
-                                <div className="loading-spinner"></div>
-                            </div>
-                            <div className="status-text">
-                                <strong>Daten werden verarbeitet...</strong>
-                                <p>Excel-Dateien werden geladen und für den E-Mail-Versand vorbereitet</p>
-                            </div>
+                        <div className="form-group">
+                            <label className="form-label" htmlFor="smtp-from-name">Absendername</label>
+                            <input id="smtp-from-name" className="form-control" value={fileData.fromName} onChange={(event) => setField('fromName', event.target.value)} maxLength="100" required />
                         </div>
-                    )}
+                    </div>
                 </div>
 
-                {emailProvider === 'custom' && (
-                    <div className="mail-config-section">
-                        <h3 className="section-subtitle">
-                            <span className="subtitle-icon">⚙️</span>
-                            Server-Einstellungen
-                        </h3>
-                        <div className="custom-server-hint">
-                            <span className="hint-icon">⚠️</span>
-                            Für benutzerdefinierte E-Mail-Anbieter wenden Sie sich an den Administrator
-                        </div>
+                {status.loginMessage && (
+                    <div className={`status-message ${credentialsCorrect ? 'success' : 'error'}`}>
+                        <div className="status-text"><strong>{status.loginMessage}</strong></div>
                     </div>
                 )}
             </div>

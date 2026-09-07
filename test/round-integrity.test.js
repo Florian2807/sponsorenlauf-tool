@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
-import { mkdtemp, rm, stat } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import sqlite3 from 'sqlite3';
@@ -17,7 +17,12 @@ let systemMaintenanceHandler;
 let runDatabaseMigrations;
 let createDatabaseBackup;
 let restoreDatabaseBackup;
-let getGitUpdateDecision;
+let verifyApplicationDatabaseBackup;
+let getLatestSchemaVersion;
+let setAdminPin;
+let verifyAdminPin;
+let createAdminSession;
+let verifyAdminSessionToken;
 
 const openDatabase = () => new sqlite3.Database(path.join(temporaryDirectory, 'database.db'));
 
@@ -119,9 +124,18 @@ before(async () => {
   ({ deleteData } = await import('../src/utils/dataDeletionService.js'));
   ({ default: studentHandler } = await import('../src/pages/api/students/[id].js'));
   ({ default: systemMaintenanceHandler } = await import('../src/pages/api/systemMaintenance.js'));
-  ({ runDatabaseMigrations } = await import('../src/utils/migrationService.js'));
-  ({ createDatabaseBackup, restoreDatabaseBackup } = await import('../src/utils/backupService.js'));
-  ({ getGitUpdateDecision } = await import('../src/utils/updatePolicy.js'));
+  ({ runDatabaseMigrations, getLatestSchemaVersion } = await import('../src/utils/migrationService.js'));
+  ({
+    createDatabaseBackup,
+    restoreDatabaseBackup,
+    verifyApplicationDatabaseBackup,
+  } = await import('../src/utils/backupService.js'));
+  ({
+    setAdminPin,
+    verifyAdminPin,
+    createAdminSession,
+    verifyAdminSessionToken,
+  } = await import('../src/utils/adminAuthService.js'));
 });
 
 after(async () => {
@@ -310,11 +324,50 @@ test('system update/restart rejects requests without explicit confirmation', asy
 
   await systemMaintenanceHandler({
     method: 'POST',
-    body: { action: 'update-and-restart' },
+    body: { action: 'update' },
   }, response);
 
   assert.equal(response.statusCode, 400);
   assert.match(response.payload.message, /„UPDATE“/);
+});
+
+test('production maintenance requests are queued for the restricted host agent', async () => {
+  const previousEnvironment = process.env.APP_ENV;
+  const previousDirectory = process.env.SPONSORENLAUF_MAINTENANCE_DIRECTORY;
+  const maintenanceDirectory = path.join(temporaryDirectory, 'maintenance');
+  process.env.APP_ENV = 'production';
+  process.env.SPONSORENLAUF_MAINTENANCE_DIRECTORY = maintenanceDirectory;
+
+  const response = {
+    statusCode: 200,
+    payload: null,
+    setHeader() {},
+    status(code) {
+      this.statusCode = code;
+      return this;
+    },
+    json(payload) {
+      this.payload = payload;
+      return this;
+    },
+  };
+
+  try {
+    await systemMaintenanceHandler({
+      method: 'POST',
+      body: { action: 'update', confirmation: 'UPDATE' },
+    }, response);
+  } finally {
+    if (previousEnvironment === undefined) delete process.env.APP_ENV;
+    else process.env.APP_ENV = previousEnvironment;
+    if (previousDirectory === undefined) delete process.env.SPONSORENLAUF_MAINTENANCE_DIRECTORY;
+    else process.env.SPONSORENLAUF_MAINTENANCE_DIRECTORY = previousDirectory;
+  }
+
+  assert.equal(response.statusCode, 202);
+  const requestFile = (await readdir(maintenanceDirectory)).find((name) => name.endsWith('.request'));
+  assert.ok(requestFile);
+  assert.equal((await readFile(path.join(maintenanceDirectory, requestFile), 'utf8')).trim(), 'update');
 });
 
 test('a failed multi-type deletion rolls back earlier deletes', async () => {
@@ -379,12 +432,53 @@ test('versioned migrations upgrade an existing database exactly once', async () 
     });
   });
 
-  assert.deepEqual(firstRun.applied, [1, 2, 3]);
+  const latestVersion = getLatestSchemaVersion();
+  assert.deepEqual(firstRun.applied, Array.from({ length: latestVersion }, (_, index) => index + 1));
   assert.deepEqual(secondRun.applied, []);
-  assert.equal(versions.count, 3);
-  assert.equal(versions.latest, 3);
+  assert.equal(versions.count, latestVersion);
+  assert.equal(versions.latest, latestVersion);
   assert.equal(roundColumns.some((column) => column.name === 'scan_id'), true);
   assert.equal(roundColumns.some((column) => column.name === 'recorded_at'), true);
+});
+
+test('administrator setup is atomic and sessions are validated server-side', async () => {
+  const setupResults = await Promise.allSettled([
+    setAdminPin('246810'),
+    setAdminPin('135791'),
+  ]);
+  assert.equal(setupResults.filter((result) => result.status === 'fulfilled').length, 1);
+  assert.equal(setupResults.filter((result) => result.status === 'rejected').length, 1);
+  const winningPin = await verifyAdminPin('246810') ? '246810' : '135791';
+  await setAdminPin('246810', { requireExisting: true });
+  assert.ok(winningPin);
+  assert.equal(await verifyAdminPin('246810'), true);
+  assert.equal(await verifyAdminPin('135791'), false);
+
+  const credential = await get('SELECT pin_hash, pin_salt FROM admin_credentials WHERE id = 1');
+  assert.notEqual(credential.pin_hash, '246810');
+  assert.ok(credential.pin_salt);
+
+  const session = await createAdminSession();
+  assert.equal(await verifyAdminSessionToken(session.token), true);
+  assert.equal(await verifyAdminSessionToken('invalid-session-token'), false);
+  assert.equal((await get('SELECT COUNT(*) AS count FROM admin_sessions WHERE token_hash = ?', [session.token])).count, 0);
+});
+
+test('restore rejects an intact SQLite database from another application', async () => {
+  const unrelatedPath = path.join(temporaryDirectory, 'unrelated.db');
+  const unrelatedDb = new sqlite3.Database(unrelatedPath);
+  await new Promise((resolve, reject) => {
+    unrelatedDb.exec('CREATE TABLE unrelated (id INTEGER PRIMARY KEY)', (error) => {
+      unrelatedDb.close();
+      if (error) reject(error);
+      else resolve();
+    });
+  });
+
+  await assert.rejects(
+    verifyApplicationDatabaseBackup(unrelatedPath),
+    /Keine gültige Sponsorenlauf-Datenbank/
+  );
 });
 
 test('a verified startup snapshot can restore the live database', async () => {
@@ -403,25 +497,4 @@ test('a verified startup snapshot can restore the live database', async () => {
 
   assert.equal((await get('SELECT COUNT(*) AS count FROM students WHERE id = 112')).count, 1);
   assert.equal((await get('SELECT COUNT(*) AS count FROM rounds WHERE student_id = 112')).count, 1);
-});
-
-test('startup update policy distinguishes current, fast-forward, and diverged revisions', () => {
-  const current = 'a'.repeat(40);
-  const available = 'b'.repeat(40);
-
-  assert.equal(getGitUpdateDecision({
-    currentCommit: current,
-    availableCommit: current,
-    canFastForward: false,
-  }), 'up-to-date');
-  assert.equal(getGitUpdateDecision({
-    currentCommit: current,
-    availableCommit: available,
-    canFastForward: true,
-  }), 'update');
-  assert.equal(getGitUpdateDecision({
-    currentCommit: current,
-    availableCommit: available,
-    canFastForward: false,
-  }), 'diverged');
 });

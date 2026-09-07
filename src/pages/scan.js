@@ -4,9 +4,23 @@ import { useApi } from '../hooks/useApi';
 import { useGlobalError } from '../contexts/ErrorContext';
 import DoubleScanConfirmationDialog from '../components/dialogs/scan/DoubleScanConfirmationDialog';
 import { cleanScannedStudentId } from '../utils/studentId';
+import axios from 'axios';
 
 const PENDING_SCAN_STORAGE_KEY = 'sponsorenlauf.pendingScan';
+const SCAN_QUEUE_STORAGE_KEY = 'sponsorenlauf.scanQueue';
 const DEVICE_ID_STORAGE_KEY = 'sponsorenlauf.deviceId';
+const MAX_QUEUED_SCANS = 500;
+const MAX_QUEUED_SCAN_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+const isValidQueuedScan = (entry) => (
+  entry
+  && typeof entry.cleanedId === 'string'
+  && typeof entry.scanId === 'string'
+  && entry.scanId.length >= 8
+  && entry.scanId.length <= 100
+  && Number.isFinite(Date.parse(entry.createdAt))
+  && Date.now() - Date.parse(entry.createdAt) <= MAX_QUEUED_SCAN_AGE_MS
+);
 
 const createClientId = (prefix) => {
   const randomPart = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -25,6 +39,7 @@ export default function Scan() {
   const [timestampsLoading, setTimestampsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [doubleScanData, setDoubleScanData] = useState(null);
+  const [queuedScanCount, setQueuedScanCount] = useState(0);
 
   const { request, loading } = useApi();
   const { showError } = useGlobalError();
@@ -34,6 +49,53 @@ export default function Scan() {
   const idRef = useRef('');
   const pendingScanRef = useRef(null);
   const deviceIdRef = useRef(null);
+  const scanQueueRef = useRef([]);
+  const flushingQueueRef = useRef(false);
+  const audioContextRef = useRef(null);
+
+  const getAudioContext = useCallback(() => {
+    if (typeof window === 'undefined') return null;
+
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return null;
+
+    if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
+      audioContextRef.current = new AudioContext();
+    }
+
+    if (audioContextRef.current.state === 'suspended') {
+      audioContextRef.current.resume().catch(() => {});
+    }
+
+    return audioContextRef.current;
+  }, []);
+
+  const playErrorSound = useCallback(() => {
+    const audioContext = getAudioContext();
+    if (!audioContext) return;
+
+    const startAt = audioContext.currentTime;
+    const gain = audioContext.createGain();
+    gain.gain.setValueAtTime(0.0001, startAt);
+    gain.gain.exponentialRampToValueAtTime(0.22, startAt + 0.01);
+    gain.gain.setValueAtTime(0.22, startAt + 0.28);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.36);
+    gain.connect(audioContext.destination);
+
+    const firstTone = audioContext.createOscillator();
+    firstTone.type = 'square';
+    firstTone.frequency.setValueAtTime(330, startAt);
+    firstTone.connect(gain);
+    firstTone.start(startAt);
+    firstTone.stop(startAt + 0.14);
+
+    const secondTone = audioContext.createOscillator();
+    secondTone.type = 'square';
+    secondTone.frequency.setValueAtTime(180, startAt + 0.17);
+    secondTone.connect(gain);
+    secondTone.start(startAt + 0.17);
+    secondTone.stop(startAt + 0.36);
+  }, [getAudioContext]);
 
   useEffect(() => {
     let deviceId = window.localStorage.getItem(DEVICE_ID_STORAGE_KEY);
@@ -43,23 +105,51 @@ export default function Scan() {
     }
     deviceIdRef.current = deviceId;
 
+    let queue = [];
+    try {
+      queue = JSON.parse(window.localStorage.getItem(SCAN_QUEUE_STORAGE_KEY) || '[]');
+      if (!Array.isArray(queue)) queue = [];
+      queue = queue.filter(isValidQueuedScan).slice(-MAX_QUEUED_SCANS);
+    } catch {
+      queue = [];
+    }
+
     const storedPendingScan = window.localStorage.getItem(PENDING_SCAN_STORAGE_KEY);
     if (storedPendingScan) {
       try {
         const pendingScan = JSON.parse(storedPendingScan);
         if (pendingScan?.cleanedId && pendingScan?.scanId) {
-          pendingScanRef.current = pendingScan;
-          idRef.current = pendingScan.cleanedId;
-          setID(pendingScan.cleanedId);
-          setMessage('Nicht bestätigter Scan wiederhergestellt – bitte erneut senden');
-          setMessageType('warning');
+          if (!queue.some((entry) => entry.scanId === pendingScan.scanId)) queue.push(pendingScan);
+          window.localStorage.removeItem(PENDING_SCAN_STORAGE_KEY);
         }
       } catch {
         window.localStorage.removeItem(PENDING_SCAN_STORAGE_KEY);
       }
     }
 
+    scanQueueRef.current = queue;
+    window.localStorage.setItem(SCAN_QUEUE_STORAGE_KEY, JSON.stringify(queue));
+    setQueuedScanCount(queue.length);
+    if (queue.length) {
+      setMessage(`${queue.length} nicht bestätigte Scan(s) werden automatisch erneut gesendet.`);
+      setMessageType('warning');
+    }
+
     inputRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    const sendHeartbeat = () => {
+      if (!deviceIdRef.current) return;
+      axios.post('/api/stations/heartbeat', { deviceId: deviceIdRef.current }, { timeout: 5000 }).catch(() => {});
+    };
+    sendHeartbeat();
+    const interval = window.setInterval(sendHeartbeat, 30000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  useEffect(() => () => {
+    audioContextRef.current?.close().catch(() => {});
   }, []);
 
   // Fokus nach Submit wiederherstellen
@@ -147,6 +237,20 @@ export default function Scan() {
     window.localStorage.removeItem(PENDING_SCAN_STORAGE_KEY);
   }, []);
 
+  const persistQueue = useCallback((queue) => {
+    scanQueueRef.current = queue;
+    window.localStorage.setItem(SCAN_QUEUE_STORAGE_KEY, JSON.stringify(queue));
+    setQueuedScanCount(queue.length);
+  }, []);
+
+  const enqueueScan = useCallback((pendingScan) => {
+    if (!pendingScan?.scanId) return;
+    const queue = scanQueueRef.current.some((entry) => entry.scanId === pendingScan.scanId)
+      ? scanQueueRef.current
+      : [...scanQueueRef.current, pendingScan].slice(-MAX_QUEUED_SCANS);
+    persistQueue(queue);
+  }, [persistQueue]);
+
   // Funktion zum asynchronen Laden der Timestamps
   const loadTimestamps = useCallback(async (studentId) => {
     setTimestampsLoading(true);
@@ -223,15 +327,19 @@ export default function Scan() {
       const isRecoverableFailure = !error.status || error.status >= 500 || error.status === 429;
 
       if (isRecoverableFailure) {
-        setMessage('Scan nicht bestätigt – Verbindung prüfen und erneut senden');
-        setMessageType('error');
-        showError(error, 'Beim Speichern der Runde');
+        enqueueScan(pendingScanRef.current);
+        clearPendingScan();
+        idRef.current = '';
+        setID('');
+        setMessage('Verbindung unterbrochen – Scan sicher vorgemerkt und wird automatisch erneut gesendet');
+        setMessageType('warning');
         return;
       }
 
       idRef.current = '';
       setID('');
       clearPendingScan();
+      playErrorSound();
 
       if (error.status === 404) {
         setMessage('Schüler mit dieser ID nicht gefunden');
@@ -277,7 +385,56 @@ export default function Scan() {
         setIsProcessing(false);
       }
     }
-  }, [request, showError, loadTimestamps, clearPendingScan]);
+  }, [request, loadTimestamps, clearPendingScan, enqueueScan, playErrorSound]);
+
+  const flushScanQueue = useCallback(async () => {
+    if (flushingQueueRef.current || !navigator.onLine || scanQueueRef.current.length === 0) return;
+    flushingQueueRef.current = true;
+    try {
+      while (scanQueueRef.current.length > 0 && navigator.onLine) {
+        const pendingIndex = scanQueueRef.current.findIndex((entry) => !entry.requiresConfirmation);
+        if (pendingIndex === -1) break;
+        const pending = scanQueueRef.current[pendingIndex];
+        try {
+          const response = await axios.post('/api/runden', {
+            id: pending.cleanedId,
+            scanId: pending.scanId,
+            sourceDeviceId: deviceIdRef.current,
+            confirmDoubleScan: false,
+          }, { timeout: 10000 });
+          if (response.data?.requiresConfirmation || response.data?.data?.requiresConfirmation) {
+            setMessage('Ein vorgemerkter Scan benötigt eine Doppel-Scan-Bestätigung. Bitte Barcode erneut scannen.');
+            setMessageType('warning');
+            persistQueue(scanQueueRef.current.map((entry) => (
+              entry.scanId === pending.scanId ? { ...entry, requiresConfirmation: true } : entry
+            )));
+            continue;
+          }
+          persistQueue(scanQueueRef.current.filter((entry) => entry.scanId !== pending.scanId));
+          setMessage('Vorgemerkter Scan wurde erfolgreich nachgetragen');
+          setMessageType('success');
+        } catch (error) {
+          if (!error.response || error.response.status >= 500 || error.response.status === 429) break;
+          persistQueue(scanQueueRef.current.filter((entry) => entry.scanId !== pending.scanId));
+          setMessage(`Vorgemerkter Scan wurde verworfen: ${error.response?.data?.message || 'ungültige Daten'}`);
+          setMessageType('error');
+        }
+      }
+    } finally {
+      flushingQueueRef.current = false;
+    }
+  }, [persistQueue]);
+
+  useEffect(() => {
+    const handleOnline = () => flushScanQueue();
+    window.addEventListener('online', handleOnline);
+    const interval = window.setInterval(flushScanQueue, 5000);
+    flushScanQueue();
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.clearInterval(interval);
+    };
+  }, [flushScanQueue]);
 
   const handleDoubleScanConfirm = useCallback(async () => {
     if (!doubleScanData) return;
@@ -309,10 +466,15 @@ export default function Scan() {
 
     if (isProcessing) return; // Verhindere mehrfache Submissions
 
+    // Initializing audio during the scanner's key event keeps sound available
+    // in browsers that require a user gesture before playing audio.
+    getAudioContext();
+
     const cleanedId = cleanId(idRef.current);
     if (!cleanedId.trim()) {
       setMessage('Bitte geben Sie eine gültige ID ein');
       setMessageType('error');
+      playErrorSound();
       // Fokus behalten bei Validierungsfehlern
       inputRef.current?.focus();
       return;
@@ -322,17 +484,21 @@ export default function Scan() {
     setMessage('Verarbeite...');
     setMessageType('info');
 
-    const existingPendingScan = pendingScanRef.current;
+    const queuedPendingScan = scanQueueRef.current.find((scan) => scan.cleanedId === cleanedId);
+    const existingPendingScan = pendingScanRef.current || queuedPendingScan;
     const scanId = existingPendingScan?.cleanedId === cleanedId
       ? existingPendingScan.scanId
       : createClientId('scan');
+    if (queuedPendingScan?.scanId === scanId) {
+      persistQueue(scanQueueRef.current.filter((scan) => scan.scanId !== scanId));
+    }
     rememberPendingScan({ cleanedId, scanId, createdAt: new Date().toISOString() });
 
     await performScan(cleanedId, false, scanId); // confirmDoubleScan = false
     
     // Fokus nach Verarbeitung wiederherstellen (performScan handled setIsProcessing)
     setTimeout(() => inputRef.current?.focus(), 100);
-  }, [cleanId, isProcessing, performScan, rememberPendingScan]);
+  }, [cleanId, getAudioContext, isProcessing, performScan, persistQueue, playErrorSound, rememberPendingScan]);
 
   const handleDeleteTimestamp = useCallback(async (roundId) => {
     if (!roundId || !studentInfo) {
@@ -393,6 +559,9 @@ export default function Scan() {
           <span className={`status-pill ${isProcessing ? 'status-pill-warning' : 'status-pill-ready'}`}>
             {isProcessing ? 'Scan wird verarbeitet' : 'Scanner bereit'}
           </span>
+          {queuedScanCount > 0 && (
+            <span className="status-pill status-pill-warning">{queuedScanCount} Scan(s) vorgemerkt</span>
+          )}
         </div>
       </div>
 
@@ -412,7 +581,7 @@ export default function Scan() {
 
       <div className="scan-dashboard-layout">
         <aside className="scan-sidebar">
-          <div className="scan-input-panel">
+          <div className="scan-input-panel" data-tour="scan">
             <div className="scan-input-panel-header">
               <h2>Scanner</h2>
             </div>

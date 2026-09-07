@@ -11,7 +11,7 @@ import DetailedDeleteDialog from '../components/dialogs/setup/DetailedDeleteDial
 import ClassStructureDialog from '../components/dialogs/setup/ClassStructureDialog';
 import CombinedImportDialog from '../components/dialogs/setup/CombinedImportDialog';
 import ModuleSettingsDialog from '../components/dialogs/setup/ModuleSettingsDialog';
-import SystemMaintenanceDialog from '../components/dialogs/setup/SystemMaintenanceDialog';
+import OperationsDialog from '../components/dialogs/setup/OperationsDialog';
 
 export default function Setup() {
     const [insertedCount, setInsertedCount] = useState(0);
@@ -36,7 +36,7 @@ export default function Setup() {
     // Dialog-Management
     const { refs: dialogRefs, openDialog, closeDialog } = useDialogs([
         'generateLabels', 'detailedDelete',
-        'classStructure', 'combinedImport', 'moduleSettings', 'systemMaintenance'
+        'classStructure', 'combinedImport', 'moduleSettings', 'operations'
     ]);
 
     // Fetch-Funktionen mit useCallback für stabile Referenzen
@@ -286,6 +286,7 @@ export default function Setup() {
                             <button
                                 onClick={openClassStructurePopup}
                                 className="setup-action-btn"
+                                data-tour="classes"
                                 title="Konfiguriere die Struktur der Jahrgänge und Klassen."
                             >
                                 <span className="setup-btn-icon">🏫</span>
@@ -381,6 +382,7 @@ export default function Setup() {
                             <button
                                 onClick={() => openDialog('moduleSettings')}
                                 className="setup-action-btn"
+                                data-tour="modules"
                                 title="Aktivieren oder deaktivieren Sie einzelne Module der Anwendung."
                             >
                                 <span className="setup-btn-icon">🔧</span>
@@ -388,12 +390,22 @@ export default function Setup() {
                             </button>
 
                             <button
-                                onClick={() => openDialog('systemMaintenance')}
-                                className="setup-action-btn setup-action-btn-info"
-                                title="Repository aktualisieren, neu builden und den Dienst neu starten."
+                                type="button"
+                                onClick={() => window.location.assign('/setup?tour=1')}
+                                className="setup-action-btn"
+                                title="Startet die Einführung durch alle wichtigen Seiten erneut."
                             >
-                                <span className="setup-btn-icon">🔄</span>
-                                <span className="setup-btn-text">Raspberry Pi Wartung</span>
+                                <span className="setup-btn-icon">🧭</span>
+                                <span className="setup-btn-text">Einführung starten</span>
+                            </button>
+
+                            <button
+                                onClick={() => openDialog('operations')}
+                                className="setup-action-btn setup-action-btn-info"
+                                data-tour="operations"
+                            >
+                                <span className="setup-btn-icon">🛡️</span>
+                                <span className="setup-btn-text">Bereitschaft, Backups & Wartung</span>
                             </button>
                         </div>
                     </div>
@@ -449,9 +461,7 @@ export default function Setup() {
                 dialogRef={dialogRefs.moduleSettingsRef}
             />
 
-            <SystemMaintenanceDialog
-                dialogRef={dialogRefs.systemMaintenanceRef}
-            />
+            <OperationsDialog dialogRef={dialogRefs.operationsRef} />
         </div>
     );
 }

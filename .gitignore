@@ -1,5 +1,8 @@
 .env*
+!.env*.example
 database.db
+.local-data/
+deployment/production.env
 backups/
 .update-rollback/
 .next/

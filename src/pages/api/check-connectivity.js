@@ -11,7 +11,7 @@ export default async function handler(req, res) {
         res.status(200).json({ 
             connected: connectivity.internetConnected,
             lanConnected: connectivity.lanConnected,
-            canRunUpdate: connectivity.canRunUpdate,
+            environment: connectivity.environment,
             message: connectivity.internetConnected ? 'Internetverbindung verfügbar' : 'Keine Internetverbindung'
         });
     } catch (error) {

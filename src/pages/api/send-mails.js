@@ -1,51 +1,6 @@
-import nodemailer from 'nodemailer';
 import { handleMethodNotAllowed, handleError, handleSuccess, handleValidationError } from '../../utils/apiHelpers.js';
 import { validateEmail } from '../../utils/validation.js';
-
-const emailProviders = {
-  outlook: {
-    service: 'Outlook365',
-    port: 587,
-    secure: false
-  },
-  gmail: {
-    service: 'gmail',
-    port: 587,
-    secure: false
-  },
-  yahoo: {
-    service: 'yahoo',
-    port: 587,
-    secure: false
-  },
-  custom: {
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT) || 587,
-    secure: process.env.SMTP_SECURE === 'true'
-  }
-};
-
-const createTransporter = (email, password, provider = 'outlook') => {
-  const config = emailProviders[provider] || emailProviders.outlook;
-
-  const transporterConfig = {
-    ...config,
-    auth: { user: email, pass: password },
-    tls: {
-      rejectUnauthorized: false // Für Entwicklungsumgebungen
-    }
-  };
-
-  // Für benutzerdefinierte Server
-  if (provider === 'custom' && !config.service) {
-    transporterConfig.host = config.host;
-    transporterConfig.port = config.port;
-    transporterConfig.secure = config.secure;
-    delete transporterConfig.service;
-  }
-
-  return nodemailer.createTransport(transporterConfig);
-};
+import { getConfiguredSmtpTransport } from '../../utils/smtpService.js';
 
 const applyTemplateVariables = (mailText, className, currentYear) => {
   return mailText
@@ -240,7 +195,7 @@ ${resolvedMailHtml}
   }
 };
 
-const validateEmailData = (teacherData, teacherFiles, email, password, senderName, mailText, emailProvider) => {
+const validateEmailData = (teacherData, teacherFiles, mailText) => {
   const errors = [];
 
   // Basis-Validierung
@@ -261,34 +216,12 @@ const validateEmailData = (teacherData, teacherFiles, email, password, senderNam
     errors.push('Klassendateien fehlen oder sind ungültig');
   }
 
-  if (!email || !password) {
-    errors.push('E-Mail-Anmeldedaten sind erforderlich');
-  }
-
-  if (email && !validateEmail(email)) {
-    errors.push('Ungültige E-Mail-Adresse');
-  }
-
-  if (!senderName?.trim()) {
-    errors.push('Sendername ist erforderlich');
-  }
-
-  if (senderName && senderName.length > 100) {
-    errors.push('Sendername ist zu lang (maximal 100 Zeichen)');
-  }
-
   if (!mailText?.trim()) {
     errors.push('E-Mail-Text ist erforderlich');
   }
 
   if (mailText && mailText.length > 10000) {
     errors.push('E-Mail-Text ist zu lang (maximal 10.000 Zeichen)');
-  }
-
-  // E-Mail-Provider Validierung
-  const validProviders = ['outlook', 'gmail', 'yahoo', 'custom'];
-  if (emailProvider && !validProviders.includes(emailProvider)) {
-    errors.push('Ungültiger E-Mail-Anbieter');
   }
 
   // Detaillierte Lehrer-Validierung (nicht blockierend für leere Klassen)
@@ -332,11 +265,7 @@ export default async function handler(req, res) {
     const {
       teacherEmails: teacherData,
       teacherFiles,
-      senderName,
       mailText,
-      email,
-      password,
-      emailProvider = 'outlook',
       sendCopyToSender = false
     } = req.body;
 
@@ -344,11 +273,7 @@ export default async function handler(req, res) {
     const validationErrors = validateEmailData(
       teacherData,
       teacherFiles,
-      email,
-      password,
-      senderName,
-      mailText,
-      emailProvider
+      mailText
     );
 
     if (validationErrors.length > 0) {
@@ -356,8 +281,7 @@ export default async function handler(req, res) {
       return handleValidationError(res, validationErrors);
     }
 
-    // Transporter erstellen und testen
-    const transporter = createTransporter(email, password, emailProvider);
+    const { configuration: smtpConfiguration, transporter } = await getConfiguredSmtpTransport();
 
     try {
       await transporter.verify();
@@ -396,8 +320,8 @@ export default async function handler(req, res) {
           teacherData[className],
           teacherFiles[className],
           mailText,
-          senderName,
-          email,
+          smtpConfiguration.fromName,
+          smtpConfiguration.fromAddress,
           sendCopyToSender
         );
 

@@ -1,4 +1,3 @@
-import { dbGet, dbRun } from '../../utils/database.js';
 import { handleMethodNotAllowed, handleError, handleSuccess } from '../../utils/apiHelpers.js';
 import { getSetting, setSetting } from '../../utils/settingsService.js';
 

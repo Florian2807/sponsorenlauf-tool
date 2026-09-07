@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import BaseDialog from '../../BaseDialog';
 import { useApi } from '../../../hooks/useApi';
 import { useGlobalError } from '../../../contexts/ErrorContext';
-import * as XLSX from 'xlsx';
+import { Workbook } from 'exceljs';
 
 const CombinedImportDialog = ({ dialogRef, onImportSuccess, onClose }) => {
     const [importType, setImportType] = useState(''); // 'students', 'teachers', or ''
@@ -108,57 +108,39 @@ const CombinedImportDialog = ({ dialogRef, onImportSuccess, onClose }) => {
     }, [request]);
 
     // Parse Excel file
-    const parseExcelFile = (file) => {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
+    const parseExcelFile = async (file) => {
+        try {
+            const workbook = new Workbook();
+            await workbook.xlsx.load(await file.arrayBuffer());
+            const worksheet = workbook.worksheets[0];
+            if (!worksheet || worksheet.rowCount < 2) {
+                throw new Error('Excel-Datei muss mindestens eine Kopfzeile und eine Datenzeile enthalten');
+            }
 
-            reader.onload = (e) => {
-                try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const sheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[sheetName];
-                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+            const rows = [];
+            for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber += 1) {
+                const row = worksheet.getRow(rowNumber);
+                rows.push([1, 2, 3, 4].map((column) => row.getCell(column).text.trim()));
+            }
 
-                    if (jsonData.length < 2) {
-                        reject(new Error('Excel-Datei muss mindestens eine Kopfzeile und eine Datenzeile enthalten'));
-                        return;
-                    }
-
-                    let parsedData;
-                    if (importType === 'students') {
-                        // Skip header row and convert to student format
-                        parsedData = jsonData.slice(1).map((row, index) => {
-                            const [vorname, nachname, geschlecht, klasse] = row;
-                            return {
-                                vorname: vorname ? String(vorname).trim() : '',
-                                nachname: nachname ? String(nachname).trim() : '',
-                                geschlecht: geschlecht ? String(geschlecht).trim().toLowerCase() : '',
-                                klasse: klasse ? String(klasse).trim() : ''
-                            };
-                        }).filter(item => item.vorname || item.nachname);
-                    } else {
-                        // Skip header row and convert to teacher format
-                        parsedData = jsonData.slice(1).map((row, index) => {
-                            const [vorname, nachname, klasse, email] = row;
-                            return {
-                                vorname: vorname ? String(vorname).trim() : '',
-                                nachname: nachname ? String(nachname).trim() : '',
-                                klasse: klasse ? String(klasse).trim() : '',
-                                email: email ? String(email).trim() : ''
-                            };
-                        }).filter(item => item.vorname || item.nachname || item.email);
-                    }
-
-                    resolve(parsedData);
-                } catch (error) {
-                    reject(new Error('Fehler beim Lesen der Excel-Datei: ' + error.message));
-                }
-            };
-
-            reader.onerror = () => reject(new Error('Fehler beim Laden der Datei'));
-            reader.readAsArrayBuffer(file);
-        });
+            if (importType === 'students') {
+                return rows.map(([vorname, nachname, geschlecht, klasse]) => ({
+                    vorname,
+                    nachname,
+                    geschlecht: geschlecht.toLowerCase(),
+                    klasse,
+                })).filter((item) => item.vorname || item.nachname);
+            }
+            return rows.map(([vorname, nachname, klasse, email]) => ({
+                vorname,
+                nachname,
+                klasse,
+                email,
+            })).filter((item) => item.vorname || item.nachname || item.email);
+        } catch (error) {
+            if (error.message.startsWith('Excel-Datei')) throw error;
+            throw new Error(`Fehler beim Lesen der Excel-Datei: ${error.message}`);
+        }
     };
 
     const handleFileSelect = async (e) => {

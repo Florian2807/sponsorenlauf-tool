@@ -53,10 +53,14 @@ SV-Team`
 ];
 
 const DEFAULT_EMAIL_SETTINGS = {
-    email: '',
+    host: 'smtp.office365.com',
+    port: 587,
+    security: 'starttls',
+    username: '',
     password: '',
-    senderName: 'Schülervertretung',
-    emailProvider: 'outlook',
+    fromAddress: '',
+    fromName: 'Schülervertretung',
+    passwordConfigured: false,
     mailText: EMAIL_TEMPLATES[0].content
 };
 
@@ -89,35 +93,59 @@ const useConnectivity = () => {
     return { isConnected, isChecking, checkConnectivity };
 };
 
-const useEmailAuth = () => {
+const useSmtpConfiguration = (setEmailSettings) => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isAuthenticating, setIsAuthenticating] = useState(false);
     const [authMessage, setAuthMessage] = useState('');
     const { request } = useApi();
-    const { showError, showSuccess } = useGlobalError();
+    const { showSuccess } = useGlobalError();
 
-    const authenticate = async (email, password) => {
+    useEffect(() => {
+        const load = async () => {
+            try {
+                const result = await request('/api/smtp-settings', { showErrorMessage: false });
+                if (result?.configuration) {
+                    setEmailSettings((current) => ({
+                        ...current,
+                        ...result.configuration,
+                        password: '',
+                    }));
+                    setIsAuthenticated(Boolean(result.configured));
+                    setAuthMessage(result.configured ? 'SMTP-Server ist konfiguriert' : '');
+                }
+            } catch {
+                setIsAuthenticated(false);
+            }
+        };
+        load();
+    }, [request, setEmailSettings]);
+
+    const authenticate = async (configuration) => {
         setIsAuthenticating(true);
         setAuthMessage('');
 
         try {
-            const result = await request('/api/mail-auth', {
+            await request('/api/smtp-settings', {
                 method: 'POST',
-                data: { email, password },
-                errorContext: 'Beim E-Mail-Login'
+                data: configuration,
+                errorContext: 'Beim Testen des SMTP-Servers'
             });
-
-            if (result.success) {
-                setIsAuthenticated(true);
-                setAuthMessage('Login erfolgreich');
-                showSuccess('Login erfolgreich', 'E-Mail-Authentifizierung');
-            } else {
-                setAuthMessage('Login fehlgeschlagen: ' + (result.message || 'Unbekannter Fehler'));
-                showError('Login fehlgeschlagen', 'E-Mail-Authentifizierung');
-            }
+            const saved = await request('/api/smtp-settings', {
+                method: 'PUT',
+                data: configuration,
+                errorContext: 'Beim Speichern der SMTP-Konfiguration'
+            });
+            setEmailSettings((current) => ({
+                ...current,
+                ...saved.configuration,
+                password: '',
+            }));
+            setIsAuthenticated(true);
+            setAuthMessage('SMTP-Verbindung erfolgreich getestet und gespeichert');
+            showSuccess('SMTP-Verbindung erfolgreich getestet und gespeichert', 'E-Mail-Server');
         } catch (error) {
-            setAuthMessage('Fehler beim Login: ' + (error.message || 'Verbindungsfehler'));
-            showError('Fehler beim Login', 'E-Mail-Authentifizierung');
+            setAuthMessage(error.message || 'SMTP-Verbindung fehlgeschlagen');
+            setIsAuthenticated(false);
         } finally {
             setIsAuthenticating(false);
         }
@@ -583,11 +611,11 @@ export default function MailsPage() {
     const { request } = useApi();
     const { showError, showSuccess } = useGlobalError();
     const { isConnected, isChecking, checkConnectivity } = useConnectivity();
-    const { isAuthenticated, isAuthenticating, authMessage, authenticate, resetAuth } = useEmailAuth();
     const { files, isGenerating, generateFiles } = useFileGeneration();
 
     // State
     const [emailSettings, setEmailSettings] = useState(DEFAULT_EMAIL_SETTINGS);
+    const { isAuthenticated, isAuthenticating, authMessage, authenticate, resetAuth } = useSmtpConfiguration(setEmailSettings);
     const [availableClasses, setAvailableClasses] = useState([]);
     const [emailMode, setEmailMode] = useState(config.teachers ? 'teachers' : 'manual');
 
@@ -668,8 +696,8 @@ export default function MailsPage() {
     const handleEmailSettingsChange = (field, value) => {
         setEmailSettings(prev => ({ ...prev, [field]: value }));
 
-        // Reset authentication if credentials change
-        if ((field === 'email' || field === 'password') && isAuthenticated) {
+        const smtpFields = ['host', 'port', 'security', 'username', 'password', 'fromAddress', 'fromName'];
+        if (smtpFields.includes(field) && isAuthenticated) {
             resetAuth();
         }
     };
@@ -870,10 +898,6 @@ export default function MailsPage() {
                     teacherEmails: emailData,
                     teacherFiles: files,
                     mailText: emailSettings.mailText,
-                    email: emailSettings.email,
-                    password: emailSettings.password,
-                    senderName: emailSettings.senderName,
-                    emailProvider: emailSettings.emailProvider,
                     sendCopyToSender: sendCopyToSender
                 },
                 errorContext: 'Beim Senden der E-Mails'
@@ -918,7 +942,7 @@ export default function MailsPage() {
         <div className="mail-page-container">
             {/* Header */}
             <div className="mail-header">
-                <h1 className="mail-header-title">
+                <h1 className="mail-header-title" data-tour="mail">
                     <span className="header-icon">📧</span>
                     E-Mail Versand System
                 </h1>
@@ -980,7 +1004,7 @@ export default function MailsPage() {
                 fileData={emailSettings}
                 setFileData={setEmailSettings}
                 credentialsCorrect={isAuthenticated}
-                handleLogin={() => authenticate(emailSettings.email, emailSettings.password)}
+                handleLogin={() => authenticate(emailSettings)}
                 status={{
                     loginLoading: isAuthenticating,
                     uploadLoading: isGenerating,

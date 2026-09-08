@@ -115,6 +115,8 @@ install_application() {
   fi
   chmod 600 "$PRODUCTION_ENV_FILE"
   run_root install -d -m 0770 -o root -g 1000 /var/lib/sponsorenlauf/maintenance
+  run_root chown -R root:1000 /var/lib/sponsorenlauf/maintenance
+  run_root chmod 0770 /var/lib/sponsorenlauf/maintenance
   if docker_compose pull; then
     docker_compose up -d --remove-orphans
   else

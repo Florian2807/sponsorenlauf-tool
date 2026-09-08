@@ -24,6 +24,7 @@ export default async function handler(req, res) {
         return handleSuccess(res, status, 'Systemaktion wurde sicher eingeplant', 202);
     } catch (error) {
         const statusCode = ['ACTION_IN_PROGRESS', 'MAINTENANCE_UNAVAILABLE'].includes(error.code) ? 409 : 500;
-        return handleError(res, error, statusCode, 'Systemaktion konnte nicht eingeplant werden');
+        const message = statusCode === 409 ? null : 'Systemaktion konnte nicht eingeplant werden';
+        return handleError(res, error, statusCode, message);
     }
 }

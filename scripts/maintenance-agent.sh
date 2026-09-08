@@ -3,6 +3,7 @@ set -uo pipefail
 
 REPO_DIR="${SPONSORENLAUF_REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 MAINTENANCE_DIR="${SPONSORENLAUF_MAINTENANCE_DIRECTORY:-/var/lib/sponsorenlauf/maintenance}"
+MAINTENANCE_GROUP="${SPONSORENLAUF_MAINTENANCE_GROUP:-1000}"
 PRODUCTION_ENV_FILE="${SPONSORENLAUF_PRODUCTION_ENV:-$REPO_DIR/deployment/production.env}"
 STATUS_FILE="$MAINTENANCE_DIR/status.json"
 
@@ -19,6 +20,7 @@ write_status() {
   temporary="$MAINTENANCE_DIR/.status-$$.tmp"
   printf '{\n  "state": "%s",\n  "action": "%s",\n  "message": "%s",\n  "requestId": "%s",\n  "updatedAt": "%s"\n}\n' \
     "$state" "$action" "$message" "$request_id" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$temporary"
+  chown root:"$MAINTENANCE_GROUP" "$temporary"
   chmod 0660 "$temporary"
   mv -f "$temporary" "$STATUS_FILE"
 }
@@ -97,8 +99,13 @@ run_restart() {
 }
 
 mkdir -p "$MAINTENANCE_DIR"
+chown root:"$MAINTENANCE_GROUP" "$MAINTENANCE_DIR"
+chmod 0770 "$MAINTENANCE_DIR"
 if [ ! -f "$STATUS_FILE" ]; then
   write_status idle none 'Keine Systemaktion aktiv.' none
+else
+  chown root:"$MAINTENANCE_GROUP" "$STATUS_FILE"
+  chmod 0660 "$STATUS_FILE"
 fi
 
 while true; do

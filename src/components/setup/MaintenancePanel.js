@@ -13,17 +13,23 @@ export default function MaintenancePanel({ active }) {
     const [confirmed, setConfirmed] = useState({ update: false, restart: false });
     const [submitting, setSubmitting] = useState(false);
     const [loadError, setLoadError] = useState('');
+    const [connectionLost, setConnectionLost] = useState(false);
     const [logView, setLogView] = useState('progress');
     const mounted = useRef(true);
+    const statusRef = useRef(null);
     const logRef = useRef(null);
+    statusRef.current = status;
 
     const refresh = useCallback(async () => {
         try {
             const data = await request('/api/systemMaintenance', { showErrorMessage: false });
-            if (mounted.current) { setStatus(data); setLoadError(''); }
+            if (mounted.current) { setStatus(data); setLoadError(''); setConnectionLost(false); }
             return data;
         } catch (error) {
-            if (mounted.current) setLoadError(error.message);
+            if (mounted.current) {
+                if (isRunning(statusRef.current?.state)) setConnectionLost(true);
+                else setLoadError(error.message);
+            }
             return null;
         }
     }, [request]);
@@ -40,9 +46,15 @@ export default function MaintenancePanel({ active }) {
 
     useEffect(() => {
         if (!active || !isRunning(status?.state)) return undefined;
-        const timer = window.setTimeout(refresh, 3000);
-        return () => window.clearTimeout(timer);
-    }, [active, refresh, status?.state, status?.updatedAt]);
+        let cancelled = false;
+        let timer;
+        const poll = async () => {
+            await refresh();
+            if (!cancelled) timer = window.setTimeout(poll, 3000);
+        };
+        timer = window.setTimeout(poll, 3000);
+        return () => { cancelled = true; window.clearTimeout(timer); };
+    }, [active, refresh, status?.state]);
 
     useEffect(() => {
         if (logRef.current && isRunning(status?.state)) logRef.current.scrollTop = logRef.current.scrollHeight;
@@ -55,13 +67,25 @@ export default function MaintenancePanel({ active }) {
             const nextStatus = await request('/api/systemMaintenance', {
                 method: 'POST',
                 data: { action, confirmation: action === 'update' ? 'UPDATE' : 'NEUSTART' },
+                showErrorMessage: false,
                 errorContext: action === 'update' ? 'Beim Starten des Updates' : 'Beim Neustart',
             });
             setStatus((current) => ({ ...current, ...nextStatus, connectivity: current?.connectivity, logs: current?.logs }));
             setConfirmed((current) => ({ ...current, [action]: false }));
             showSuccess(action === 'update' ? 'Update wurde eingeplant' : 'Neustart wurde eingeplant', 'Systemwartung');
         } catch (error) {
-            setLoadError(error.message);
+            if (!error.status) {
+                setConnectionLost(true);
+                setStatus((current) => ({
+                    ...current,
+                    state: 'queued',
+                    action,
+                    message: 'Die Verbindung wurde während des Starts unterbrochen. Status wird automatisch erneut geprüft.',
+                    updatedAt: new Date().toISOString(),
+                }));
+            } else {
+                setLoadError(error.message);
+            }
         } finally {
             setSubmitting(false);
         }
@@ -75,6 +99,7 @@ export default function MaintenancePanel({ active }) {
                 <button className="btn btn-secondary btn-sm" type="button" onClick={refresh} disabled={!active || submitting}>Status prüfen</button>
             </div>
             {loadError && <div className="setup-message setup-message--danger" role="alert">{loadError}</div>}
+            {connectionLost && isRunning(status?.state) && <div className="setup-message setup-message--warning" role="status">Die Anwendung startet gerade neu. Verbindung wird automatisch wiederhergestellt…</div>}
             <div className={`setup-message setup-message--${status?.state === 'failed' || status?.state === 'rolled_back' ? 'danger' : status?.state === 'succeeded' ? 'success' : 'neutral'}`}>
                 <strong>{labels[status?.state] || 'Status wird geladen'}</strong>
                 <p>{status?.message || 'Bitte warten…'}</p>

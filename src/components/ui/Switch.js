@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 
 /**
  * Switch/Toggle Component
@@ -20,7 +20,8 @@ export default function Switch({
   className = '',
   ...props
 }) {
-  const switchId = id || name || `switch-${Math.random().toString(36).substr(2, 9)}`;
+  const generatedId = useId();
+  const switchId = id || name || `switch-${generatedId}`;
 
   return (
     <label className={`switch-wrapper ${className}`} htmlFor={switchId}>

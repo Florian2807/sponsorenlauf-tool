@@ -4,13 +4,15 @@
   "description": "Eine Webanwendung für einen Sponsorenlauf zur Zählung von Runden mit Barcodes.",
   "main": "index.js",
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/start-development.mjs",
+    "dev:docker": "docker compose -f compose.dev.yaml up --build",
     "build": "next build",
     "start": "next start",
     "migrate": "node initDB.js",
-    "start:managed": "bash scripts/start-with-update.sh",
     "lint": "eslint .",
-    "test": "node --test --test-concurrency=1"
+    "test": "node --test --test-concurrency=1 test/*.test.js",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install chromium"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.2.0",
@@ -26,19 +28,20 @@
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "react-icons": "^5.6.0",
-    "sqlite3": "^6.0.1",
-    "xlsx": "^0.18.5"
+    "sqlite3": "^6.0.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.5",
     "@eslint/js": "^9.39.4",
+    "@playwright/test": "^1.63.0",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.7",
     "eslint-plugin-react": "^7.37.5",
     "globals": "^17.6.0"
   },
   "overrides": {
-    "postcss": "^8.5.26"
+    "postcss": "^8.5.26",
+    "uuid": "^11.1.1"
   },
   "engines": {
     "node": ">=20.9.0"

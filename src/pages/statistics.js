@@ -7,6 +7,7 @@ import { useModuleConfig } from '../contexts/ModuleConfigContext';
 import StatisticsWidget from '../components/statistics/StatisticsWidget';
 import StatisticsTable from '../components/statistics/StatisticsTable';
 import AdvancedExportDialog from '../components/dialogs/statistics/AdvancedExportDialog';
+import { useAdminAuth } from '../contexts/AdminAuthContext';
 
 const GENDER_LABELS = {
     weiblich: 'Weiblich',
@@ -46,6 +47,7 @@ export default function Statistics() {
     const { showError, showSuccess } = useGlobalError();
     const { mode: donationMode } = useDonationDisplayMode();
     const { isDonationsEnabled } = useModuleConfig();
+    const { authenticated } = useAdminAuth();
 
     const participationRate = useMemo(() => {
         if (!stats.totalStudents) return 0;
@@ -353,7 +355,7 @@ export default function Statistics() {
 
     return (
         <div className="statistics-dashboard">
-            <div className="statistics-hero">
+            <div className="statistics-hero" data-tour="statistics">
                 <div className="statistics-hero__content statistics-hero__content--centered">
                     <h1 className="page-title">📊 Statistiken Dashboard</h1>
                     <p className="statistics-hero__subtitle">
@@ -366,14 +368,16 @@ export default function Statistics() {
                             Aktueller Modus: <strong>{donationMode === 'expected' ? 'Erwartete Spenden' : 'Erhaltene Spenden'}</strong>
                         </span>
                     )}
-                    <button
-                        className="btn btn--secondary"
-                        onClick={handleExportButtonClick}
-                        disabled={loading}
-                        title="Exportiere detaillierte Excel-Dateien"
-                    >
-                        {loading ? '⏳ Exportiere...' : '📊 Excel Export'}
-                    </button>
+                    {authenticated && (
+                        <button
+                            className="btn btn--secondary"
+                            onClick={handleExportButtonClick}
+                            disabled={loading}
+                            title="Exportiere detaillierte Excel-Dateien"
+                        >
+                            {loading ? '⏳ Exportiere...' : '📊 Excel Export'}
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -716,13 +720,15 @@ export default function Statistics() {
                 </div>
             )}
 
-            <AdvancedExportDialog
-                isOpen={exportDialogOpen}
-                onClose={() => setExportDialogOpen(false)}
-                onExport={handleExport}
-                loading={loading}
-                statistics={stats}
-            />
+            {authenticated && (
+                <AdvancedExportDialog
+                    isOpen={exportDialogOpen}
+                    onClose={() => setExportDialogOpen(false)}
+                    onExport={handleExport}
+                    loading={loading}
+                    statistics={stats}
+                />
+            )}
         </div>
     );
 }

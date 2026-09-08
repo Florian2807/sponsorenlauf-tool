@@ -1,6 +1,6 @@
 import { dbAll, dbBatchInsert } from '../../utils/database.js';
 import { handleMethodNotAllowed, handleError, handleSuccess, handleValidationError } from '../../utils/apiHelpers.js';
-import { getAvailableClasses, resolveCanonicalClassName, sanitizeClassName, syncClassNamesFromList } from '../../utils/classService.js';
+import { getAvailableClasses, resolveCanonicalClassName, syncClassNamesFromList } from '../../utils/classService.js';
 
 function validateTeacher(teacher, index) {
     const errors = [];
@@ -9,6 +9,10 @@ function validateTeacher(teacher, index) {
     if (!teacher.vorname?.trim()) errors.push(`${linePrefix} Vorname ist erforderlich`);
     if (!teacher.nachname?.trim()) errors.push(`${linePrefix} Nachname ist erforderlich`);
     if (!teacher.email?.trim()) errors.push(`${linePrefix} E-Mail ist erforderlich`);
+    if (teacher.vorname?.length > 200) errors.push(`${linePrefix} Vorname ist zu lang`);
+    if (teacher.nachname?.length > 200) errors.push(`${linePrefix} Nachname ist zu lang`);
+    if (teacher.klasse?.length > 100) errors.push(`${linePrefix} Klassenname ist zu lang`);
+    if (teacher.email?.length > 320) errors.push(`${linePrefix} E-Mail-Adresse ist zu lang`);
     
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -35,39 +39,19 @@ export default async function handler(req, res) {
             ...teacher,
             vorname: teacher.vorname?.trim() || '',
             nachname: teacher.nachname?.trim() || '',
-            klasse: sanitizeClassName(teacher.klasse),
+            klasse: String(teacher.klasse || '').trim(),
             email: teacher.email?.trim() || ''
         }));
 
-        // Validate teachers and get existing teachers and available classes in parallel
-        const [allErrors, existingTeachers, availableClasses] = await Promise.all([
+        // Validate teachers and load available classes in parallel. E-mail addresses
+        // intentionally do not have to be unique: one mailbox may belong to several teachers.
+        const [allErrors, availableClasses] = await Promise.all([
             Promise.resolve(normalizedTeachers.flatMap((teacher, index) => validateTeacher(teacher, index))),
-            dbAll('SELECT id, email FROM teachers'),
             getAvailableClasses()
         ]);
 
         if (allErrors.length > 0) {
             return handleValidationError(res, allErrors);
-        }
-
-        // Check for duplicate emails
-        const existingEmails = existingTeachers.map(t => t.email.toLowerCase());
-        const importedEmails = normalizedTeachers.map(teacher => teacher.email.toLowerCase());
-        const emailErrors = [];
-
-        normalizedTeachers.forEach((teacher, index) => {
-            const email = teacher.email.toLowerCase();
-            if (existingEmails.includes(email)) {
-                emailErrors.push(`Zeile ${index + 1}: E-Mail "${teacher.email}" ist bereits vergeben`);
-            }
-
-            if (importedEmails.indexOf(email) !== index) {
-                emailErrors.push(`Zeile ${index + 1}: E-Mail "${teacher.email}" ist im Import mehrfach vorhanden`);
-            }
-        });
-
-        if (emailErrors.length > 0) {
-            return handleValidationError(res, [...new Set(emailErrors)]);
         }
 
         const classNames = availableClasses;

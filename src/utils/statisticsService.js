@@ -27,8 +27,12 @@ export const loadStudentsForStatistics = async () => {
     const donationMode = await getDonationDisplayMode();
 
     const query = `
-      SELECT 
-        s.*,
+      SELECT
+        s.id,
+        s.vorname,
+        s.nachname,
+        s.geschlecht,
+        s.klasse,
         COUNT(r.id) as rounds,
         COALESCE(ed.total_expected, 0) as expected_donations,
         COALESCE(rd.total_received, 0) as received_donations
@@ -53,30 +57,23 @@ export const loadStudentsForStatistics = async () => {
         return [];
     }
 
-    const studentIds = rows.map((row) => row.id);
-    const placeholders = studentIds.map(() => '?').join(',');
-
-    const roundsData = await dbAll(`
-      SELECT student_id, timestamp 
-      FROM rounds 
-      WHERE student_id IN (${placeholders})
-      ORDER BY student_id, timestamp DESC
-    `, studentIds);
-
-    const roundsMap = roundsData.reduce((acc, { student_id, timestamp }) => {
-        if (!acc[student_id]) acc[student_id] = [];
-        acc[student_id].push(timestamp);
-        return acc;
-    }, {});
-
     return rows.map((row) => ({
         ...row,
         geschlechtNormalized: normalizeGender(row.geschlecht),
-        timestamps: roundsMap[row.id] || [],
-        rounds: (roundsMap[row.id] || []).length,
+        rounds: Number(row.rounds) || 0,
         spenden: donationMode === 'expected' ? row.expected_donations : row.received_donations,
     }));
 };
+
+const toStatisticsStudent = (student) => ({
+    id: student.id,
+    vorname: student.vorname,
+    nachname: student.nachname,
+    klasse: student.klasse,
+    geschlechtNormalized: student.geschlechtNormalized,
+    rounds: student.rounds,
+    spenden: student.spenden,
+});
 
 export const calculateStatistics = async (students, donationMode) => {
     const classStats = {};
@@ -97,10 +94,10 @@ export const calculateStatistics = async (students, donationMode) => {
 
         classStats[student.klasse].studentCount += 1;
 
-        if (student.timestamps.length > 0) {
-            classStats[student.klasse].totalRounds += student.timestamps.length;
+        if (student.rounds > 0) {
+            classStats[student.klasse].totalRounds += student.rounds;
             classStats[student.klasse].activeStudents += 1;
-            totalRounds += student.timestamps.length;
+            totalRounds += student.rounds;
             totalActiveStudents += 1;
         }
 
@@ -147,7 +144,8 @@ export const calculateStatistics = async (students, donationMode) => {
     const topStudentsByRounds = students
         .filter((student) => student.rounds > 0)
         .sort((a, b) => b.rounds - a.rounds)
-        .slice(0, 50);
+        .slice(0, 50)
+        .map(toStatisticsStudent);
 
     const topStudentsByMoney = students
         .filter((student) => {
@@ -163,7 +161,8 @@ export const calculateStatistics = async (students, donationMode) => {
                 : student.received_donations,
         }))
         .sort((a, b) => b.spenden - a.spenden)
-        .slice(0, 50);
+        .slice(0, 50)
+        .map(toStatisticsStudent);
 
     const averageRounds = totalActiveStudents > 0 ? totalRounds / totalActiveStudents : 0;
 
@@ -214,10 +213,12 @@ export const calculateStatistics = async (students, donationMode) => {
                 lowPerformers: bucket.students.filter((student) => student.rounds > 0 && student.rounds < 5).length,
                 topRoundStudent: bucket.students
                     .filter((student) => student.rounds > 0)
-                    .sort((left, right) => right.rounds - left.rounds)[0] || null,
+                    .sort((left, right) => right.rounds - left.rounds)
+                    .map(toStatisticsStudent)[0] || null,
                 topMoneyStudent: bucket.students
                     .filter((student) => (student.spenden || 0) > 0)
-                    .sort((left, right) => (right.spenden || 0) - (left.spenden || 0))[0] || null,
+                    .sort((left, right) => (right.spenden || 0) - (left.spenden || 0))
+                    .map(toStatisticsStudent)[0] || null,
             };
         });
 
@@ -237,7 +238,8 @@ export const calculateStatistics = async (students, donationMode) => {
         acc[item.gender] = students
             .filter((student) => student.geschlechtNormalized === item.gender && student.rounds > 0)
             .sort((left, right) => right.rounds - left.rounds)
-            .slice(0, 5);
+            .slice(0, 5)
+            .map(toStatisticsStudent);
         return acc;
     }, {});
 
@@ -245,7 +247,8 @@ export const calculateStatistics = async (students, donationMode) => {
         acc[item.gender] = students
             .filter((student) => student.geschlechtNormalized === item.gender && (student.spenden || 0) > 0)
             .sort((left, right) => (right.spenden || 0) - (left.spenden || 0))
-            .slice(0, 5);
+            .slice(0, 5)
+            .map(toStatisticsStudent);
         return acc;
     }, {});
 
@@ -284,7 +287,7 @@ export const calculateStatistics = async (students, donationMode) => {
         genderBreakdown,
         activityDistribution,
         activityDistributionByGender,
-        rawStudents: students,
+        rawStudents: students.map(toStatisticsStudent),
     };
 };
 

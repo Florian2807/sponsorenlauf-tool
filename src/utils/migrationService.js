@@ -120,6 +120,64 @@ const migrations = [
             CREATE INDEX IF NOT EXISTS idx_replacements_student_id ON replacements(studentID);
         `),
     },
+    {
+        version: 4,
+        name: 'add-admin-smtp-and-station-security',
+        up: async (db) => dbExec(db, `
+            CREATE TABLE IF NOT EXISTS admin_credentials (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                pin_salt TEXT NOT NULL,
+                pin_hash TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS admin_sessions (
+                token_hash TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                expires_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS admin_login_attempts (
+                client_key TEXT PRIMARY KEY,
+                failed_count INTEGER NOT NULL DEFAULT 0,
+                locked_until TEXT,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS smtp_configuration (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                host TEXT NOT NULL,
+                port INTEGER NOT NULL,
+                security TEXT NOT NULL CHECK (security IN ('tls', 'starttls', 'none')),
+                username TEXT,
+                password_encrypted TEXT,
+                from_address TEXT NOT NULL,
+                from_name TEXT NOT NULL,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS station_activity (
+                device_id TEXT PRIMARY KEY,
+                last_seen_at TEXT NOT NULL,
+                last_scan_at TEXT,
+                scan_count INTEGER NOT NULL DEFAULT 0
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_admin_sessions_expires_at ON admin_sessions(expires_at);
+            CREATE INDEX IF NOT EXISTS idx_station_activity_last_seen_at ON station_activity(last_seen_at);
+        `),
+    },
+    {
+        version: 5,
+        name: 'add-microsoft-graph-mail-provider',
+        up: async (db) => {
+            await addColumnIfMissing(db, 'smtp_configuration', 'provider', "TEXT NOT NULL DEFAULT 'smtp'");
+            await addColumnIfMissing(db, 'smtp_configuration', 'tenant_id', 'TEXT');
+            await addColumnIfMissing(db, 'smtp_configuration', 'client_id', 'TEXT');
+            await addColumnIfMissing(db, 'smtp_configuration', 'client_secret_encrypted', 'TEXT');
+        },
+    },
 ];
 
 export const getLatestSchemaVersion = () => migrations.at(-1)?.version || 0;

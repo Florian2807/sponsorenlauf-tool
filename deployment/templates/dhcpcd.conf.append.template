@@ -1,3 +1,0 @@
-interface __WLAN_INTERFACE__
-    static ip_address=__AP_IP__/24
-    nohook wpa_supplicant

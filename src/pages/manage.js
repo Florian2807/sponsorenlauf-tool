@@ -399,7 +399,7 @@ export default function Manage() {
 
   return (
     <div className="page-container-extra-wide manage-page">
-      <div className="manage-header">
+      <div className="manage-header" data-tour="manage">
         <div className="manage-header-main">
           <div className="manage-header-intro">
             <h1 className="page-title">Schüler verwalten</h1>

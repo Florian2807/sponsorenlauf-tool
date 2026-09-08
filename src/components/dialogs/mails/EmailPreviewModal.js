@@ -20,31 +20,6 @@ const EmailPreviewModal = ({
     const currentYear = new Date().getFullYear();
     const { classCount, teacherCount } = teacherSummary;
 
-    // Simuliere HTML-Mail Vorschau
-    const htmlPreview = `
-        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
-            <div style="background: linear-gradient(135deg, #4a90e2, #357abd); color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center;">
-                <h1 style="margin: 0; font-size: 24px;">🏃‍♂️ Sponsorenlauf ${currentYear}</h1>
-                <p style="margin: 10px 0 0 0; opacity: 0.9;">Ergebnisliste Klasse [KLASSENNAME]</p>
-            </div>
-            
-            <div style="background: white; padding: 30px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 8px 8px;">
-                <div style="white-space: pre-wrap; margin-bottom: 20px;">${mailText}</div>
-                
-                <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #4a90e2;">
-                    <p style="margin: 0; font-weight: bold; color: #4a90e2;">📎 Anhang:</p>
-                    <p style="margin: 5px 0 0 0; font-size: 14px; color: #666;">Excel-Datei mit den Laufergebnissen der Schüler</p>
-                </div>
-                
-                <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
-                    <p style="margin: 0; font-size: 12px; color: #888;">
-                        Diese E-Mail wurde automatisch generiert • ${new Date().toLocaleDateString('de-DE')}
-                    </p>
-                </div>
-            </div>
-        </div>
-    `;
-
     return (
         <div className="email-preview-overlay">
             <div className="email-preview-modal">
@@ -92,10 +67,22 @@ const EmailPreviewModal = ({
 
                         <div className="tab-content">
                             <div className="email-preview-frame">
-                                <div
-                                    className="html-preview"
-                                    dangerouslySetInnerHTML={{ __html: htmlPreview }}
-                                />
+                                <div className="html-preview">
+                                    <div style={{ padding: 20, textAlign: 'center' }}>
+                                        <h1>🏃‍♂️ Sponsorenlauf {currentYear}</h1>
+                                        <p>Ergebnisliste Klasse [KLASSENNAME]</p>
+                                    </div>
+                                    <div style={{ padding: 30 }}>
+                                        <div style={{ whiteSpace: 'pre-wrap', marginBottom: 20 }}>{mailText}</div>
+                                        <div style={{ padding: 15, margin: '20px 0' }}>
+                                            <p><strong>📎 Anhang:</strong></p>
+                                            <p>Excel-Datei mit den Laufergebnissen der Schüler</p>
+                                        </div>
+                                        <p style={{ textAlign: 'center', fontSize: 12 }}>
+                                            Diese E-Mail wurde automatisch generiert • {new Date().toLocaleDateString('de-DE')}
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

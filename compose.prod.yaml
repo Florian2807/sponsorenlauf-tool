@@ -1,0 +1,30 @@
+# Preserve the historic Compose project name so upgrades replace the existing
+# container instead of starting a second copy on port 80.
+name: sponsorenlauf-tool
+
+services:
+  app:
+    image: ghcr.io/florian2807/sponsorenlauf-tool:${SPONSORENLAUF_IMAGE_TAG:-latest}
+    build:
+      context: .
+      target: runner
+    restart: unless-stopped
+    ports:
+      - "80:3000"
+    environment:
+      APP_ENV: production
+      NODE_ENV: production
+      SPONSORENLAUF_RUNTIME: production
+      SPONSORENLAUF_DATABASE_PATH: /data/database.db
+      SPONSORENLAUF_BACKUP_DIRECTORY: /data/backups
+      SPONSORENLAUF_MAX_BACKUPS: ${SPONSORENLAUF_MAX_BACKUPS:-20}
+      SPONSORENLAUF_SECRET_KEY: ${SPONSORENLAUF_SECRET_KEY:?SPONSORENLAUF_SECRET_KEY is required}
+      SPONSORENLAUF_MAINTENANCE_DIRECTORY: /maintenance
+    volumes:
+      - production-data:/data
+      - /var/lib/sponsorenlauf/maintenance:/maintenance
+
+volumes:
+  production-data:
+    # Keep the established production volume name so existing installations retain their data.
+    name: sponsorenlauf-data

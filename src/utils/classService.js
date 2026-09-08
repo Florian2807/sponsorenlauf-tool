@@ -4,6 +4,7 @@
 
 import { dbAll, dbRun } from './database.js';
 import { getSetting, setSetting } from './settingsService.js';
+import { matchClassName, tokenizeClassName } from './importHelpers.js';
 
 export const sanitizeClassName = (className) => {
     const trimmedClassName = String(className || '').trim();
@@ -23,22 +24,18 @@ export const sanitizeClassName = (className) => {
 };
 
 export const normalizeClassNameForComparison = (className) => {
-    return sanitizeClassName(className).toLowerCase();
+    return JSON.stringify(tokenizeClassName(className));
 };
 
 export const resolveCanonicalClassName = (className, availableClasses = []) => {
-    const sanitizedClassName = sanitizeClassName(className);
-
-    if (!sanitizedClassName) {
+    const trimmedClassName = String(className || '').trim();
+    if (!trimmedClassName) {
         return '';
     }
-
-    const normalizedInput = normalizeClassNameForComparison(sanitizedClassName);
-    const canonicalClassName = availableClasses.find((availableClass) => (
-        normalizeClassNameForComparison(availableClass) === normalizedInput
-    ));
-
-    return canonicalClassName || sanitizedClassName;
+    const match = matchClassName(trimmedClassName, availableClasses);
+    return ['exact', 'normalized', 'token'].includes(match.status)
+        ? match.value
+        : sanitizeClassName(trimmedClassName);
 };
 
 const deriveGradeFromClassName = (className) => {

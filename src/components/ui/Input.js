@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 
 /**
  * Modern Input Component
@@ -28,7 +28,8 @@ export default function Input({
   icon = null,
   ...props
 }) {
-  const inputId = id || name || `input-${Math.random().toString(36).substr(2, 9)}`;
+  const generatedId = useId();
+  const inputId = id || name || `input-${generatedId}`;
 
   const getStateClass = () => {
     if (error) return 'error';

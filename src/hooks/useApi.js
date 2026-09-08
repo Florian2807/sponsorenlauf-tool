@@ -46,8 +46,8 @@ export const useApi = () => {
                 errorMessage = 'Die Anfrage dauerte zu lange. Bitte versuchen Sie es erneut.';
             } else if (err.response) {
                 const { status, data } = err.response;
-                errorMessage = data?.message ||
-                    (data?.errors?.length > 0 ? data.errors.join('\n') : null) ||
+                errorMessage = (data?.errors?.length > 0 ? data.errors.join('\n') : null) ||
+                    data?.message ||
                     ERROR_MESSAGES[status] ||
                     (status >= 500 ? 'Serverfehler. Bitte versuchen Sie es später erneut.' : errorMessage);
             } else if (err.request) {

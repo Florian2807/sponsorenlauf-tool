@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 
 /**
  * Select/Dropdown Component
@@ -29,7 +29,8 @@ export default function Select({
   className = '',
   ...props
 }) {
-  const selectId = id || name || `select-${Math.random().toString(36).substr(2, 9)}`;
+  const generatedId = useId();
+  const selectId = id || name || `select-${generatedId}`;
 
   const selectClasses = [
     'form-select',

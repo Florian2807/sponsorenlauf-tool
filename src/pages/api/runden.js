@@ -8,6 +8,7 @@ import {
 import { validateStudentId } from '../../utils/validation.js';
 import { getModuleConfig } from '../../utils/settingsService.js';
 import { recordRound, RoundServiceError } from '../../utils/roundService.js';
+import { recordStationHeartbeat } from '../../utils/stationService.js';
 
 const SCAN_ID_PATTERN = /^[a-zA-Z0-9_-]{8,100}$/;
 const DEVICE_ID_PATTERN = /^[a-zA-Z0-9_-]{1,100}$/;
@@ -63,6 +64,10 @@ export default async function handler(req, res) {
       scanId,
       sourceDeviceId,
     });
+
+    if (sourceDeviceId && result.accepted) {
+      await recordStationHeartbeat(sourceDeviceId, { scanned: true });
+    }
 
     if (!result.accepted && result.blocked) {
       return res.status(400).json({

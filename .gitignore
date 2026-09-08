@@ -1,8 +1,15 @@
 .env*
+!.env*.example
 database.db
+.local-data/
+.e2e-data/
+playwright-report/
+test-results/
+deployment/production.env
 backups/
 .update-rollback/
 .next/
+.next-e2e/
 .idea/
 
 node_modules/

@@ -1,4 +1,5 @@
 const nextConfig = {
+  distDir: process.env.SPONSORENLAUF_NEXT_DIST_DIR || '.next',
   async redirects() {
     return [
       {

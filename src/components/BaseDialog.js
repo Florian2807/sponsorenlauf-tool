@@ -30,7 +30,7 @@ const getCancelAction = (enabledActions) => {
 const getPrimaryAction = (enabledActions) => {
     return enabledActions.find((action) => action.primary)
         || enabledActions.find((action) => action.position !== 'left' && action.variant !== 'secondary')
-        || enabledActions.at(-1)
+        || (enabledActions.length > 1 ? enabledActions.at(-1) : null)
         || null;
 };
 

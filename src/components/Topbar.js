@@ -3,10 +3,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useState, useEffect } from 'react';
 import styles from '../styles/Topbar.module.css';
+import { useAdminAuth } from '../contexts/AdminAuthContext';
 
 export default function Topbar() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const router = useRouter();
+  const { authenticated, logout } = useAdminAuth();
 
   const applyTheme = (darkMode, persist = false) => {
     const theme = darkMode ? 'dark' : 'light';
@@ -36,9 +38,11 @@ export default function Topbar() {
   const primaryNavItems = [
     { href: '/scan', label: 'Runden zählen' },
     { href: '/show', label: 'Schüler anzeigen' },
-    { href: '/manage', label: 'Schüler verwalten' },
     { href: '/statistics', label: 'Statistiken' },
-    { href: '/setup', label: 'Setup' },
+    ...(authenticated ? [
+      { href: '/manage', label: 'Schüler verwalten' },
+      { href: '/setup', label: 'Admin' },
+    ] : [{ href: '/admin-login', label: 'Admin 🔒' }]),
   ];
 
   const isActive = (href) => router.pathname === href;
@@ -57,7 +61,6 @@ export default function Topbar() {
     <header className={styles.topbar}>
       <Link href="/scan" className={styles.brand} aria-label="Zur Scan-Ansicht wechseln">
         <img src="/logo.png" alt="Sponsorenlauf Tool" className={styles.logo} />
-        <span className={styles.brandText}>Sponsorenlauf Tool</span>
       </Link>
 
       <nav className={styles.navContainer} aria-label="Hauptnavigation">
@@ -75,16 +78,30 @@ export default function Topbar() {
         </div>
       </nav>
 
-      <button
-        className={styles.themeToggle}
-        onClick={toggleTheme}
-        type="button"
-        aria-label={`Zu ${isDarkMode ? 'Hell' : 'Dunkel'}modus wechseln`}
-        aria-pressed={isDarkMode}
-        title={`Zu ${isDarkMode ? 'Hell' : 'Dunkel'}modus wechseln`}
-      >
-        {isDarkMode ? '☀️' : '🌙'}
-      </button>
+      <div className={styles.headerActions}>
+        {authenticated && (
+          <button
+            className={styles.logoutButton}
+            type="button"
+            onClick={async () => {
+              await logout();
+              router.push('/scan');
+            }}
+          >
+            Sperren
+          </button>
+        )}
+        <button
+          className={styles.themeToggle}
+          onClick={toggleTheme}
+          type="button"
+          aria-label={`Zu ${isDarkMode ? 'Hell' : 'Dunkel'}modus wechseln`}
+          aria-pressed={isDarkMode}
+          title={`Zu ${isDarkMode ? 'Hell' : 'Dunkel'}modus wechseln`}
+        >
+          {isDarkMode ? '☀️' : '🌙'}
+        </button>
+      </div>
     </header>
   );
 }

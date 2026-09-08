@@ -3,6 +3,7 @@ import { formatDate, timeAgo, calculateTimeDifference } from '../utils/constants
 import { useApi } from '../hooks/useApi';
 import { useGlobalError } from '../contexts/ErrorContext';
 import { cleanScannedStudentId } from '../utils/studentId';
+import { useAdminAuth } from '../contexts/AdminAuthContext';
 
 export default function Show() {
   const [id, setID] = useState('');
@@ -11,6 +12,7 @@ export default function Show() {
 
   const { request } = useApi();
   const { showError, showSuccess } = useGlobalError();
+  const { authenticated } = useAdminAuth();
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -65,7 +67,7 @@ export default function Show() {
     <div className="page-container">
       <h1 className="page-title">Schüler anzeigen</h1>
       <p className="message message-warning">Achtung: Hier werden keine Runden hinzugefügt, nur die Schülerdaten angezeigt.</p>
-      <form onSubmit={handleSubmit} className="form">
+      <form onSubmit={handleSubmit} className="form" data-tour="show">
         <label className="form-label" htmlFor="show-id">Barcode oder Schüler-ID</label>
         <input
           id="show-id"
@@ -112,13 +114,15 @@ export default function Show() {
                             </span>
                           )}
                         </span>
-                        <button
-                          type="button"
-                          className="btn btn-danger btn-sm"
-                          onClick={() => handleDeleteTimestamp(round.id)}
-                        >
-                          Löschen
-                        </button>
+                        {authenticated && (
+                          <button
+                            type="button"
+                            className="btn btn-danger btn-sm"
+                            onClick={() => handleDeleteTimestamp(round.id)}
+                          >
+                            Löschen
+                          </button>
+                        )}
                       </li>
                     );
                   })}

@@ -36,6 +36,16 @@ export const getStudentById = async (id) => {
     };
 };
 
+export const getPublicStudentById = async (id) => {
+    const student = await dbGet(
+        'SELECT id, vorname, nachname, geschlecht, klasse FROM students WHERE id = ?',
+        [id]
+    );
+    if (!student) return null;
+    const rounds = await getRoundRecordsByStudentId(id);
+    return { ...student, rounds, timestamps: rounds.map((round) => round.timestamp) };
+};
+
 /**
  * Holt einen Schüler anhand seiner ID mit optimierten Basisdaten (ohne Timestamps)
  * @param {number} id Schüler-ID

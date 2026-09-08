@@ -3,6 +3,7 @@ import path from 'path';
 import { randomUUID } from 'crypto';
 import sqlite3 from 'sqlite3';
 import { getDatabasePath } from './database.js';
+import { runDatabaseMigrations } from './migrationService.js';
 
 const sanitizeLabel = (value) => String(value || 'backup')
     .toLowerCase()
@@ -74,7 +75,7 @@ const runBackup = (db, filePath, filenameIsDestination = true) => new Promise((r
     copyNextPages();
 });
 
-const verifyBackup = (backupPath) => new Promise((resolve, reject) => {
+export const verifyDatabaseBackup = (backupPath) => new Promise((resolve, reject) => {
     const backupDb = new sqlite3.Database(backupPath, sqlite3.OPEN_READONLY, (openError) => {
         if (openError) {
             reject(openError);
@@ -102,6 +103,53 @@ const verifyBackup = (backupPath) => new Promise((resolve, reject) => {
     });
 });
 
+const REQUIRED_APPLICATION_TABLES = [
+    'classes',
+    'students',
+    'replacements',
+    'teachers',
+    'rounds',
+    'expected_donations',
+    'received_donations',
+    'settings',
+];
+
+export const verifyApplicationDatabaseBackup = async (backupPath) => {
+    await verifyDatabaseBackup(backupPath);
+    return new Promise((resolve, reject) => {
+        const backupDb = new sqlite3.Database(backupPath, sqlite3.OPEN_READONLY, (openError) => {
+            if (openError) {
+                reject(openError);
+                return;
+            }
+            const placeholders = REQUIRED_APPLICATION_TABLES.map(() => '?').join(',');
+            backupDb.all(
+                `SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (${placeholders})`,
+                REQUIRED_APPLICATION_TABLES,
+                async (queryError, rows) => {
+                    try {
+                        if (queryError) throw queryError;
+                        const found = new Set((rows || []).map((row) => row.name));
+                        const missing = REQUIRED_APPLICATION_TABLES.filter((table) => !found.has(table));
+                        if (missing.length > 0) {
+                            throw new Error(`Keine gültige Sponsorenlauf-Datenbank; Tabellen fehlen: ${missing.join(', ')}`);
+                        }
+                        await closeDatabase(backupDb);
+                        resolve();
+                    } catch (error) {
+                        try {
+                            await closeDatabase(backupDb);
+                        } catch {
+                            // Preserve the schema validation error.
+                        }
+                        reject(error);
+                    }
+                }
+            );
+        });
+    });
+};
+
 /**
  * Creates and verifies a consistent SQLite backup. A caller may hold a write
  * lock on another connection so the snapshot and a following mutation are ordered.
@@ -111,9 +159,7 @@ export const createDatabaseBackup = async ({
     now = new Date(),
 } = {}) => {
     const databasePath = path.resolve(/* turbopackIgnore: true */ getDatabasePath());
-    const backupDirectory = path.resolve(/* turbopackIgnore: true */
-        process.env.SPONSORENLAUF_BACKUP_DIRECTORY || path.join(path.dirname(databasePath), 'backups')
-    );
+    const backupDirectory = getBackupDirectory();
     const timestamp = now.toISOString().replace(/[:.]/g, '-');
     const filename = `${timestamp}_${sanitizeLabel(reason)}_${randomUUID().slice(0, 8)}.db`;
     const backupPath = path.join(backupDirectory, filename);
@@ -128,7 +174,7 @@ export const createDatabaseBackup = async ({
     try {
         await runBackup(db, backupPath);
         await fs.chmod(backupPath, 0o600);
-        await verifyBackup(backupPath);
+        await verifyDatabaseBackup(backupPath);
         try {
             await pruneManagedBackups(backupDirectory, filename);
         } catch {
@@ -155,7 +201,7 @@ export const restoreDatabaseBackup = async (backupPath) => {
     const resolvedBackupPath = path.resolve(backupPath);
     const databasePath = path.resolve(/* turbopackIgnore: true */ getDatabasePath());
 
-    await verifyBackup(resolvedBackupPath);
+    await verifyApplicationDatabaseBackup(resolvedBackupPath);
 
     const db = new sqlite3.Database(databasePath);
     db.configure('busyTimeout', 5000);
@@ -165,6 +211,10 @@ export const restoreDatabaseBackup = async (backupPath) => {
     } finally {
         await closeDatabase(db);
     }
+
+    // Legacy backups are accepted when they contain the recognizable base
+    // schema, then upgraded before the application resumes normal operation.
+    await runDatabaseMigrations();
 
     const verification = await new Promise((resolve, reject) => {
         const restoredDb = new sqlite3.Database(databasePath, sqlite3.OPEN_READONLY);
@@ -188,4 +238,29 @@ export const restoreDatabaseBackup = async (backupPath) => {
     });
 
     return { restored: verification === 'ok', databasePath };
+};
+
+export const getBackupDirectory = () => {
+    const databasePath = path.resolve(/* turbopackIgnore: true */ getDatabasePath());
+    return path.resolve(/* turbopackIgnore: true */
+        process.env.SPONSORENLAUF_BACKUP_DIRECTORY || path.join(path.dirname(databasePath), 'backups')
+    );
+};
+
+export const listDatabaseBackups = async () => {
+    const backupDirectory = getBackupDirectory();
+    await fs.mkdir(backupDirectory, { recursive: true, mode: 0o700 });
+    const entries = await fs.readdir(backupDirectory, { withFileTypes: true });
+    const backups = await Promise.all(entries
+        .filter((entry) => entry.isFile() && entry.name.endsWith('.db'))
+        .map(async (entry) => {
+            const filePath = path.join(backupDirectory, entry.name);
+            const stats = await fs.stat(filePath);
+            return {
+                filename: entry.name,
+                size: stats.size,
+                createdAt: stats.mtime.toISOString(),
+            };
+        }));
+    return backups.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
 };

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/router';
 import { API_ENDPOINTS, downloadFile } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
 import { useAsyncOperation } from '../hooks/useAsyncOperation';
@@ -11,9 +12,11 @@ import DetailedDeleteDialog from '../components/dialogs/setup/DetailedDeleteDial
 import ClassStructureDialog from '../components/dialogs/setup/ClassStructureDialog';
 import CombinedImportDialog from '../components/dialogs/setup/CombinedImportDialog';
 import ModuleSettingsDialog from '../components/dialogs/setup/ModuleSettingsDialog';
-import SystemMaintenanceDialog from '../components/dialogs/setup/SystemMaintenanceDialog';
+import OperationsDialog from '../components/dialogs/setup/OperationsDialog';
+import SmtpSettingsDialog from '../components/dialogs/setup/SmtpSettingsDialog';
 
 export default function Setup() {
+    const router = useRouter();
     const [insertedCount, setInsertedCount] = useState(0);
     const [replacementAmount, setReplacementAmount] = useState(0);
     const [classes, setClasses] = useState([]);
@@ -36,8 +39,12 @@ export default function Setup() {
     // Dialog-Management
     const { refs: dialogRefs, openDialog, closeDialog } = useDialogs([
         'generateLabels', 'detailedDelete',
-        'classStructure', 'combinedImport', 'moduleSettings', 'systemMaintenance'
+        'classStructure', 'combinedImport', 'moduleSettings', 'smtpSettings', 'operations'
     ]);
+
+    useEffect(() => {
+        if (router.isReady && router.query.smtp === '1') openDialog('smtpSettings');
+    }, [openDialog, router.isReady, router.query.smtp]);
 
     // Fetch-Funktionen mit useCallback für stabile Referenzen
     const fetchClasses = useCallback(async () => {
@@ -286,6 +293,7 @@ export default function Setup() {
                             <button
                                 onClick={openClassStructurePopup}
                                 className="setup-action-btn"
+                                data-tour="classes"
                                 title="Konfiguriere die Struktur der Jahrgänge und Klassen."
                             >
                                 <span className="setup-btn-icon">🏫</span>
@@ -381,6 +389,7 @@ export default function Setup() {
                             <button
                                 onClick={() => openDialog('moduleSettings')}
                                 className="setup-action-btn"
+                                data-tour="modules"
                                 title="Aktivieren oder deaktivieren Sie einzelne Module der Anwendung."
                             >
                                 <span className="setup-btn-icon">🔧</span>
@@ -388,12 +397,35 @@ export default function Setup() {
                             </button>
 
                             <button
-                                onClick={() => openDialog('systemMaintenance')}
-                                className="setup-action-btn setup-action-btn-info"
-                                title="Repository aktualisieren, neu builden und den Dienst neu starten."
+                                onClick={() => openDialog('smtpSettings')}
+                                className="setup-action-btn"
+                                data-tour="smtp"
+                                title="E-Mail-Server einrichten, testen und die Anbieter-Anleitung öffnen."
                             >
-                                <span className="setup-btn-icon">🔄</span>
-                                <span className="setup-btn-text">Raspberry Pi Wartung</span>
+                                <span className="setup-btn-icon">📨</span>
+                                <span className="setup-btn-content">
+                                    <span className="setup-btn-text">E-Mail-Versand</span>
+                                    <span className="setup-btn-subtitle">Microsoft 365 oder SMTP</span>
+                                </span>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => window.location.assign('/setup?tour=1')}
+                                className="setup-action-btn"
+                                title="Startet die Einführung durch alle wichtigen Seiten erneut."
+                            >
+                                <span className="setup-btn-icon">🧭</span>
+                                <span className="setup-btn-text">Einführung starten</span>
+                            </button>
+
+                            <button
+                                onClick={() => openDialog('operations')}
+                                className="setup-action-btn setup-action-btn-info"
+                                data-tour="operations"
+                            >
+                                <span className="setup-btn-icon">🛡️</span>
+                                <span className="setup-btn-text">Bereitschaft, Backups & Wartung</span>
                             </button>
                         </div>
                     </div>
@@ -449,9 +481,9 @@ export default function Setup() {
                 dialogRef={dialogRefs.moduleSettingsRef}
             />
 
-            <SystemMaintenanceDialog
-                dialogRef={dialogRefs.systemMaintenanceRef}
-            />
+            <SmtpSettingsDialog dialogRef={dialogRefs.smtpSettingsRef} />
+
+            <OperationsDialog dialogRef={dialogRefs.operationsRef} />
         </div>
     );
 }

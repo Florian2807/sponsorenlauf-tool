@@ -1,5 +1,6 @@
 import {
   getStudentById,
+  getPublicStudentById,
   createStudent,
   updateStudent,
   deleteStudent,
@@ -46,7 +47,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'GET') {
-      const student = await getStudentById(id);
+      const student = await getPublicStudentById(id);
       if (!student) {
         return handleNotFound(res, 'Schüler');
       }

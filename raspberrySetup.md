@@ -1,12 +1,5 @@
 # Raspberry Pi Installation
 
-### Raspberry Pi Imager
-- Lade dir den [Raspberry Pi Imager](https://www.raspberrypi.com/software/) runter. 
-- Stecke die Micro-SD Karte in den Computer
-- Wähle den folgenden Download aus: `Raspberry Pi OS Lite (64-bit) A port of Debian Bookworm with no desktop environment`
- - Drücke Weiter und wähle folgende Einstellungen aus:
+Die Raspberry-Pi-Installation verwendet Docker für die Anwendung und NetworkManager für den WLAN-Hotspot. Dadurch sind keine manuellen Einstellungen für Node.js, `hostapd`, `dnsmasq`, `dhcpcd` oder iptables notwendig. Das Installationsscript richtet einmalig einen eingeschränkten Wartungsdienst ein, damit spätere Updates und Neustarts in der Weboberfläche möglich sind.
 
-<img src="https://i.2807.eu/tIEot.png" alt="Allgemein-Einstellungen" width="400"/>
-<img src="https://i.2807.eu/3ZmXM.png" alt="Dienste-Einstellungen" width="400"/>
-
- - Starte nun die Installation
+Die vollständige Schritt-für-Schritt-Anleitung befindet sich im Abschnitt [Raspberry Pi: einfache Installation](./README.md#raspberry-pi-einfache-installation) der README.

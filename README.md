@@ -83,7 +83,7 @@ Eine Portnummer ist nicht erforderlich. Der zuvor verwendete lokale DNS-Name `sp
 
 ### 5. Ersteinrichtung und Administrator-PIN
 
-Beim ersten Öffnen der Weboberfläche startet automatisch die Ersteinrichtung. Zuerst wird einmalig eine Administrator-PIN mit 6 bis 12 Ziffern festgelegt. Danach führt eine interaktive Tour direkt durch die echten Seiten der Anwendung. Der jeweils erklärte Bereich wird hervorgehoben und ein kleines Hinweisfenster lässt sich mit **Zurück** und **Weiter** durchklicken.
+Beim ersten Öffnen der Weboberfläche startet automatisch die Ersteinrichtung. Zuerst wird einmalig eine Administrator-PIN aus Ziffern festgelegt. Danach führt eine interaktive Tour direkt durch die echten Seiten der Anwendung. Der jeweils erklärte Bereich wird hervorgehoben und ein kleines Hinweisfenster lässt sich mit **Zurück** und **Weiter** durchklicken.
 
 Die Tour zeigt Admin-Einstellungen, Klassenstruktur, Module und Doppel-Scan-Schutz, Schülerverwaltung, Scan- und Nachschlageansicht, Statistiken, SMTP-Einrichtung sowie Backups und Veranstaltungsbereitschaft. Sie verändert dabei keine Einstellungen automatisch und kann jederzeit übersprungen werden. Alle gezeigten Einstellungen bleiben später unter **Admin** erreichbar.
 

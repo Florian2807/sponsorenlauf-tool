@@ -65,7 +65,7 @@ export default async function handler(req, res) {
         if (action === 'setup') {
             if (await isAdminConfigured()) return handleError(res, new Error('PIN bereits eingerichtet'), 409);
             if (!validateAdminPin(req.body?.pin) || req.body?.pin !== req.body?.confirmation) {
-                return handleError(res, new Error('PIN muss aus 6 bis 12 Ziffern bestehen und übereinstimmen'), 400);
+                return handleError(res, new Error('PIN muss aus Ziffern bestehen und übereinstimmen'), 400);
             }
             await setAdminPin(req.body.pin);
             await issueSession(res);
@@ -91,7 +91,7 @@ export default async function handler(req, res) {
             if (!await verifyAdminSessionToken(token)) return handleError(res, new Error('Nicht autorisiert'), 401);
             if (!await verifyAdminPin(req.body?.currentPin)) return handleError(res, new Error('Aktuelle PIN ist falsch'), 401);
             if (!validateAdminPin(req.body?.newPin) || req.body?.newPin !== req.body?.confirmation) {
-                return handleError(res, new Error('Neue PIN muss aus 6 bis 12 Ziffern bestehen und übereinstimmen'), 400);
+                return handleError(res, new Error('Neue PIN muss aus Ziffern bestehen und übereinstimmen'), 400);
             }
             await setAdminPin(req.body.newPin, { requireExisting: true });
             await issueSession(res);

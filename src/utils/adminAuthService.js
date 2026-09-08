@@ -17,7 +17,7 @@ const timingSafeEqualHex = (left, right) => {
     }
 };
 
-export const validateAdminPin = (pin) => /^\d{6,12}$/.test(String(pin || ''));
+export const validateAdminPin = (pin) => /^\d+$/.test(String(pin || ''));
 
 const derivePinHash = async (pin, salt) => (
     (await scryptAsync(String(pin), salt, 64)).toString('hex')
@@ -29,7 +29,7 @@ export const isAdminConfigured = async () => Boolean(
 
 export const setAdminPin = async (pin, { requireExisting = false } = {}) => {
     if (!validateAdminPin(pin)) {
-        throw new Error('Die Administrator-PIN muss aus 6 bis 12 Ziffern bestehen.');
+        throw new Error('Die Administrator-PIN darf nur aus Ziffern bestehen.');
     }
 
     const salt = crypto.randomBytes(16).toString('hex');

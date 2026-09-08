@@ -150,10 +150,10 @@ export default function OperationsDialog({ dialogRef }) {
 
                 <div className="system-maintenance-card">
                     <h3>Administrator-PIN ändern</h3>
-                    <input className="input" type="password" inputMode="numeric" placeholder="Aktuelle PIN" value={pinForm.currentPin} onChange={(event) => setPinForm((current) => ({ ...current, currentPin: event.target.value.replace(/\D/g, '').slice(0, 12) }))} />
-                    <input className="input" type="password" inputMode="numeric" placeholder="Neue PIN (6–12 Ziffern)" value={pinForm.newPin} onChange={(event) => setPinForm((current) => ({ ...current, newPin: event.target.value.replace(/\D/g, '').slice(0, 12) }))} />
-                    <input className="input" type="password" inputMode="numeric" placeholder="Neue PIN wiederholen" value={pinForm.confirmation} onChange={(event) => setPinForm((current) => ({ ...current, confirmation: event.target.value.replace(/\D/g, '').slice(0, 12) }))} />
-                    <button className="btn btn-primary" type="button" onClick={changePin} disabled={busy || pinForm.newPin.length < 6 || pinForm.newPin !== pinForm.confirmation}>PIN ändern</button>
+                    <input className="input" type="password" inputMode="numeric" placeholder="Aktuelle PIN" value={pinForm.currentPin} onChange={(event) => setPinForm((current) => ({ ...current, currentPin: event.target.value.replace(/\D/g, '') }))} />
+                    <input className="input" type="password" inputMode="numeric" placeholder="Neue PIN" value={pinForm.newPin} onChange={(event) => setPinForm((current) => ({ ...current, newPin: event.target.value.replace(/\D/g, '') }))} />
+                    <input className="input" type="password" inputMode="numeric" placeholder="Neue PIN wiederholen" value={pinForm.confirmation} onChange={(event) => setPinForm((current) => ({ ...current, confirmation: event.target.value.replace(/\D/g, '') }))} />
+                    <button className="btn btn-primary" type="button" onClick={changePin} disabled={busy || pinForm.newPin.length === 0 || pinForm.newPin !== pinForm.confirmation}>PIN ändern</button>
                 </div>
             </div>
             <MaintenancePanel active={isOpen} />

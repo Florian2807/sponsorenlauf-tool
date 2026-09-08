@@ -48,16 +48,16 @@ export default function AdminLogin() {
                 <h1>{configured ? 'Administrator entsperren' : 'Administrator-PIN einrichten'}</h1>
                 <p>{configured
                     ? 'Die Verwaltung und alle verändernden Funktionen sind geschützt.'
-                    : 'Legen Sie einmalig eine PIN aus 6 bis 12 Ziffern fest.'}</p>
+                    : 'Legen Sie einmalig eine PIN aus Ziffern fest.'}</p>
                 <label htmlFor="admin-pin">Administrator-PIN</label>
                 <input
                     id="admin-pin"
                     type="password"
                     inputMode="numeric"
-                    pattern="[0-9]{6,12}"
+                    pattern="[0-9]+"
                     autoComplete={configured ? 'current-password' : 'new-password'}
                     value={pin}
-                    onChange={(event) => setPin(event.target.value.replace(/\D/g, '').slice(0, 12))}
+                    onChange={(event) => setPin(event.target.value.replace(/\D/g, ''))}
                     className="input"
                     autoFocus
                     required
@@ -69,16 +69,16 @@ export default function AdminLogin() {
                             id="admin-pin-confirmation"
                             type="password"
                             inputMode="numeric"
-                            pattern="[0-9]{6,12}"
+                            pattern="[0-9]+"
                             autoComplete="new-password"
                             value={confirmation}
-                            onChange={(event) => setConfirmation(event.target.value.replace(/\D/g, '').slice(0, 12))}
+                            onChange={(event) => setConfirmation(event.target.value.replace(/\D/g, ''))}
                             className="input"
                             required
                         />
                     </>
                 )}
-                <button className="btn btn-primary" type="submit" disabled={submitting || pin.length < 6 || (!configured && pin !== confirmation)}>
+                <button className="btn btn-primary" type="submit" disabled={submitting || pin.length === 0 || (!configured && pin !== confirmation)}>
                     {submitting ? 'Bitte warten…' : configured ? 'Entsperren' : 'PIN speichern'}
                 </button>
             </form>

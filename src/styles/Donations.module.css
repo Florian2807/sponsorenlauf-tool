@@ -1,12 +1,9 @@
 .pageIntro {
-    display: grid;
-    grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
-    gap: 1.5rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 0.85rem;
 }
 
 .subtitle {
-    margin: 0.75rem 0 0;
+    margin: 0.35rem 0 0;
     color: var(--text-muted);
     line-height: 1.6;
     max-width: 62ch;
@@ -56,18 +53,18 @@
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 1rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 0.85rem;
 }
 
 .statCard {
     border-radius: 16px;
-    padding: 1rem 1.15rem;
+    padding: 0.65rem 0.9rem;
 }
 
 .statCard strong {
     display: block;
-    margin-top: 0.45rem;
-    font-size: 1.4rem;
+    margin-top: 0.2rem;
+    font-size: 1.15rem;
     color: var(--text-color);
 }
 
@@ -79,19 +76,19 @@
 .layoutGrid {
     display: grid;
     grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
-    gap: 1.5rem;
+    gap: 0.85rem;
     align-items: flex-start;
 }
 
 .primaryColumn,
 .sideColumn {
     display: grid;
-    gap: 1.5rem;
+    gap: 0.85rem;
 }
 
 .panel {
     border-radius: 20px;
-    padding: 1.35rem;
+    padding: 1rem;
 }
 
 .modeTabs {
@@ -126,20 +123,90 @@
 }
 
 .panelHint {
-    margin: 1rem 0 0;
+    margin: 0.6rem 0 0;
     color: var(--text-muted);
     line-height: 1.5;
 }
 
 .editorForm {
     display: grid;
+    grid-template-columns: minmax(260px, 1.6fr) minmax(160px, 0.7fr) auto;
+    grid-template-areas:
+        "search amount action"
+        "preview preview preview";
+    align-items: end;
     gap: 1rem;
-    margin-top: 1.25rem;
+    margin-top: 0.8rem;
 }
 
 .formGroup {
     display: grid;
     gap: 0.5rem;
+}
+
+.formGroup .formControl {
+    margin-bottom: 0;
+}
+
+.formGroup .formLabel {
+    margin-bottom: 0;
+}
+
+.searchGroup {
+    position: relative;
+    grid-area: search;
+}
+
+.amountGroup { grid-area: amount; }
+
+.suggestions {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 0.4rem);
+    left: 0;
+    right: 0;
+    max-height: 24rem;
+    overflow-y: auto;
+    padding: 0.4rem;
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    background: var(--card-background);
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.2);
+}
+
+.suggestion {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--text-color);
+    text-align: left;
+    cursor: pointer;
+}
+
+.suggestion span:first-child {
+    display: grid;
+    gap: 0.2rem;
+}
+
+.suggestion small,
+.noSuggestions {
+    color: var(--text-muted);
+}
+
+.suggestion:hover,
+.suggestionActive {
+    background: var(--primary-light);
+}
+
+.noSuggestions {
+    margin: 0;
+    padding: 0.8rem;
 }
 
 .formLabel {
@@ -158,6 +225,7 @@
     color: var(--text-color);
     line-height: 1.4;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    margin-bottom: 0;
 }
 
 .formControl::placeholder {
@@ -176,11 +244,12 @@
     align-items: center;
 }
 
-.amountInput {
-    padding-right: 3.3rem;
+.amountInputWrapper .amountInput {
+    padding-right: 3.75rem;
     text-align: right;
     font-size: 1.15rem;
     font-weight: 600;
+    margin-bottom: 0;
 }
 
 .currencySymbol {
@@ -195,7 +264,8 @@
     pointer-events: none;
 }
 
-.selectionBox {
+.selectionBox,
+.accountPreview {
     display: flex;
     justify-content: space-between;
     gap: 1rem;
@@ -204,6 +274,110 @@
     border-radius: 16px;
     background: var(--background-light);
     border: 1px solid var(--border-color);
+}
+
+.accountPreview {
+    grid-area: preview;
+    display: grid;
+    gap: 0.85rem;
+}
+
+.entryOverview {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    padding-top: 0.7rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.entryGroup {
+    min-width: 0;
+    display: grid;
+    align-content: start;
+    gap: 0.35rem;
+}
+
+.entryHeading {
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.entryRow {
+    display: grid;
+    grid-template-columns: minmax(4.5rem, auto) 1fr auto;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.45rem;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--primary-color) 8%, transparent);
+    font-size: 0.85rem;
+}
+
+.entryRow > span:first-child {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.entryRow > span:nth-child(2),
+.entryEmpty {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+.entryRow button {
+    padding: 0.2rem 0.45rem;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--danger-color);
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.entryRow button:hover {
+    background: color-mix(in srgb, var(--danger-color) 18%, transparent);
+}
+
+.previewHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.previewHeader > div {
+    display: grid;
+    gap: 0.25rem;
+}
+
+.previewHeader > div span {
+    color: var(--text-muted);
+}
+
+.previewAmounts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.previewAmounts span {
+    display: grid;
+    gap: 0.2rem;
+    color: var(--text-muted);
+}
+
+.previewAmounts strong {
+    color: var(--text-color);
+    font-size: 1.15rem;
+}
+
+.overpaymentWarning {
+    grid-column: 1 / -1;
+    padding: 0.8rem 1rem;
+    border-radius: 12px;
+    color: var(--danger-color);
+    background: color-mix(in srgb, var(--danger-color) 14%, transparent);
+    font-weight: 600;
 }
 
 .selectionMeta,
@@ -225,6 +399,7 @@
 }
 
 .secondaryAction {
+    grid-column: 1 / -1;
     justify-self: start;
     padding: 0.8rem 1rem;
     border-radius: 12px;
@@ -238,6 +413,7 @@
 }
 
 .formActions {
+    grid-area: action;
     display: flex;
     justify-content: flex-end;
 }
@@ -388,8 +564,11 @@
 }
 
 .studentQueue {
-    max-height: 920px;
+    max-height: calc(100vh - 25rem);
+    min-height: 0;
     overflow: auto;
+    align-content: start;
+    grid-auto-rows: max-content;
 }
 
 .queueItem {
@@ -444,6 +623,27 @@
     color: var(--success-color);
 }
 
+.statusdanger {
+    background: color-mix(in srgb, var(--danger-color) 16%, transparent);
+    color: var(--danger-color);
+}
+
+.classFilter {
+    min-height: 2.5rem;
+    width: auto;
+    min-width: 10.5rem;
+    max-width: 12rem;
+    margin: 0;
+    padding: 0.55rem 2.25rem 0.55rem 0.8rem;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background-color: var(--background-light);
+    background-repeat: no-repeat !important;
+    background-position: right 0.7rem center !important;
+    background-size: 0.85rem !important;
+    color: var(--text-color);
+}
+
 @media (max-width: 1100px) {
     .pageIntro,
     .layoutGrid {
@@ -471,6 +671,16 @@
         align-items: stretch;
     }
 
+    .editorForm,
+    .previewAmounts,
+    .entryOverview {
+        grid-template-columns: 1fr;
+    }
+
+    .editorForm {
+        grid-template-areas: "search" "amount" "preview" "action";
+    }
+
     .formActions {
         justify-content: stretch;
     }
@@ -478,4 +688,5 @@
     .primaryAction {
         width: 100%;
     }
+
 }

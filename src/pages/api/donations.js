@@ -1,5 +1,6 @@
 import {
     getStudentForDonation,
+    getStudentDonationDetails,
     setExpectedDonation,
     addReceivedDonation,
     deleteDonation
@@ -16,6 +17,9 @@ import { validateAmount, parseAmount } from '../../utils/validation.js';
 export default async function handler(req, res) {
     try {
         switch (req.method) {
+            case 'GET':
+                return await handleGetDonationDetails(res, req.query);
+
             case 'POST':
                 return await handleAddDonation(res, req.body);
 
@@ -23,11 +27,22 @@ export default async function handler(req, res) {
                 return await handleDeleteDonation(res, req.body);
 
             default:
-                return handleMethodNotAllowed(res, ['POST', 'DELETE']);
+                return handleMethodNotAllowed(res, ['GET', 'POST', 'DELETE']);
         }
     } catch (error) {
         return handleError(res, error, 500, 'Fehler bei der Spenden-Verarbeitung');
     }
+}
+
+async function handleGetDonationDetails(res, query) {
+    const studentId = Number(Array.isArray(query.studentId) ? query.studentId[0] : query.studentId);
+    if (!Number.isInteger(studentId) || studentId <= 0) {
+        return handleValidationError(res, ['Ungültige Schüler-ID']);
+    }
+
+    const details = await getStudentDonationDetails(studentId);
+    if (!details) return handleError(res, new Error('Schüler nicht gefunden'), 404);
+    return handleSuccess(res, details);
 }
 
 async function handleAddDonation(res, body) {

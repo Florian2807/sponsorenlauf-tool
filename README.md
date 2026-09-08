@@ -63,10 +63,12 @@ bash scripts/install-raspberry.sh
 Das Script erledigt automatisch:
 
 1. Docker, Docker Compose, NetworkManager und Avahi installieren
-2. den WLAN-Hotspot `Sponsorenlauf Backend` einrichten
-3. das fertige ARM64-Docker-Image herunterladen
-4. Anwendung und persistentes Daten-Volume starten
+2. das fertige ARM64-Docker-Image herunterladen oder bei Bedarf lokal bauen
+3. Anwendung, Wartungsdienst und persistentes Daten-Volume einrichten
+4. erst danach den WLAN-Hotspot `Sponsorenlauf Backend` aktivieren
 5. Erreichbarkeit der Anwendung prüfen
+
+Alle Schritte, die eine Internetverbindung benötigen, laufen vor der Aktivierung des Hotspots. Dadurch kann eine vom Hotspot veränderte Standardroute den Download des Containers nicht unterbrechen.
 
 Das Script ist wiederholbar und kann bei Bedarf erneut ausgeführt werden.
 

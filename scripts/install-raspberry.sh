@@ -155,8 +155,11 @@ main() {
   check_platform
   install_packages
   require_command nmcli
-  configure_hotspot
+  # Finish every step that may require internet access before activating the
+  # hotspot. On some Raspberry Pi setups NetworkManager changes the preferred
+  # route when the access point comes up, even while Ethernet is connected.
   install_application
+  configure_hotspot
   verify_installation
 }
 

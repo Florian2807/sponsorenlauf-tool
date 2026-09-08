@@ -1,18 +1,24 @@
 name: Publish Docker image
 
 on:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
-    tags: ['v*']
+    tags: ["v*"]
   workflow_dispatch:
 
-permissions:
-  contents: read
-  packages: write
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -27,7 +33,11 @@ jobs:
 
   publish:
     needs: test
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Check out repository
         uses: actions/checkout@v4

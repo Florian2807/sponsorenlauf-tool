@@ -132,6 +132,29 @@ install_application() {
   run_root systemctl enable --now sponsorenlauf-maintenance.service
 }
 
+confirm_hotspot_activation() {
+  if [ "${SPONSORENLAUF_CONFIRM_HOTSPOT_SWITCH:-}" = 'WEITER' ]; then
+    log 'WLAN-Umschaltung wurde über SPONSORENLAUF_CONFIRM_HOTSPOT_SWITCH bestätigt.'
+    return
+  fi
+
+  [ -t 0 ] || fail 'WLAN-Umschaltung benötigt eine Bestätigung. Interaktiv starten oder SPONSORENLAUF_CONFIRM_HOTSPOT_SWITCH=WEITER setzen.'
+
+  printf '\n'
+  printf 'Die Anwendung und alle benötigten Komponenten sind installiert.\n'
+  printf 'Als Nächstes wird dieser WLAN-Hotspot aktiviert:\n'
+  printf '  WLAN-Name:     %s\n' "$AP_SSID"
+  printf '  WLAN-Passwort: %s\n' "$AP_PASSPHRASE"
+  printf 'Eine über WLAN aufgebaute SSH-Verbindung kann dabei abbrechen.\n'
+  printf 'Geben Sie WEITER ein, um den WLAN-Hotspot jetzt zu aktivieren: '
+
+  local confirmation
+  IFS= read -r confirmation \
+    || fail 'Bestätigung konnte nicht gelesen werden. Der WLAN-Hotspot wurde nicht verändert.'
+  [ "$confirmation" = 'WEITER' ] \
+    || fail 'Installation vor der WLAN-Umschaltung beendet. Starten Sie das Script zum Fortfahren erneut.'
+}
+
 verify_installation() {
   log 'Prüfe Installation'
   local attempt
@@ -159,6 +182,7 @@ main() {
   # hotspot. On some Raspberry Pi setups NetworkManager changes the preferred
   # route when the access point comes up, even while Ethernet is connected.
   install_application
+  confirm_hotspot_activation
   configure_hotspot
   verify_installation
 }

@@ -72,7 +72,7 @@ Alle Schritte, die eine Internetverbindung benötigen, laufen vor der Aktivierun
 
 Das Script ist wiederholbar und kann bei Bedarf erneut ausgeführt werden.
 
-Falls das veröffentlichte Image noch nicht verfügbar ist, baut der Installer es einmalig innerhalb von Docker auf dem Raspberry Pi. Dafür ist keine lokale Node.js-Installation notwendig; der Vorgang dauert lediglich länger.
+Falls das veröffentlichte Image noch nicht verfügbar ist, baut der Installer es einmalig innerhalb von Docker auf dem Raspberry Pi. Dafür ist keine lokale Node.js-Installation notwendig. Der erste lokale Build kann auf einem Raspberry Pi bis zu 15 Minuten dauern und während der Kompilierung nativer Abhängigkeiten zeitweise so wirken, als gäbe es keinen Fortschritt.
 
 ### 4. Anwendung öffnen
 

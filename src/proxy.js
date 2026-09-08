@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { ADMIN_COOKIE_NAME, verifyAdminSessionToken } from './utils/adminAuthService.js';
+import { hasSafeRequestOrigin } from './utils/requestSecurity.js';
 
 const ADMIN_PAGES = ['/setup', '/manage', '/teachers', '/mails', '/donations'];
 const PUBLIC_API_READS = new Set([
@@ -19,18 +20,6 @@ const isPublicApiRequest = (pathname, method) => {
     return method === 'GET' && PUBLIC_API_READS.has(pathname);
 };
 
-const hasSafeOrigin = (request) => {
-    if (['GET', 'HEAD', 'OPTIONS'].includes(request.method)) return true;
-    if (request.headers.get('sec-fetch-site') === 'cross-site') return false;
-    const origin = request.headers.get('origin');
-    if (!origin) return true;
-    try {
-        return new URL(origin).host === request.nextUrl.host;
-    } catch {
-        return false;
-    }
-};
-
 export async function proxy(request) {
     const { pathname } = request.nextUrl;
     const isAdminPage = ADMIN_PAGES.some((page) => pathname === page || pathname.startsWith(`${page}/`));
@@ -48,7 +37,11 @@ export async function proxy(request) {
         return NextResponse.redirect(loginUrl);
     }
 
-    if (!hasSafeOrigin(request)) {
+    if (!hasSafeRequestOrigin({
+        method: request.method,
+        headers: request.headers,
+        urlHost: request.nextUrl.host,
+    })) {
         return NextResponse.json({ success: false, message: 'Unsichere Anfrage blockiert' }, { status: 403 });
     }
 

@@ -14,6 +14,7 @@ import {
     verifyAdminSessionToken,
 } from '../../utils/adminAuthService.js';
 import { handleError, handleMethodNotAllowed, handleSuccess } from '../../utils/apiHelpers.js';
+import { hasSafeRequestOrigin } from '../../utils/requestSecurity.js';
 
 const getClientKey = (req) => String(
     (process.env.SPONSORENLAUF_TRUST_PROXY === 'true'
@@ -22,17 +23,6 @@ const getClientKey = (req) => String(
     || req.socket?.remoteAddress
     || 'local'
 ).slice(0, 100);
-
-const hasSafeOrigin = (req) => {
-    if (req.headers['sec-fetch-site'] === 'cross-site') return false;
-    const origin = req.headers.origin;
-    if (!origin) return true;
-    try {
-        return new URL(origin).host === req.headers.host;
-    } catch {
-        return false;
-    }
-};
 
 const issueSession = async (res) => {
     const session = await createAdminSession();
@@ -53,7 +43,9 @@ export default async function handler(req, res) {
         }
 
         if (req.method !== 'POST') return handleMethodNotAllowed(res, ['GET', 'POST']);
-        if (!hasSafeOrigin(req)) return handleError(res, new Error('Unsichere Anfrage blockiert'), 403);
+        if (!hasSafeRequestOrigin({ method: req.method, headers: req.headers })) {
+            return handleError(res, new Error('Unsichere Anfrage blockiert'), 403);
+        }
 
         const action = req.body?.action;
         if (action === 'logout') {

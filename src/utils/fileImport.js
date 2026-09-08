@@ -47,4 +47,3 @@ export const parseCsv = (text) => {
     if (row.some(Boolean)) rows.push(row);
     return rows;
 };
-

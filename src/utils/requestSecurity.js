@@ -30,4 +30,3 @@ export const hasSafeRequestOrigin = ({ method, headers, urlHost = null }) => {
         return false;
     }
 };
-

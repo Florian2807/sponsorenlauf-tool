@@ -24,6 +24,35 @@ const getProgressPath = () => path.join(getMaintenanceDirectory(), 'progress.log
 const getRawLogPath = () => path.join(getMaintenanceDirectory(), 'update.log');
 const getLockPath = () => path.join(getMaintenanceDirectory(), 'operation.lock');
 
+const hasPendingRequest = async (directory) => (
+    (await fs.readdir(directory)).some((name) => name.endsWith('.request'))
+);
+
+const removeCompletedLegacyLock = async (directory) => {
+    try {
+        await fs.access(getLockPath());
+    } catch (error) {
+        if (error.code === 'ENOENT') return;
+        throw error;
+    }
+
+    // Agents installed before operation.lock was introduced consume the request
+    // but do not remove its lock. Only reclaim it after their terminal status has
+    // been written; a queued/running operation must retain exclusive ownership.
+    if (await hasPendingRequest(directory)) return;
+    const status = await getMaintenanceStatus();
+    if (['queued', 'running'].includes(status.state)) return;
+    const claimedPath = path.join(directory, `.completed-lock-${randomUUID()}`);
+    try {
+        // Rename is atomic: concurrent callers cannot both reclaim the same
+        // legacy lock and accidentally remove the winner's newly-created lock.
+        await fs.rename(getLockPath(), claimedPath);
+        await fs.rm(claimedPath, { force: true });
+    } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+    }
+};
+
 const readLogTail = async (filePath, maxCharacters) => {
     try {
         const content = await fs.readFile(filePath, 'utf8');
@@ -88,6 +117,7 @@ export const queueMaintenanceAction = async (action) => {
 
     const directory = getMaintenanceDirectory();
     await fs.mkdir(directory, { recursive: true });
+    await removeCompletedLegacyLock(directory);
     const requestId = randomUUID();
     let lock;
     try {

@@ -22,6 +22,7 @@ export const isMaintenanceAvailable = () => (
 const getStatusPath = () => path.join(getMaintenanceDirectory(), 'status.json');
 const getProgressPath = () => path.join(getMaintenanceDirectory(), 'progress.log');
 const getRawLogPath = () => path.join(getMaintenanceDirectory(), 'update.log');
+const getLockPath = () => path.join(getMaintenanceDirectory(), 'operation.lock');
 
 const readLogTail = async (filePath, maxCharacters) => {
     try {
@@ -85,15 +86,23 @@ export const queueMaintenanceAction = async (action) => {
         throw error;
     }
 
-    const current = await getMaintenanceStatus();
-    if (['queued', 'running'].includes(current.state)) {
-        const error = new Error('Es läuft bereits eine Systemaktion');
-        error.code = 'ACTION_IN_PROGRESS';
-        throw error;
+    const directory = getMaintenanceDirectory();
+    await fs.mkdir(directory, { recursive: true });
+    const requestId = randomUUID();
+    let lock;
+    try {
+        lock = await fs.open(getLockPath(), 'wx', 0o660);
+        await lock.writeFile(`${requestId}\n`);
+        await lock.close();
+        lock = null;
+    } catch (error) {
+        await lock?.close();
+        if (error.code !== 'EEXIST') throw error;
+        const actionError = new Error('Es läuft bereits eine Systemaktion');
+        actionError.code = 'ACTION_IN_PROGRESS';
+        throw actionError;
     }
 
-    const directory = getMaintenanceDirectory();
-    const requestId = randomUUID();
     const requestPath = path.join(directory, `${requestId}.request`);
     const temporaryPath = `${requestPath}.tmp`;
     const queuedStatus = {
@@ -104,14 +113,18 @@ export const queueMaintenanceAction = async (action) => {
         updatedAt: new Date().toISOString(),
     };
 
-    await fs.mkdir(directory, { recursive: true });
-    const startedAt = new Date().toISOString();
-    await Promise.all([
-        fs.writeFile(getProgressPath(), `${startedAt} ${action === 'update' ? 'Update' : 'Neustart'} wurde angefordert.\n`, { mode: 0o660 }),
-        fs.writeFile(getRawLogPath(), `=== ${startedAt} ${action.toUpperCase()} ===\n`, { mode: 0o660 }),
-    ]);
-    await writeStatus(queuedStatus);
-    await fs.writeFile(temporaryPath, `${action}\n`, { mode: 0o660 });
-    await fs.rename(temporaryPath, requestPath);
-    return { ...queuedStatus, available: true, environment: 'production' };
+    try {
+        const startedAt = new Date().toISOString();
+        await Promise.all([
+            fs.writeFile(getProgressPath(), `${startedAt} ${action === 'update' ? 'Update' : 'Neustart'} wurde angefordert.\n`, { mode: 0o660 }),
+            fs.writeFile(getRawLogPath(), `=== ${startedAt} ${action.toUpperCase()} ===\n`, { mode: 0o660 }),
+        ]);
+        await writeStatus(queuedStatus);
+        await fs.writeFile(temporaryPath, `${action}\n`, { mode: 0o660 });
+        await fs.rename(temporaryPath, requestPath);
+        return { ...queuedStatus, available: true, environment: 'production' };
+    } catch (error) {
+        await Promise.allSettled([fs.rm(temporaryPath, { force: true }), fs.rm(getLockPath(), { force: true })]);
+        throw error;
+    }
 };

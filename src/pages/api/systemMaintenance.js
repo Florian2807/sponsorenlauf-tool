@@ -1,15 +1,16 @@
 import { handleError, handleMethodNotAllowed, handleSuccess } from '../../utils/apiHelpers.js';
 import { getSystemConnectivity } from '../../utils/systemMaintenance.js';
-import { getMaintenanceStatus, queueMaintenanceAction } from '../../utils/maintenanceService.js';
+import { getMaintenanceLogs, getMaintenanceStatus, queueMaintenanceAction } from '../../utils/maintenanceService.js';
 
 export default async function handler(req, res) {
     try {
         if (req.method === 'GET') {
-            const [status, connectivity] = await Promise.all([
+            const [status, connectivity, logs] = await Promise.all([
                 getMaintenanceStatus(),
                 getSystemConnectivity(),
+                getMaintenanceLogs(),
             ]);
-            return handleSuccess(res, { ...status, connectivity }, 'Systemstatus geladen');
+            return handleSuccess(res, { ...status, connectivity, logs }, 'Systemstatus geladen');
         }
         if (req.method !== 'POST') return handleMethodNotAllowed(res, ['GET', 'POST']);
 
@@ -20,11 +21,23 @@ export default async function handler(req, res) {
             return handleError(res, new Error(`Zur Bestätigung muss exakt „${expectedConfirmation}“ eingegeben werden`), 400);
         }
 
+        if (action === 'update') {
+            const connectivity = await getSystemConnectivity();
+            if (!connectivity.internetConnected) {
+                const error = new Error('Update nicht möglich: Es wurde keine Internetverbindung erkannt');
+                error.code = 'NO_INTERNET';
+                throw error;
+            }
+        }
+
         const status = await queueMaintenanceAction(action);
         return handleSuccess(res, status, 'Systemaktion wurde sicher eingeplant', 202);
     } catch (error) {
-        const statusCode = ['ACTION_IN_PROGRESS', 'MAINTENANCE_UNAVAILABLE'].includes(error.code) ? 409 : 500;
-        const message = statusCode === 409 ? null : 'Systemaktion konnte nicht eingeplant werden';
-        return handleError(res, error, statusCode, message);
+        const statusCodes = { ACTION_IN_PROGRESS: 409, MAINTENANCE_UNAVAILABLE: 503, NO_INTERNET: 503, EACCES: 503, EPERM: 503, ENOSPC: 507 };
+        const statusCode = statusCodes[error.code] || 500;
+        const genericMessage = req.method === 'GET'
+            ? 'Systemstatus konnte nicht geladen werden'
+            : 'Systemaktion konnte nicht eingeplant werden';
+        return handleError(res, error, statusCode, statusCode === 500 ? genericMessage : null);
     }
 }

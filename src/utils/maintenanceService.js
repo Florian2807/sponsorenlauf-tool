@@ -20,6 +20,30 @@ export const isMaintenanceAvailable = () => (
 );
 
 const getStatusPath = () => path.join(getMaintenanceDirectory(), 'status.json');
+const getProgressPath = () => path.join(getMaintenanceDirectory(), 'progress.log');
+const getRawLogPath = () => path.join(getMaintenanceDirectory(), 'update.log');
+
+const readLogTail = async (filePath, maxCharacters) => {
+    try {
+        const content = await fs.readFile(filePath, 'utf8');
+        return content.slice(-maxCharacters);
+    } catch (error) {
+        if (error.code === 'ENOENT') return '';
+        throw error;
+    }
+};
+
+export const getMaintenanceLogs = async () => {
+    if (!isMaintenanceAvailable()) return { progress: [], details: '' };
+    const [progress, details] = await Promise.all([
+        readLogTail(getProgressPath(), 16000),
+        readLogTail(getRawLogPath(), 64000),
+    ]);
+    return {
+        progress: progress.split('\n').filter(Boolean).slice(-100),
+        details,
+    };
+};
 
 const writeStatus = async (status) => {
     const directory = getMaintenanceDirectory();
@@ -40,7 +64,13 @@ export const getMaintenanceStatus = async () => {
     }
     try {
         const status = JSON.parse(await fs.readFile(getStatusPath(), 'utf8'));
-        return { ...DEFAULT_STATUS, ...status, available: true, environment: 'production' };
+        const normalized = { ...DEFAULT_STATUS, ...status, available: true, environment: 'production' };
+        const validStates = ['idle', 'queued', 'running', 'succeeded', 'failed', 'rolled_back'];
+        if (!validStates.includes(normalized.state)) throw new Error('Die Wartungsdatei enthält einen ungültigen Status');
+        if (normalized.state === 'queued' && normalized.updatedAt && Date.now() - Date.parse(normalized.updatedAt) > 30000) {
+            return { ...normalized, state: 'failed', message: 'Die Wartungsanfrage wurde vom Wartungsdienst nicht übernommen. Bitte Dienststatus prüfen.' };
+        }
+        return normalized;
     } catch (error) {
         if (error.code !== 'ENOENT') throw error;
         return { ...DEFAULT_STATUS, available: true, environment: 'production' };
@@ -75,6 +105,11 @@ export const queueMaintenanceAction = async (action) => {
     };
 
     await fs.mkdir(directory, { recursive: true });
+    const startedAt = new Date().toISOString();
+    await Promise.all([
+        fs.writeFile(getProgressPath(), `${startedAt} ${action === 'update' ? 'Update' : 'Neustart'} wurde angefordert.\n`, { mode: 0o660 }),
+        fs.writeFile(getRawLogPath(), `=== ${startedAt} ${action.toUpperCase()} ===\n`, { mode: 0o660 }),
+    ]);
     await writeStatus(queuedStatus);
     await fs.writeFile(temporaryPath, `${action}\n`, { mode: 0o660 });
     await fs.rename(temporaryPath, requestPath);

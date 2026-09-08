@@ -6,6 +6,18 @@ MAINTENANCE_DIR="${SPONSORENLAUF_MAINTENANCE_DIRECTORY:-/var/lib/sponsorenlauf/m
 MAINTENANCE_GROUP="${SPONSORENLAUF_MAINTENANCE_GROUP:-1000}"
 PRODUCTION_ENV_FILE="${SPONSORENLAUF_PRODUCTION_ENV:-$REPO_DIR/deployment/production.env}"
 STATUS_FILE="$MAINTENANCE_DIR/status.json"
+PROGRESS_FILE="$MAINTENANCE_DIR/progress.log"
+RAW_LOG_FILE="$MAINTENANCE_DIR/update.log"
+
+append_progress() {
+  printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$1" >> "$PROGRESS_FILE"
+}
+
+run_logged() {
+  printf '\n$ %s\n' "$1" >> "$RAW_LOG_FILE"
+  shift
+  "$@" >> "$RAW_LOG_FILE" 2>&1
+}
 
 docker_compose() {
   if docker compose version >/dev/null 2>&1; then
@@ -23,6 +35,7 @@ write_status() {
   chown root:"$MAINTENANCE_GROUP" "$temporary"
   chmod 0660 "$temporary"
   mv -f "$temporary" "$STATUS_FILE"
+  append_progress "$message"
 }
 
 wait_for_healthy_app() {
@@ -48,7 +61,7 @@ run_update() {
   container="$(docker_compose ps -q app)"
   [ -n "$container" ] || { write_status failed update 'Produktionscontainer wurde nicht gefunden.' "$request_id"; return 1; }
   previous_image="$(docker inspect --format '{{.Image}}' "$container")"
-  backup_filename="$(docker_compose exec -T app node -e "import('./src/utils/backupService.js').then(({createDatabaseBackup}) => createDatabaseBackup({reason:'before-web-update'})).then(({filename}) => console.log(filename))" | tail -n 1 | tr -d '\r')" \
+  backup_filename="$(docker_compose exec -T app node -e "import('./src/utils/backupService.js').then(({createDatabaseBackup}) => createDatabaseBackup({reason:'before-web-update'})).then(({filename}) => console.log(filename))" 2>> "$RAW_LOG_FILE" | tee -a "$RAW_LOG_FILE" | tail -n 1 | tr -d '\r')" \
     || { write_status failed update 'Sicherheitsbackup konnte nicht erstellt werden.' "$request_id"; return 1; }
 
   write_status running update 'Lade Installationsdateien und Produktions-Image.' "$request_id"
@@ -58,28 +71,28 @@ run_update() {
     || { write_status failed update 'Update abgebrochen: Die Produktionsinstallation enthält lokale Änderungen.' "$request_id"; return 1; }
   previous_commit="$(sudo -u "$repo_owner" git -C "$REPO_DIR" rev-parse HEAD)" \
     || { write_status failed update 'Installierte Git-Version konnte nicht ermittelt werden.' "$request_id"; return 1; }
-  sudo -u "$repo_owner" git -C "$REPO_DIR" pull --ff-only \
+  run_logged 'git pull --ff-only' sudo -u "$repo_owner" git -C "$REPO_DIR" pull --ff-only \
     || { write_status failed update 'Repository konnte nicht sicher aktualisiert werden.' "$request_id"; return 1; }
-  docker_compose pull app \
+  run_logged 'docker compose pull app' docker_compose pull app \
     || {
-      sudo -u "$repo_owner" git -C "$REPO_DIR" reset --hard "$previous_commit" || true
+      run_logged 'git reset --hard (Update zurücknehmen)' sudo -u "$repo_owner" git -C "$REPO_DIR" reset --hard "$previous_commit" || true
       write_status failed update 'Produktions-Image konnte nicht geladen werden; Installationsdateien wurden zurückgesetzt.' "$request_id"
       return 1
     }
 
   write_status running update 'Starte und prüfe die neue Version.' "$request_id"
-  if docker_compose up -d --remove-orphans && wait_for_healthy_app; then
+  if run_logged 'docker compose up -d --remove-orphans' docker_compose up -d --remove-orphans && wait_for_healthy_app; then
     write_status succeeded update 'Update erfolgreich installiert.' "$request_id"
     return 0
   fi
 
   write_status running update 'Neue Version ist fehlerhaft; vorheriger Stand wird wiederhergestellt.' "$request_id"
-  sudo -u "$repo_owner" git -C "$REPO_DIR" reset --hard "$previous_commit" || true
+  run_logged 'git reset --hard (Rollback)' sudo -u "$repo_owner" git -C "$REPO_DIR" reset --hard "$previous_commit" || true
   image_tag="$(production_image_tag)"
-  docker tag "$previous_image" "ghcr.io/florian2807/sponsorenlauf-tool:${image_tag:-latest}" || true
-  docker_compose up -d --force-recreate --remove-orphans || true
+  run_logged 'docker tag (vorheriges Image)' docker tag "$previous_image" "ghcr.io/florian2807/sponsorenlauf-tool:${image_tag:-latest}" || true
+  run_logged 'docker compose up -d --force-recreate --remove-orphans (Rollback)' docker_compose up -d --force-recreate --remove-orphans || true
   if wait_for_healthy_app; then
-    docker_compose exec -T app node -e "import('./src/utils/backupService.js').then(({restoreDatabaseBackup}) => restoreDatabaseBackup('/data/backups/${backup_filename}'))" || true
+    run_logged 'Datenbank-Backup wiederherstellen' docker_compose exec -T app node -e "import('./src/utils/backupService.js').then(({restoreDatabaseBackup}) => restoreDatabaseBackup('/data/backups/${backup_filename}'))" || true
     write_status rolled_back update 'Update fehlgeschlagen; vorherige Version und Datenbank wurden wiederhergestellt.' "$request_id"
   else
     write_status failed update 'Update und automatische Wiederherstellung sind fehlgeschlagen. Terminal-Notfallhilfe erforderlich.' "$request_id"
@@ -90,7 +103,7 @@ run_update() {
 run_restart() {
   local request_id="$1"
   write_status running restart 'Anwendung wird neu gestartet.' "$request_id"
-  if docker_compose restart app && wait_for_healthy_app; then
+  if run_logged 'docker compose restart app' docker_compose restart app && wait_for_healthy_app; then
     write_status succeeded restart 'Anwendung wurde erfolgreich neu gestartet.' "$request_id"
     return 0
   fi

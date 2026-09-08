@@ -61,7 +61,6 @@ export default function Topbar() {
     <header className={styles.topbar}>
       <Link href="/scan" className={styles.brand} aria-label="Zur Scan-Ansicht wechseln">
         <img src="/logo.png" alt="Sponsorenlauf Tool" className={styles.logo} />
-        <span className={styles.brandText}>Sponsorenlauf Tool</span>
       </Link>
 
       <nav className={styles.navContainer} aria-label="Hauptnavigation">

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useCallback, useRef } from 'react';
 
 /**
  * Custom Hook für Dialog-Referenzen Management
@@ -17,24 +17,24 @@ export const useDialogs = (dialogNames) => {
     const refs = refsStore.current;
 
     // Helper-Funktionen für häufige Dialog-Operationen
-    const openDialog = (name) => {
+    const openDialog = useCallback((name) => {
         const ref = refs[`${name}Ref`];
         if (ref?.current) {
             ref.current.showModal();
         }
-    };
+    }, [refs]);
 
-    const closeDialog = (name) => {
+    const closeDialog = useCallback((name) => {
         const ref = refs[`${name}Ref`];
         if (ref?.current) {
             ref.current.close();
         }
-    };
+    }, [refs]);
 
-    const isDialogOpen = (name) => {
+    const isDialogOpen = useCallback((name) => {
         const ref = refs[`${name}Ref`];
         return ref?.current?.open || false;
-    };
+    }, [refs]);
 
     return {
         refs,

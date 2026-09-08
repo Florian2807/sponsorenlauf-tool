@@ -1,707 +1,315 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Workbook } from 'exceljs';
 import BaseDialog from '../../BaseDialog';
 import { useApi } from '../../../hooks/useApi';
 import { useGlobalError } from '../../../contexts/ErrorContext';
-import { Workbook } from 'exceljs';
+import { parseCsv } from '../../../utils/fileImport';
+import { IMPORT_FIELDS, mapImportedRows, stripImportMetadata, suggestColumnMappings, validateMappedRows } from '../../../utils/importHelpers';
+
+const EMPTY_ROWS = {
+    students: { vorname: '', nachname: '', geschlecht: '', klasse: '' },
+    teachers: { vorname: '', nachname: '', klasse: '', email: '' },
+};
 
 const CombinedImportDialog = ({ dialogRef, onImportSuccess, onClose }) => {
-    const [importType, setImportType] = useState(''); // 'students', 'teachers', or ''
+    const [importType, setImportType] = useState('');
     const [importMethod, setImportMethod] = useState('manual');
-    
-    // Student data
-    const [studentManualData, setStudentManualData] = useState([
-        { vorname: '', nachname: '', geschlecht: '', klasse: '' }
-    ]);
-    const [studentExcelData, setStudentExcelData] = useState([]);
-    
-    // Teacher data
-    const [teacherManualData, setTeacherManualData] = useState([
-        { vorname: '', nachname: '', klasse: '', email: '' }
-    ]);
-    const [teacherExcelData, setTeacherExcelData] = useState([]);
-    
-    const [excelFile, setExcelFile] = useState(null);
-    const [showExcelPreview, setShowExcelPreview] = useState(false);
+    const [manualData, setManualData] = useState({ students: [{ ...EMPTY_ROWS.students }], teachers: [{ ...EMPTY_ROWS.teachers }] });
+    const [fileStage, setFileStage] = useState('upload');
+    const [fileName, setFileName] = useState('');
+    const [sourceHeaders, setSourceHeaders] = useState([]);
+    const [sourceRows, setSourceRows] = useState([]);
+    const [mappings, setMappings] = useState([]);
+    const [defaultClass, setDefaultClass] = useState('');
+    const [mappedRows, setMappedRows] = useState([]);
     const [availableClasses, setAvailableClasses] = useState([]);
+    const [existingStudentIds, setExistingStudentIds] = useState([]);
     const [isImporting, setIsImporting] = useState(false);
     const fileInputRef = useRef(null);
     const { request } = useApi();
     const { showError, showSuccess } = useGlobalError();
 
-    const getCurrentData = () => {
-        if (importType === 'students') {
-            return importMethod === 'manual' ? studentManualData : studentExcelData;
-        } else {
-            return importMethod === 'manual' ? teacherManualData : teacherExcelData;
-        }
-    };
-
-    const setCurrentData = (data) => {
-        if (importType === 'students') {
-            if (importMethod === 'manual') {
-                setStudentManualData(data);
-            } else {
-                setStudentExcelData(data);
-            }
-        } else {
-            if (importMethod === 'manual') {
-                setTeacherManualData(data);
-            } else {
-                setTeacherExcelData(data);
-            }
-        }
-    };
-
-    const getEmptyRow = () => {
-        if (importType === 'students') {
-            return { vorname: '', nachname: '', geschlecht: '', klasse: '' };
-        } else {
-            return { vorname: '', nachname: '', klasse: '', email: '' };
-        }
-    };
-
-    const addManualRow = () => {
-        const currentData = getCurrentData();
-        const newRow = getEmptyRow();
-        setCurrentData([...currentData, newRow]);
-    };
-
-    const removeManualRow = (index) => {
-        const currentData = getCurrentData();
-        if (currentData.length > 1) {
-            setCurrentData(currentData.filter((_, i) => i !== index));
-        }
-    };
-
-    const updateRow = (index, field, value) => {
-        const currentData = getCurrentData();
-        const updatedData = [...currentData];
-        updatedData[index][field] = value;
-        setCurrentData(updatedData);
-    };
-
-    const addExcelRow = () => {
-        const currentData = getCurrentData();
-        const newRow = getEmptyRow();
-        setCurrentData([...currentData, newRow]);
-    };
-
-    const removeExcelRow = (index) => {
-        const currentData = getCurrentData();
-        if (currentData.length > 1) {
-            setCurrentData(currentData.filter((_, i) => i !== index));
-        }
-    };
-
-    // Load available classes
     useEffect(() => {
-        const fetchAvailableClasses = async () => {
-            try {
-                const classes = await request('/api/getAvailableClasses');
-                setAvailableClasses(classes);
-            } catch (error) {
-                console.warn('Konnte verfügbare Klassen nicht laden:', error);
-                setAvailableClasses([]);
-            }
-        };
-        fetchAvailableClasses();
+        request('/api/getAvailableClasses')
+            .then((classes) => setAvailableClasses(Array.isArray(classes) ? classes : []))
+            .catch(() => setAvailableClasses([]));
+        request('/api/getAllStudents', { showErrorMessage: false })
+            .then((students) => setExistingStudentIds(Array.isArray(students) ? students.map((student) => student.id) : []))
+            .catch(() => setExistingStudentIds([]));
     }, [request]);
 
-    // Parse Excel file
-    const parseExcelFile = async (file) => {
+    const fields = useMemo(() => IMPORT_FIELDS[importType] || [], [importType]);
+    const validatedRows = useMemo(() => validateMappedRows({ rows: mappedRows, importType, availableClasses, existingStudentIds }), [mappedRows, importType, availableClasses, existingStudentIds]);
+    const errorCount = validatedRows.filter((row) => row._errors.length > 0).length;
+    const warningCount = validatedRows.filter((row) => row._warnings.length > 0).length;
+    const validCount = validatedRows.length - errorCount;
+    const mappingErrors = useMemo(() => {
+        const errors = [];
+        fields.filter((field) => field.required).forEach((field) => {
+            if (!mappings.includes(field.key) && !(field.key === 'klasse' && defaultClass)) errors.push(`${field.label} muss zugeordnet werden`);
+        });
+        fields.forEach((field) => {
+            if (mappings.filter((mapping) => mapping === field.key).length > 1) errors.push(`${field.label} wurde mehrfach zugeordnet`);
+        });
+        return errors;
+    }, [defaultClass, fields, mappings]);
+
+    const resetFile = () => {
+        setFileStage('upload'); setFileName(''); setSourceHeaders([]); setSourceRows([]); setMappings([]); setDefaultClass(''); setMappedRows([]);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+    const resetForm = () => {
+        setImportType(''); setImportMethod('manual');
+        setManualData({ students: [{ ...EMPTY_ROWS.students }], teachers: [{ ...EMPTY_ROWS.teachers }] });
+        resetFile();
+    };
+
+    const readFile = async (file) => {
+        if (file.name.toLocaleLowerCase().endsWith('.csv')) {
+            const buffer = await file.arrayBuffer();
+            let text = new TextDecoder('utf-8').decode(buffer);
+            if (text.includes('\uFFFD')) text = new TextDecoder('windows-1252').decode(buffer);
+            return parseCsv(text);
+        }
+        const workbook = new Workbook();
+        await workbook.xlsx.load(await file.arrayBuffer());
+        const worksheet = workbook.worksheets[0];
+        if (!worksheet) throw new Error('Die Excel-Datei enthält kein Tabellenblatt');
+        const rows = [];
+        for (let rowNumber = 1; rowNumber <= worksheet.rowCount; rowNumber += 1) {
+            const row = worksheet.getRow(rowNumber);
+            const values = Array.from({ length: worksheet.actualColumnCount }, (_, index) => row.getCell(index + 1).text.trim());
+            if (values.some(Boolean)) rows.push(values);
+        }
+        return rows;
+    };
+
+    const handleFileSelect = async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        try {
+            const rows = await readFile(file);
+            if (rows.length < 2) throw new Error('Die Datei muss eine Kopfzeile und mindestens eine Datenzeile enthalten');
+            const headers = rows[0].map((header, index) => header || `Spalte ${index + 1}`);
+            const dataRows = rows.slice(1).map((row) => Array.from({ length: headers.length }, (_, index) => row[index] ?? ''));
+            setFileName(file.name); setSourceHeaders(headers); setSourceRows(dataRows);
+            setMappings(suggestColumnMappings(headers, importType)); setFileStage('mapping');
+        } catch (error) {
+            showError(`Datei konnte nicht gelesen werden: ${error.message}`, 'Datei-Import'); resetFile();
+        }
+    };
+
+    const openPreview = () => {
+        if (mappingErrors.length) return showError(mappingErrors.join('\n'), 'Spaltenzuordnung');
+        const rows = mapImportedRows(sourceRows, mappings).map((row) => (
+            !mappings.includes('klasse') && defaultClass ? { ...row, klasse: defaultClass } : row
+        ));
+        if (!rows.length) return showError('Die zugeordneten Spalten enthalten keine Datensätze', 'Datei-Import');
+        setMappedRows(rows); setFileStage('preview');
+    };
+
+    const downloadExampleFile = async () => {
         try {
             const workbook = new Workbook();
-            await workbook.xlsx.load(await file.arrayBuffer());
-            const worksheet = workbook.worksheets[0];
-            if (!worksheet || worksheet.rowCount < 2) {
-                throw new Error('Excel-Datei muss mindestens eine Kopfzeile und eine Datenzeile enthalten');
-            }
-
-            const rows = [];
-            for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber += 1) {
-                const row = worksheet.getRow(rowNumber);
-                rows.push([1, 2, 3, 4].map((column) => row.getCell(column).text.trim()));
-            }
+            workbook.creator = 'Sponsorenlauf-Tool';
+            workbook.created = new Date();
+            const worksheet = workbook.addWorksheet(importType === 'students' ? 'Schüler' : 'Lehrer', {
+                views: [{ state: 'frozen', ySplit: 1 }],
+            });
+            const firstClass = '5a';
+            const secondClass = '7c';
 
             if (importType === 'students') {
-                return rows.map(([vorname, nachname, geschlecht, klasse]) => ({
-                    vorname,
-                    nachname,
-                    geschlecht: geschlecht.toLowerCase(),
-                    klasse,
-                })).filter((item) => item.vorname || item.nachname);
+                worksheet.columns = [
+                    { header: 'ID (optional)', key: 'id', width: 16 },
+                    { header: 'Vorname', key: 'vorname', width: 22 },
+                    { header: 'Nachname', key: 'nachname', width: 24 },
+                    { header: 'Geschlecht (optional)', key: 'geschlecht', width: 24 },
+                    { header: 'Klasse', key: 'klasse', width: 18 },
+                ];
+                worksheet.addRows([
+                    { id: 1001, vorname: 'Anna', nachname: 'Schmidt', geschlecht: 'weiblich', klasse: firstClass },
+                    { id: '', vorname: 'Max', nachname: 'Müller', geschlecht: 'männlich', klasse: secondClass },
+                ]);
+                worksheet.dataValidations.add('D2:D1000', {
+                    type: 'list', allowBlank: true, formulae: ['"männlich,weiblich,divers"'],
+                });
+            } else {
+                worksheet.columns = [
+                    { header: 'Vorname', key: 'vorname', width: 22 },
+                    { header: 'Nachname', key: 'nachname', width: 24 },
+                    { header: 'Klasse (optional)', key: 'klasse', width: 20 },
+                    { header: 'E-Mail', key: 'email', width: 34 },
+                ];
+                worksheet.addRows([
+                    { vorname: 'Anna', nachname: 'Schmidt', klasse: firstClass, email: 'anna.schmidt@schule.de' },
+                    { vorname: 'Max', nachname: 'Müller', klasse: '', email: 'sekretariat@schule.de' },
+                ]);
             }
-            return rows.map(([vorname, nachname, klasse, email]) => ({
-                vorname,
-                nachname,
-                klasse,
-                email,
-            })).filter((item) => item.vorname || item.nachname || item.email);
+
+            worksheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: worksheet.columnCount } };
+            worksheet.getRow(1).height = 26;
+            worksheet.getRow(1).eachCell((cell) => {
+                cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4A90E2' } };
+                cell.alignment = { vertical: 'middle' };
+            });
+            worksheet.eachRow((row, rowNumber) => {
+                if (rowNumber > 1) row.alignment = { vertical: 'middle' };
+            });
+
+            const buffer = await workbook.xlsx.writeBuffer();
+            const url = URL.createObjectURL(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = importType === 'students' ? 'beispiel-schueler-import.xlsx' : 'beispiel-lehrer-import.xlsx';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 0);
         } catch (error) {
-            if (error.message.startsWith('Excel-Datei')) throw error;
-            throw new Error(`Fehler beim Lesen der Excel-Datei: ${error.message}`);
+            showError(`Beispieldatei konnte nicht erstellt werden: ${error.message}`, 'Datei-Import');
         }
     };
-
-    const handleFileSelect = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        setExcelFile(file);
-
-        try {
-            const parsedData = await parseExcelFile(file);
-            setCurrentData(parsedData);
-            setShowExcelPreview(true);
-            showSuccess(`${parsedData.length} Datensätze aus Excel-Datei geladen und zur Bearbeitung bereit`, 'Excel-Parsing');
-        } catch (error) {
-            showError(error.message, 'Excel-Parsing');
-            setExcelFile(null);
-            setCurrentData([]);
-            setShowExcelPreview(false);
-            if (fileInputRef.current) {
-                fileInputRef.current.value = '';
-            }
-        }
-    };
+    const updateMappedRow = (index, field, value) => setMappedRows((rows) => {
+        const repeatedValue = ['klasse', 'geschlecht'].includes(field) ? rows[index]?.[field] : null;
+        return rows.map((row, rowIndex) => (
+            rowIndex === index || (repeatedValue && row[field] === repeatedValue)
+                ? { ...row, [field]: value }
+                : row
+        ));
+    });
+    const updateManualRow = (index, field, value) => setManualData((data) => ({ ...data, [importType]: data[importType].map((row, rowIndex) => rowIndex === index ? { ...row, [field]: value } : row) }));
 
     const submitImport = async () => {
-        const currentData = getCurrentData();
-        const errors = [];
-
-        if (importType === 'students') {
-            currentData.forEach((row, index) => {
-                if (!row.vorname.trim()) errors.push(`Zeile ${index + 1}: Vorname fehlt`);
-                if (!row.nachname.trim()) errors.push(`Zeile ${index + 1}: Nachname fehlt`);
-                if (!row.klasse.trim() || row.klasse === 'Wähle...') {
-                    errors.push(`Zeile ${index + 1}: Klasse muss ausgewählt werden`);
-                }
-            });
+        let rows;
+        if (importMethod === 'file') {
+            if (!validatedRows.length || errorCount > 0) return showError('Bitte beheben Sie alle markierten Fehler vor dem Import.', 'Importprüfung');
+            rows = validatedRows.map(stripImportMetadata);
         } else {
-            currentData.forEach((row, index) => {
+            rows = manualData[importType];
+            const errors = [];
+            rows.forEach((row, index) => {
                 if (!row.vorname.trim()) errors.push(`Zeile ${index + 1}: Vorname fehlt`);
                 if (!row.nachname.trim()) errors.push(`Zeile ${index + 1}: Nachname fehlt`);
-                if (!row.email.trim()) errors.push(`Zeile ${index + 1}: E-Mail fehlt`);
+                if (importType === 'students' && !row.klasse.trim()) errors.push(`Zeile ${index + 1}: Klasse fehlt`);
+                if (importType === 'teachers' && !row.email.trim()) errors.push(`Zeile ${index + 1}: E-Mail fehlt`);
             });
+            if (errors.length) return showError(errors.join('\n'), 'Validierungsfehler');
         }
-
-        if (errors.length > 0) {
-            showError(errors.join('\\n'), `Validierungsfehler beim ${importMethod === 'manual' ? 'manuellen' : 'Excel'}-Import`);
-            return;
-        }
-
         setIsImporting(true);
         try {
             const endpoint = importType === 'students' ? '/api/importStudents' : '/api/importTeachers';
             const dataKey = importType === 'students' ? 'students' : 'teachers';
-            
-            const response = await request(endpoint, {
-                method: 'POST',
-                data: JSON.stringify({ [dataKey]: currentData }),
-                headers: { 'Content-Type': 'application/json' },
-                errorContext: `Beim ${importMethod === 'manual' ? 'manuellen' : 'Excel'}-Import von ${importType === 'students' ? 'Schülern' : 'Lehrern'}`
-            });
-            
-            resetForm();
-            dialogRef.current.close();
-            showSuccess(`${response.count} ${importType === 'students' ? 'Schüler' : 'Lehrer'} erfolgreich hinzugefügt`, `${importMethod === 'manual' ? 'Manueller' : 'Excel'}-Import`);
-            onImportSuccess(response.count, importType);
-        } catch (error) {
-            // Fehler wird automatisch über useApi gehandelt
-        } finally {
-            setIsImporting(false);
-        }
+            const response = await request(endpoint, { method: 'POST', data: JSON.stringify({ [dataKey]: rows }), headers: { 'Content-Type': 'application/json' }, errorContext: `Import von ${importType === 'students' ? 'Schülern' : 'Lehrern'}` });
+            const importedType = importType;
+            resetForm(); dialogRef.current.close();
+            showSuccess(`${response.count} ${importedType === 'students' ? 'Schüler' : 'Lehrer'} erfolgreich hinzugefügt`, 'Daten-Import');
+            onImportSuccess(response.count, importedType);
+        } catch { /* useApi displays server validation errors */ } finally { setIsImporting(false); }
     };
 
-    const resetForm = () => {
-        setImportType('');
-        setImportMethod('manual');
-        setStudentManualData([{ vorname: '', nachname: '', geschlecht: '', klasse: '' }]);
-        setStudentExcelData([]);
-        setTeacherManualData([{ vorname: '', nachname: '', klasse: '', email: '' }]);
-        setTeacherExcelData([]);
-        setExcelFile(null);
-        setShowExcelPreview(false);
-        if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-        }
+    const goBack = () => {
+        if (importMethod === 'file' && fileStage === 'preview') setFileStage('mapping');
+        else if (importMethod === 'file' && fileStage === 'mapping') resetFile();
+        else { setImportType(''); resetFile(); }
     };
-
-    const handleTypeChange = (newType) => {
-        setImportType(newType);
-        setImportMethod('manual');
-        setExcelFile(null);
-        setShowExcelPreview(false);
-        if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-        }
-    };
-
-    const resetToTypeSelection = () => {
-        setImportType('');
-        setImportMethod('manual');
-        setStudentManualData([{ vorname: '', nachname: '', geschlecht: '', klasse: '' }]);
-        setStudentExcelData([]);
-        setTeacherManualData([{ vorname: '', nachname: '', klasse: '', email: '' }]);
-        setTeacherExcelData([]);
-        setExcelFile(null);
-        setShowExcelPreview(false);
-        if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-        }
-    };
-
-    const handleClose = () => {
-        resetForm();
-        onClose();
-    };
-
     const actions = [
-        {
-            label: 'Abbrechen',
-            onClick: () => dialogRef.current.close()
-        },
-        // Only show back button when a type is selected
-        ...(importType ? [{
-            label: 'Zurück',
-            onClick: resetToTypeSelection,
-            variant: 'secondary'
-        }] : []),
-        // Only show reset button when a type is selected
-        ...(importType ? [{
-            label: 'Zurücksetzen',
-            onClick: () => {
-                if (importType === 'students') {
-                    setStudentManualData([{ vorname: '', nachname: '', geschlecht: '', klasse: '' }]);
-                    setStudentExcelData([]);
-                } else {
-                    setTeacherManualData([{ vorname: '', nachname: '', klasse: '', email: '' }]);
-                    setTeacherExcelData([]);
-                }
-                setImportMethod('manual');
-                setExcelFile(null);
-                setShowExcelPreview(false);
-                if (fileInputRef.current) {
-                    fileInputRef.current.value = '';
-                }
-            },
-            variant: 'secondary'
-        }] : []),
-        // Only show import button when a type is selected
-        ...(importType ? [{
-            label: isImporting ? 'Importiere...' : 'Importieren',
-            onClick: submitImport,
-            variant: 'success',
-            position: 'right',
-            disabled: isImporting || (importMethod === 'excel' && !showExcelPreview)
-        }] : [])
+        importType
+            ? { label: 'Zurück', variant: 'secondary', position: 'left', onClick: goBack }
+            : { label: 'Abbrechen', variant: 'secondary', position: 'left', onClick: () => dialogRef.current.close() },
+        ...(importType && importMethod === 'file' && fileStage === 'mapping' ? [{ label: 'Daten prüfen', variant: 'success', position: 'right', onClick: openPreview }] : []),
+        ...(importType && (importMethod === 'manual' || fileStage === 'preview') ? [{ label: isImporting ? 'Importiere…' : 'Importieren', variant: 'success', position: 'right', onClick: submitImport, disabled: isImporting || (importMethod === 'file' && errorCount > 0) }] : []),
     ];
+    const manualRows = importType ? manualData[importType] : [];
 
-    const getDialogTitle = () => {
-        if (!importType) return 'Daten importieren';
-        if (importType === 'students') return 'Schüler importieren';
-        if (importType === 'teachers') return 'Lehrer importieren';
-        return 'Daten importieren';
-    };
-
-    const currentData = getCurrentData();
-
-    return (
-        <BaseDialog
-            dialogRef={dialogRef}
-            title={getDialogTitle()}
-            onClose={handleClose}
-            size="xl"
-            actions={actions}
-            showDefaultClose={false}
-        >
-            {/* Type Selector - only shown when no type is selected */}
-            {!importType && (
-                <div className="type-selection">
-                    <h3 style={{ textAlign: 'center', marginBottom: '2rem', color: '#333' }}>
-                        Was möchten Sie importieren?
-                    </h3>
-                    
-                    <div className="method-selector">
-                        <label 
-                            className="method-option" 
-                            onClick={() => handleTypeChange('students')}
-                            style={{ cursor: 'pointer' }}
-                        >
-                            <div className="method-icon" style={{ fontSize: '3rem' }}>👨‍🎓</div>
-                            <div>
-                                <strong>Schüler importieren</strong>
-                                <p>Schülerdaten hinzufügen</p>
-                            </div>
-                        </label>
-
-                        <label 
-                            className="method-option" 
-                            onClick={() => handleTypeChange('teachers')}
-                            style={{ cursor: 'pointer' }}
-                        >
-                            <div className="method-icon" style={{ fontSize: '3rem' }}>👩‍🏫</div>
-                            <div>
-                                <strong>Lehrer importieren</strong>
-                                <p>Lehrerdaten hinzufügen</p>
-                            </div>
-                        </label>
-                    </div>
-                </div>
-            )}
-
-            {/* Import interface - only shown when a type is selected */}
-            {importType && (
-                <div className="import-content">
-                    {/* Method Selector */}
-                    <div className="method-selector">
-                        <label className={`method-option ${importMethod === 'manual' ? 'active' : ''}`}>
-                            <input
-                                type="radio"
-                                name="importMethod"
-                                value="manual"
-                                checked={importMethod === 'manual'}
-                                onChange={(e) => setImportMethod(e.target.value)}
-                            />
-                            <div className="method-icon">✏️</div>
-                            <div>
-                                <strong>Manuell eingeben</strong>
-                                <p>{importType === 'students' ? 'Schüler' : 'Lehrer'} einzeln hinzufügen</p>
-                            </div>
-                        </label>
-
-                        <label className={`method-option ${importMethod === 'excel' ? 'active' : ''}`}>
-                            <input
-                                type="radio"
-                                name="importMethod"
-                                value="excel"
-                                checked={importMethod === 'excel'}
-                                onChange={(e) => setImportMethod(e.target.value)}
-                            />
-                            <div className="method-icon">📊</div>
-                            <div>
-                                <strong>Excel importieren</strong>
-                                <p>Aus Excel-Datei importieren</p>
-                            </div>
-                        </label>
-                    </div>
-
-            {/* Manual Import */}
-            {importMethod === 'manual' && (
-                <div className="manual-import">
-                    <div className="manual-header">
-                        <h3>{importType === 'students' ? 'Schüler' : 'Lehrer'} manuell hinzufügen</h3>
-                        <button className="add-button" onClick={addManualRow}>
-                            + Zeile hinzufügen
-                        </button>
-                    </div>
-
-                    <table className="table">
-                        <thead>
-                            <tr>
-                                <th>Vorname</th>
-                                <th>Nachname</th>
-                                {importType === 'students' && <th>Geschlecht</th>}
-                                <th>Klasse{importType === 'teachers' ? ' (optional)' : ''}</th>
-                                {importType === 'teachers' && <th>E-Mail</th>}
-                                <th style={{ width: '60px' }}></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {currentData.map((row, index) => (
-                                <tr key={index}>
-                                    <td>
-                                        <input
-                                            type="text"
-                                            placeholder="Vorname"
-                                            value={row.vorname}
-                                            onChange={(e) => updateRow(index, 'vorname', e.target.value)}
-                                            className="form-input"
-                                            style={{ width: '100%', margin: 0, padding: '0.5rem' }}
-                                        />
-                                    </td>
-                                    <td>
-                                        <input
-                                            type="text"
-                                            placeholder="Nachname"
-                                            value={row.nachname}
-                                            onChange={(e) => updateRow(index, 'nachname', e.target.value)}
-                                            className="form-input"
-                                            style={{ width: '100%', margin: 0, padding: '0.5rem' }}
-                                        />
-                                    </td>
-                                    {importType === 'students' && (
-                                        <td>
-                                            <select
-                                                value={row.geschlecht}
-                                                onChange={(e) => updateRow(index, 'geschlecht', e.target.value)}
-                                                className="form-select"
-                                                style={{ width: '100%', margin: 0, padding: '0.5rem' }}
-                                            >
-                                                <option value="">Wähle...</option>
-                                                <option value="männlich">Männlich</option>
-                                                <option value="weiblich">Weiblich</option>
-                                                <option value="divers">Divers</option>
-                                            </select>
-                                        </td>
-                                    )}
-                                    <td>
-                                        <select
-                                            value={row.klasse}
-                                            onChange={(e) => updateRow(index, 'klasse', e.target.value)}
-                                            className="form-select"
-                                            style={{ width: '100%', margin: 0, padding: '0.5rem' }}
-                                        >
-                                            <option value="">Wähle...</option>
-                                            {availableClasses.map(className => (
-                                                <option key={className} value={className}>
-                                                    {className}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </td>
-                                    {importType === 'teachers' && (
-                                        <td>
-                                            <input
-                                                type="email"
-                                                placeholder="E-Mail"
-                                                value={row.email}
-                                                onChange={(e) => updateRow(index, 'email', e.target.value)}
-                                                className="form-input"
-                                                style={{ width: '100%', margin: 0, padding: '0.5rem' }}
-                                            />
-                                        </td>
-                                    )}
-                                    <td>
-                                        <button
-                                            className="btn btn-danger btn-sm"
-                                            onClick={() => removeManualRow(index)}
-                                            disabled={currentData.length === 1}
-                                            title="Zeile entfernen"
-                                        >
-                                            🗑️
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            )}
-
-            {/* Excel Import */}
-            {importMethod === 'excel' && (
-                <div className="excel-import">
-                    {!showExcelPreview ? (
-                        <div className="excel-info">
-                            <h3>Excel-Import für {importType === 'students' ? 'Schüler' : 'Lehrer'}</h3>
-
-                            <div className="format-info">
-                                <strong>Erwartetes Format:</strong>
-                                <div className="example-table">
-                                    <div className="example-header">
-                                        <span>Vorname</span>
-                                        <span>Nachname</span>
-                                        {importType === 'students' && <span>Geschlecht</span>}
-                                        <span>Klasse{importType === 'teachers' ? ' (optional)' : ''}</span>
-                                        {importType === 'teachers' && <span>E-Mail</span>}
-                                    </div>
-                                    <div className="example-row">
-                                        {importType === 'students' ? (
-                                            <>
-                                                <span>Max</span>
-                                                <span>Mustermann</span>
-                                                <span>männlich</span>
-                                                <span>5a</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <span>Max</span>
-                                                <span>Mustermann</span>
-                                                <span>5a</span>
-                                                <span>max.mustermann@schule.de</span>
-                                            </>
-                                        )}
-                                    </div>
-                                    <div className="example-row">
-                                        {importType === 'students' ? (
-                                            <>
-                                                <span>Anna</span>
-                                                <span>Schmidt</span>
-                                                <span>weiblich</span>
-                                                <span>5b</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <span>Anna</span>
-                                                <span>Schmidt</span>
-                                                <span>6b</span>
-                                                <span>anna.schmidt@schule.de</span>
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-                                <p className="format-note">
-                                    Die erste Zeile sollte die Spaltenüberschriften enthalten.
-                                    {importType === 'teachers' && ' Die Klasse ist optional.'}
-                                </p>
-                            </div>
-
-                            <div className="file-upload">
-                                <input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    accept=".xlsx,.xls"
-                                    onChange={handleFileSelect}
-                                    className="file-input"
-                                />
-                                <div className="file-info">
-                                    {excelFile ? (
-                                        <span className="selected-file">
-                                            Ausgewählt: {excelFile.name}
-                                        </span>
-                                    ) : (
-                                        <span className="no-file">
-                                            Keine Datei ausgewählt
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="excel-preview">
-                            <div className="manual-header">
-                                <h3>📊 Excel-Daten bearbeiten ({currentData.length} Datensätze)</h3>
-                                <div>
-                                    <button
-                                        className="add-button"
-                                        onClick={addExcelRow}
-                                        type="button"
-                                    >
-                                        + Zeile hinzufügen
-                                    </button>
-                                    <button
-                                        className="btn btn-secondary"
-                                        onClick={() => {
-                                            setShowExcelPreview(false);
-                                            setCurrentData([]);
-                                            setExcelFile(null);
-                                            if (fileInputRef.current) {
-                                                fileInputRef.current.value = '';
-                                            }
-                                        }}
-                                        type="button"
-                                    >
-                                        Neue Datei wählen
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="import-info-box">
-                                <p><strong>✅ Excel-Datei erfolgreich geladen!</strong></p>
-                                <p>Sie können die Daten jetzt bearbeiten, Zeilen hinzufügen oder entfernen.
-                                    Klicken Sie auf &quot;Importieren&quot;, wenn Sie fertig sind.</p>
-                            </div>
-
-                            <table className="table">
-                                <thead>
-                                    <tr>
-                                        <th>Vorname</th>
-                                        <th>Nachname</th>
-                                        {importType === 'students' && <th>Geschlecht</th>}
-                                        <th>Klasse{importType === 'teachers' ? ' (optional)' : ''}</th>
-                                        {importType === 'teachers' && <th>E-Mail</th>}
-                                        <th style={{ width: '60px' }}></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {currentData.map((row, index) => (
-                                        <tr key={index}>
-                                            <td>
-                                                <input
-                                                    type="text"
-                                                    placeholder="Vorname"
-                                                    value={row.vorname}
-                                                    onChange={(e) => updateRow(index, 'vorname', e.target.value)}
-                                                    className="form-input"
-                                                    style={{ width: '100%', margin: 0, padding: '0.5rem' }}
-                                                />
-                                            </td>
-                                            <td>
-                                                <input
-                                                    type="text"
-                                                    placeholder="Nachname"
-                                                    value={row.nachname}
-                                                    onChange={(e) => updateRow(index, 'nachname', e.target.value)}
-                                                    className="form-input"
-                                                    style={{ width: '100%', margin: 0, padding: '0.5rem' }}
-                                                />
-                                            </td>
-                                            {importType === 'students' && (
-                                                <td>
-                                                    <select
-                                                        value={row.geschlecht}
-                                                        onChange={(e) => updateRow(index, 'geschlecht', e.target.value)}
-                                                        className="form-select"
-                                                        style={{ width: '100%', margin: 0, padding: '0.5rem' }}
-                                                    >
-                                                        <option value="">Wähle...</option>
-                                                        <option value="männlich">Männlich</option>
-                                                        <option value="weiblich">Weiblich</option>
-                                                        <option value="divers">Divers</option>
-                                                    </select>
-                                                </td>
-                                            )}
-                                            <td>
-                                                <select
-                                                    value={row.klasse}
-                                                    onChange={(e) => updateRow(index, 'klasse', e.target.value)}
-                                                    className="form-select"
-                                                    style={{ width: '100%', margin: 0, padding: '0.5rem' }}
-                                                >
-                                                    <option value="">Wähle...</option>
-                                                    {availableClasses.map(className => (
-                                                        <option key={className} value={className}>
-                                                            {className}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </td>
-                                            {importType === 'teachers' && (
-                                                <td>
-                                                    <input
-                                                        type="email"
-                                                        placeholder="E-Mail"
-                                                        value={row.email}
-                                                        onChange={(e) => updateRow(index, 'email', e.target.value)}
-                                                        className="form-input"
-                                                        style={{ width: '100%', margin: 0, padding: '0.5rem' }}
-                                                    />
-                                                </td>
-                                            )}
-                                            <td>
-                                                <button
-                                                    className="btn btn-danger btn-sm"
-                                                    onClick={() => removeExcelRow(index)}
-                                                    disabled={currentData.length === 1}
-                                                    title="Zeile entfernen"
-                                                    type="button"
-                                                >
-                                                    🗑️
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </div>
-            )}
+    return <BaseDialog dialogRef={dialogRef} title={!importType ? 'Daten importieren' : `${importType === 'students' ? 'Schüler' : 'Lehrer'} importieren`} onClose={() => { resetForm(); onClose(); }} size="xl" actions={actions} showDefaultClose={false}>
+        {!importType ? <div className="type-selection"><h3 className="import-centered-title">Was möchten Sie importieren?</h3><div className="method-selector">
+            <button type="button" className="method-option" onClick={() => setImportType('students')}><span className="method-icon">👨‍🎓</span><span><strong>Schüler importieren</strong><small>Schülerdaten hinzufügen</small></span></button>
+            <button type="button" className="method-option" onClick={() => setImportType('teachers')}><span className="method-icon">👩‍🏫</span><span><strong>Lehrer importieren</strong><small>Lehrerdaten hinzufügen</small></span></button>
+        </div></div> : <div className="import-content">
+            <div className="method-selector">
+                <label className={`method-option ${importMethod === 'manual' ? 'active' : ''}`}><input type="radio" name="importMethod" checked={importMethod === 'manual'} onChange={() => setImportMethod('manual')} /><span className="method-icon">✏️</span><span><strong>Manuell eingeben</strong><small>Datensätze einzeln hinzufügen</small></span></label>
+                <label className={`method-option ${importMethod === 'file' ? 'active' : ''}`}><input type="radio" name="importMethod" checked={importMethod === 'file'} onChange={() => setImportMethod('file')} /><span className="method-icon">📊</span><span><strong>Datei importieren</strong><small>Excel- oder CSV-Datei verwenden</small></span></label>
             </div>
-            )}
-        </BaseDialog>
-    );
+            {importMethod === 'manual' ? <div className="manual-import"><div className="manual-header"><h3>Manuell hinzufügen</h3><button type="button" className="add-button" onClick={() => setManualData((data) => ({ ...data, [importType]: [...data[importType], { ...EMPTY_ROWS[importType] }] }))}>+ Zeile hinzufügen</button></div>
+                <ImportTable rows={manualRows} importType={importType} availableClasses={availableClasses} onChange={updateManualRow} onRemove={(index) => setManualData((data) => ({ ...data, [importType]: data[importType].filter((_, rowIndex) => rowIndex !== index) }))} canRemove={manualRows.length > 1} /></div>
+                : fileStage === 'upload' ? <div className="excel-info">
+                    <h3>Excel- oder CSV-Datei auswählen</h3>
+                    <p>Die erste Zeile muss Spaltenüberschriften enthalten. Die Namen und Reihenfolge können im nächsten Schritt frei zugeordnet werden.</p>
+                    <ExpectedFileFormat importType={importType} onDownload={downloadExampleFile} />
+                    <div className="import-file-divider">Eigene Datei auswählen</div>
+                    <input ref={fileInputRef} type="file" accept=".xlsx,.csv,text/csv" onChange={handleFileSelect} className="file-input" />
+                </div>
+                : fileStage === 'mapping' ? <ColumnMapping fileName={fileName} headers={sourceHeaders} rows={sourceRows} mappings={mappings} fields={fields} errors={mappingErrors} importType={importType} availableClasses={availableClasses} defaultClass={defaultClass} onDefaultClassChange={setDefaultClass} onChange={(index, value) => setMappings((current) => current.map((mapping, mapIndex) => mapIndex === index ? value : mapping))} />
+                : <ValidationPreview rows={validatedRows} importType={importType} availableClasses={availableClasses} validCount={validCount} warningCount={warningCount} errorCount={errorCount} onChange={updateMappedRow} onRemove={(index) => setMappedRows((rows) => rows.filter((_, rowIndex) => rowIndex !== index))} />}
+        </div>}
+    </BaseDialog>;
+};
+
+const ExpectedFileFormat = ({ importType, onDownload }) => {
+    const fields = IMPORT_FIELDS[importType];
+    const examples = importType === 'students'
+        ? [
+            { id: '1042', vorname: 'Anna', nachname: 'Schmidt', geschlecht: 'W', klasse: '5a' },
+            { id: '', vorname: 'Max', nachname: 'Müller', geschlecht: 'männlich', klasse: '7c' },
+        ]
+        : [
+            { vorname: 'Anna', nachname: 'Schmidt', klasse: '5a', email: 'anna.schmidt@schule.de' },
+            { vorname: 'Max', nachname: 'Müller', klasse: '7c', email: 'sekretariat@schule.de' },
+        ];
+
+    return <section className="expected-import-format" aria-labelledby="expected-import-heading">
+        <div className="expected-import-heading-row">
+            <div><h4 id="expected-import-heading">Benötigte Daten</h4><p>Mit * markierte Felder sind erforderlich.</p></div>
+            <button type="button" className="import-example-download" onClick={onDownload}>
+                <span className="import-download-icon" aria-hidden="true">↓</span>
+                <span className="import-download-copy"><strong>Beispieldatei herunterladen</strong><small>Excel-Arbeitsmappe (.xlsx)</small></span>
+            </button>
+        </div>
+        <div className="expected-field-list">{fields.map((field) => <span key={field.key} className={field.required ? 'required' : ''}>{field.label}{field.required ? ' *' : ' (optional)'}</span>)}</div>
+        <div className="import-table-scroll"><table className="table expected-import-table">
+            <thead><tr>{fields.map((field) => <th key={field.key}>{field.label}{field.required ? ' *' : ''}</th>)}</tr></thead>
+            <tbody>{examples.map((example, index) => <tr key={index}>{fields.map((field) => <td key={field.key}>{example[field.key] || '—'}</td>)}</tr>)}</tbody>
+        </table></div>
+        <p className="expected-format-note">Weitere Spalten sind erlaubt und können später auf „Ignorieren“ gesetzt werden. Bitte ersetzen oder löschen Sie die zwei Beispieldatensätze vor dem Import.</p>
+    </section>;
+};
+
+const ColumnMapping = ({ fileName, headers, rows, mappings, fields, errors, importType, availableClasses, defaultClass, onDefaultClassChange, onChange }) => <div className="column-mapping">
+    <div className="manual-header"><h3>Spalten zuordnen</h3><span className="selected-file">{fileName}</span></div><p>Wählen Sie für jede Dateispalte im Tabellenkopf das passende Feld. Nicht benötigte Spalten können ignoriert werden.</p>
+    {errors.length > 0 && <div className="import-summary error">{errors.join(' · ')}</div>}
+    <div className="mapping-preview-label">Vorschau: {Math.min(rows.length, 5)} von {rows.length} Datenzeilen</div>
+    <div className="import-table-scroll"><table className="table mapping-table">
+        <thead><tr>{headers.map((header, columnIndex) => <th key={`${header}-${columnIndex}`}>
+            <span className="mapping-source-header" title={header}>{header}</span>
+            <select className="form-select mapping-field-select" aria-label={`Zuweisung für ${header}`} value={mappings[columnIndex]} onChange={(event) => onChange(columnIndex, event.target.value)}>
+                <option value="">Ignorieren</option>
+                {fields.map((field) => <option key={field.key} value={field.key} disabled={mappings.includes(field.key) && mappings[columnIndex] !== field.key}>{field.label}{field.required ? ' *' : ''}</option>)}
+            </select>
+        </th>)}{!mappings.includes('klasse') && <th className="mapping-added-column">
+            <span className="mapping-source-header">Nicht in der Datei</span>
+            <select className="form-select mapping-field-select" aria-label="Zusätzliche Klassenspalte" value="klasse" disabled><option value="klasse">Klasse{importType === 'students' ? ' *' : ''}</option></select>
+        </th>}</tr></thead>
+        <tbody>{rows.slice(0, 5).map((row, rowIndex) => <tr key={rowIndex}>{headers.map((header, columnIndex) => <td key={`${header}-${columnIndex}`} title={row[columnIndex] || ''}>{row[columnIndex] || '—'}</td>)}{!mappings.includes('klasse') && <td className="mapping-added-column">{defaultClass || '—'}</td>}</tr>)}</tbody>
+    </table></div>
+    {!mappings.includes('klasse') && <div className="missing-class-mapping">
+        <div><strong>Keine Klassenspalte zugeordnet</strong><p>{importType === 'students' ? 'Wählen Sie eine Klasse für alle Schüler oder ordnen Sie oben eine Dateispalte zu.' : 'Optional können Sie allen Lehrern dieselbe Klasse geben. Eine individuelle Zuordnung ist im nächsten Schritt weiterhin möglich.'}</p></div>
+        <label><span>Klasse für alle</span><select className="form-select" value={defaultClass} onChange={(event) => onDefaultClassChange(event.target.value)}><option value="">{importType === 'students' ? 'Klasse wählen…' : 'Keine Klasse'}</option>{availableClasses.map((className) => <option key={className} value={className}>{className}</option>)}</select></label>
+    </div>}
+</div>;
+
+const ImportTable = ({ rows, importType, availableClasses, onChange, onRemove, canRemove }) => <div className="import-table-scroll"><table className="table"><thead><tr><th>Vorname</th><th>Nachname</th>{importType === 'students' && <th>Geschlecht</th>}<th>Klasse</th>{importType === 'teachers' && <th>E-Mail</th>}<th /></tr></thead><tbody>{rows.map((row, index) => <tr key={index}><td><input type="text" className="form-input import-cell" value={row.vorname} onChange={(event) => onChange(index, 'vorname', event.target.value)} /></td><td><input type="text" className="form-input import-cell" value={row.nachname} onChange={(event) => onChange(index, 'nachname', event.target.value)} /></td>{importType === 'students' && <td><select className="form-select import-cell" value={row.geschlecht} onChange={(event) => onChange(index, 'geschlecht', event.target.value)}><option value="">—</option><option value="männlich">Männlich</option><option value="weiblich">Weiblich</option><option value="divers">Divers</option></select></td>}<td><select className="form-select import-cell" value={row.klasse} onChange={(event) => onChange(index, 'klasse', event.target.value)}><option value="">—</option>{availableClasses.map((className) => <option key={className}>{className}</option>)}</select></td>{importType === 'teachers' && <td><input type="email" className="form-input import-cell" value={row.email} onChange={(event) => onChange(index, 'email', event.target.value)} /></td>}<td><button type="button" className="btn btn-danger btn-sm" disabled={!canRemove} onClick={() => onRemove(index)}>🗑️</button></td></tr>)}</tbody></table></div>;
+
+const ValidationPreview = ({ rows, importType, availableClasses, validCount, warningCount, errorCount, onChange, onRemove }) => {
+    const showStudentId = importType === 'students' && rows.some((row) => (
+        row.id !== undefined && row.id !== null && String(row.id).trim() !== ''
+    ));
+
+    return <div className="validation-preview">
+    <div className="manual-header"><h3>Daten prüfen</h3><div className="import-counts"><span className="valid">✓ {validCount} gültig</span><span className="warning">⚠ {warningCount} Hinweise</span><span className="error">✕ {errorCount} Fehler</span></div></div><p>Automatisch erkannte Klassen werden mit dem Namen aus der Klassenstruktur gespeichert. Eine Klassen- oder Geschlechtskorrektur gilt automatisch für alle Zeilen mit demselben Ausgangswert.</p>
+    <div className="import-table-scroll"><table className="table validation-table"><thead><tr><th>Status</th>{showStudentId && <th>ID</th>}<th>Vorname</th><th>Nachname</th>{importType === 'students' && <th>Geschlecht</th>}<th>Klasse</th>{importType === 'teachers' && <th>E-Mail</th>}<th>Hinweis</th><th /></tr></thead><tbody>{rows.map((row, index) => <tr key={`${row._sourceIndex}-${index}`} className={row._errors.length ? 'import-row-error' : row._warnings.length ? 'import-row-warning' : ''}><td>{row._errors.length ? '✕' : row._warnings.length ? '⚠' : '✓'}</td>{showStudentId && <td><input type="text" className="form-input import-cell import-id-cell" value={row.id ?? ''} onChange={(event) => onChange(index, 'id', event.target.value)} /></td>}<td><input type="text" className="form-input import-cell" value={row.vorname || ''} onChange={(event) => onChange(index, 'vorname', event.target.value)} /></td><td><input type="text" className="form-input import-cell" value={row.nachname || ''} onChange={(event) => onChange(index, 'nachname', event.target.value)} /></td>{importType === 'students' && <td><select className="form-select import-cell" value={['männlich', 'weiblich', 'divers'].includes(row.geschlecht) ? row.geschlecht : ''} onChange={(event) => onChange(index, 'geschlecht', event.target.value)}><option value="">—</option><option value="männlich">Männlich</option><option value="weiblich">Weiblich</option><option value="divers">Divers</option></select></td>}<td><select className="form-select import-cell" value={availableClasses.includes(row.klasse) ? row.klasse : ''} onChange={(event) => onChange(index, 'klasse', event.target.value)}><option value="">Klasse wählen…</option>{availableClasses.map((className) => <option key={className} value={className}>{className}</option>)}</select></td>{importType === 'teachers' && <td><input type="email" className="form-input import-cell" value={row.email || ''} onChange={(event) => onChange(index, 'email', event.target.value)} /></td>}<td className="import-messages">{[...row._errors, ...row._warnings].join(' · ') || 'Gültig'}</td><td><button type="button" className="btn btn-danger btn-sm" onClick={() => onRemove(index)}>🗑️</button></td></tr>)}</tbody></table></div>
+</div>;
 };
 
 export default CombinedImportDialog;

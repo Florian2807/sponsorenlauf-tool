@@ -1,25 +1,10 @@
 import { dbAll, dbBatchInsert } from '../../utils/database.js';
 import { handleMethodNotAllowed, handleError, handleSuccess, handleValidationError } from '../../utils/apiHelpers.js';
-import { getAvailableClasses, resolveCanonicalClassName, sanitizeClassName, syncClassNamesFromList } from '../../utils/classService.js';
+import { getAvailableClasses, resolveCanonicalClassName, syncClassNamesFromList } from '../../utils/classService.js';
+import { normalizeImportedGender } from '../../utils/importHelpers.js';
 import { parseImportedStudentId } from '../../utils/studentId.js';
 
 const VALID_GENDERS = ['männlich', 'weiblich', 'divers'];
-
-function formatGender(gender) {
-    if (!gender || typeof gender !== 'string') return gender;
-    
-    const genderMap = {
-        'w': 'weiblich',
-        'm': 'männlich',
-        'd': 'divers',
-        'weiblich': 'weiblich',
-        'männlich': 'männlich',
-        'divers': 'divers'
-    };
-    
-    const normalizedGender = gender.toLowerCase().trim();
-    return genderMap[normalizedGender] || gender.trim();
-}
 
 function validateStudent(student, index) {
     const errors = [];
@@ -32,6 +17,9 @@ function validateStudent(student, index) {
     if (!student.vorname?.trim()) errors.push(`${linePrefix} Vorname ist erforderlich`);
     if (!student.nachname?.trim()) errors.push(`${linePrefix} Nachname ist erforderlich`);
     if (!student.klasse?.trim()) errors.push(`${linePrefix} Klasse ist erforderlich`);
+    if (student.vorname?.length > 200) errors.push(`${linePrefix} Vorname ist zu lang`);
+    if (student.nachname?.length > 200) errors.push(`${linePrefix} Nachname ist zu lang`);
+    if (student.klasse?.length > 100) errors.push(`${linePrefix} Klassenname ist zu lang`);
 
     if (student.geschlecht && !VALID_GENDERS.includes(student.geschlecht)) {
         errors.push(`${linePrefix} Ungültiges Geschlecht "${student.geschlecht}". Erlaubte Werte: ${VALID_GENDERS.join(', ')}`);
@@ -58,8 +46,8 @@ export default async function handler(req, res) {
             id: parseImportedStudentId(student.id),
             vorname: student.vorname?.trim() || '',
             nachname: student.nachname?.trim() || '',
-            klasse: sanitizeClassName(student.klasse),
-            geschlecht: formatGender(student.geschlecht)
+            klasse: String(student.klasse || '').trim(),
+            geschlecht: normalizeImportedGender(student.geschlecht).value
         }));
 
         // Validate students and get available classes in parallel

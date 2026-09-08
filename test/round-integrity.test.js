@@ -99,8 +99,12 @@ before(async () => {
     CREATE TABLE rounds (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       timestamp TEXT NOT NULL,
-      student_id INTEGER NOT NULL
+      student_id INTEGER NOT NULL,
+      scan_id TEXT,
+      source_device_id TEXT,
+      recorded_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
+    CREATE UNIQUE INDEX idx_rounds_scan_id ON rounds(scan_id) WHERE scan_id IS NOT NULL;
     CREATE TABLE expected_donations (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       student_id INTEGER NOT NULL,

@@ -7,41 +7,12 @@ const dbGet = (db, query, params = []) => new Promise((resolve, reject) => {
     });
 });
 
-const dbAll = (db, query, params = []) => new Promise((resolve, reject) => {
-    db.all(query, params, (error, rows) => {
-        if (error) reject(error);
-        else resolve(rows || []);
-    });
-});
-
 const dbRun = (db, query, params = []) => new Promise((resolve, reject) => {
     db.run(query, params, function onRun(error) {
         if (error) reject(error);
         else resolve({ lastID: this.lastID, changes: this.changes });
     });
 });
-
-const ensureRoundSchema = async (db) => {
-    const columns = await dbAll(db, 'PRAGMA table_info(rounds)');
-    const columnNames = new Set(columns.map((column) => column.name));
-
-    if (!columnNames.has('scan_id')) {
-        await dbRun(db, 'ALTER TABLE rounds ADD COLUMN scan_id TEXT');
-    }
-
-    if (!columnNames.has('source_device_id')) {
-        await dbRun(db, 'ALTER TABLE rounds ADD COLUMN source_device_id TEXT');
-    }
-
-    if (!columnNames.has('recorded_at')) {
-        await dbRun(db, 'ALTER TABLE rounds ADD COLUMN recorded_at TEXT');
-    }
-
-    await dbRun(
-        db,
-        'CREATE UNIQUE INDEX IF NOT EXISTS idx_rounds_scan_id ON rounds(scan_id) WHERE scan_id IS NOT NULL'
-    );
-};
 
 const normalizePrevention = (prevention = {}) => ({
     enabled: prevention.enabled ?? true,
@@ -73,8 +44,6 @@ export const recordRound = async ({
     sourceDeviceId = null,
     now = new Date(),
 }) => dbImmediateTransaction(async (db) => {
-    await ensureRoundSchema(db);
-
     const timestamp = now.toISOString();
     const nowMs = now.getTime();
 

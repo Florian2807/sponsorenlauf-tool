@@ -10,7 +10,9 @@
     "start": "next start",
     "migrate": "node initDB.js",
     "lint": "eslint .",
-    "test": "node --test --test-concurrency=1"
+    "test": "node --test --test-concurrency=1 test/*.test.js",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install chromium"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.2.0",
@@ -31,6 +33,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.5",
     "@eslint/js": "^9.39.4",
+    "@playwright/test": "^1.63.0",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.7",
     "eslint-plugin-react": "^7.37.5",

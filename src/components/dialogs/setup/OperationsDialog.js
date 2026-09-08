@@ -101,7 +101,7 @@ export default function OperationsDialog({ dialogRef }) {
         ['Datenbank', readiness.checks.database, readiness.database.integrity],
         ['Freier Speicher', readiness.checks.diskSpace, formatBytes(readiness.storage.freeBytes)],
         ['Backup jünger als 24 h', readiness.checks.recentBackup, readiness.backup ? new Date(readiness.backup.createdAt).toLocaleString('de-DE') : 'Kein Backup'],
-        ['SMTP-Server', readiness.checks.smtp, readiness.smtp.host || 'Nicht konfiguriert'],
+        ['E-Mail-Versand', readiness.checks.smtp, readiness.smtp.provider === 'microsoft' ? 'Microsoft 365 (OAuth)' : readiness.smtp.host || 'Nicht konfiguriert'],
     ] : [];
 
     return (

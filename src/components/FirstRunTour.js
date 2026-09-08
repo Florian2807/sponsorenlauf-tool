@@ -63,7 +63,7 @@ const TOUR_STEPS = [
     route: '/mails',
     target: '[data-tour="mail"]',
     title: 'E-Mail und SMTP',
-    description: 'Wenn Sie das E-Mail-Modul verwenden, richten Sie hier Ihren SMTP-Server ein und versenden anschließend die Klassenergebnisse.',
+    description: 'Richten Sie den Versand unter Admin → Einstellungen → E-Mail-Versand ein. Dort finden Sie Microsoft-365-OAuth, SMTP-Anbieter, einen Verbindungstest und ausführliche Schritt-für-Schritt-Anleitungen. Anschließend versenden Sie hier die Klassenergebnisse.',
     location: ['Admin', 'Auswertungen', 'E-Mails versenden'],
     navigationHint: 'Oben Admin wählen und unter Auswertungen auf E-Mails versenden klicken.',
   },

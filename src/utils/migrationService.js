@@ -168,6 +168,16 @@ const migrations = [
             CREATE INDEX IF NOT EXISTS idx_station_activity_last_seen_at ON station_activity(last_seen_at);
         `),
     },
+    {
+        version: 5,
+        name: 'add-microsoft-graph-mail-provider',
+        up: async (db) => {
+            await addColumnIfMissing(db, 'smtp_configuration', 'provider', "TEXT NOT NULL DEFAULT 'smtp'");
+            await addColumnIfMissing(db, 'smtp_configuration', 'tenant_id', 'TEXT');
+            await addColumnIfMissing(db, 'smtp_configuration', 'client_id', 'TEXT');
+            await addColumnIfMissing(db, 'smtp_configuration', 'client_secret_encrypted', 'TEXT');
+        },
+    },
 ];
 
 export const getLatestSchemaVersion = () => migrations.at(-1)?.version || 0;

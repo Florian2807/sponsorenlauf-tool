@@ -2462,6 +2462,99 @@ a:focus-visible {
   padding: var(--spacing-md);
 }
 
+/* Mail flow refresh */
+.mail-flow-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  max-width: 860px;
+  margin: 1.5rem auto 0;
+  text-align: left;
+}
+
+.mail-flow-step {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.9rem;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-large);
+  background: color-mix(in srgb, var(--card-background) 86%, transparent);
+  opacity: 0.62;
+}
+
+.mail-flow-step > span {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 2rem;
+  border-radius: 50%;
+  background: var(--background-light);
+  color: var(--text-muted);
+  font-weight: 800;
+}
+
+.mail-flow-step div { display: grid; min-width: 0; }
+.mail-flow-step strong { color: var(--text-color); font-size: 0.9rem; }
+.mail-flow-step small { overflow: hidden; color: var(--text-muted); text-overflow: ellipsis; white-space: nowrap; }
+.mail-flow-step.is-current { border-color: var(--primary-color); opacity: 1; box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 12%, transparent); }
+.mail-flow-step.is-current > span { background: var(--primary-color); color: #fff; }
+.mail-flow-step.is-complete { opacity: 1; }
+.mail-flow-step.is-complete > span { background: var(--success-color); color: #fff; }
+.mail-flow-step.is-complete > span::before { content: '✓'; }
+.mail-flow-step.is-complete > span { font-size: 0; }
+.mail-flow-step.is-complete > span::before { font-size: 0.95rem; }
+
+.mail-class-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.mail-class-toolbar label { flex: 1 1 280px; max-width: 420px; }
+.mail-class-toolbar input { width: 100%; padding: 0.7rem 0.85rem; border: 1px solid var(--border-color); border-radius: var(--radius); background: var(--card-background); color: var(--text-color); }
+.mail-filter-group { display: inline-flex; padding: 0.25rem; border-radius: var(--radius); background: var(--background-light); }
+.mail-filter-group button { padding: 0.5rem 0.7rem; border: 0; border-radius: calc(var(--radius) - 2px); background: transparent; color: var(--text-muted); cursor: pointer; font: inherit; font-size: var(--font-size-sm); font-weight: 600; }
+.mail-filter-group button.active { background: var(--card-background); color: var(--primary-color); box-shadow: var(--shadow-sm); }
+.mail-filter-group span { display: inline-block; min-width: 1.35rem; margin-left: 0.2rem; padding: 0.05rem 0.3rem; border-radius: 999px; background: color-mix(in srgb, var(--primary-color) 10%, transparent); font-size: var(--font-size-xs); }
+.mail-empty-filter { margin-top: 1rem; padding: 2.5rem 1rem; border: 1px dashed var(--border-color); border-radius: var(--radius-large); color: var(--text-muted); text-align: center; }
+
+.mail-subject-field { margin-top: 1.25rem; }
+.mail-subject-field small { display: block; margin-top: 0.45rem; color: var(--text-muted); }
+.mail-subject-field code { padding: 0.1rem 0.3rem; border-radius: 4px; background: var(--background-light); }
+
+.mail-sending-state { display: flex; align-items: center; gap: 0.9rem; width: 100%; margin-top: 1rem; padding: 1rem; border: 1px solid var(--primary-color); border-radius: var(--radius-large); background: color-mix(in srgb, var(--primary-color) 7%, var(--card-background)); text-align: left; }
+.mail-sending-state div { display: grid; gap: 0.15rem; }
+.mail-sending-state span { color: var(--text-muted); font-size: var(--font-size-sm); }
+.mail-sending-spinner { width: 1.5rem; height: 1.5rem; flex: 0 0 1.5rem; border: 3px solid color-mix(in srgb, var(--primary-color) 20%, transparent); border-top-color: var(--primary-color); border-radius: 50%; animation: spin 0.8s linear infinite; }
+
+.mail-send-result { width: 100%; margin-top: 1rem; padding: 1rem; scroll-margin-top: 1.5rem; border: 1px solid var(--success-color); border-radius: var(--radius-large); background: color-mix(in srgb, var(--success-color) 7%, var(--card-background)); text-align: left; }
+.mail-send-result:focus { outline: none; }
+.mail-send-result.has-errors { border-color: var(--warning-color); background: color-mix(in srgb, var(--warning-color) 8%, var(--card-background)); }
+.mail-send-result-header { display: flex; gap: 0.75rem; align-items: flex-start; }
+.mail-send-result-header > span { display: grid; place-items: center; width: 1.75rem; height: 1.75rem; flex: 0 0 1.75rem; border-radius: 50%; background: var(--success-color); color: #fff; font-weight: 800; }
+.mail-send-result.has-errors .mail-send-result-header > span { background: var(--warning-color); }
+.mail-send-result-header p { margin: 0.2rem 0 0; color: var(--text-muted); }
+.mail-result-counts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-top: 1rem; }
+.mail-result-counts span { padding: 0.65rem; border-radius: var(--radius); background: color-mix(in srgb, var(--card-background) 75%, transparent); color: var(--text-muted); text-align: center; }
+.mail-result-counts strong { display: block; color: var(--text-color); font-size: 1.15rem; }
+.mail-send-result details { margin-top: 0.8rem; }
+.mail-send-result summary { cursor: pointer; font-weight: 700; }
+.mail-send-result li { margin-top: 0.35rem; overflow-wrap: anywhere; }
+.mail-cc-notice { margin: 0.9rem 0 0; padding: 0.75rem 0.9rem; border-left: 3px solid var(--info-color); border-radius: var(--radius-sm); background: var(--info-bg); color: var(--text-color); font-size: var(--font-size-sm); }
+
+@media (max-width: 760px) {
+  .mail-flow-steps { grid-template-columns: 1fr; }
+  .mail-class-toolbar { align-items: stretch; flex-direction: column; }
+  .mail-class-toolbar label { flex-basis: auto; max-width: none; }
+  .mail-filter-group { display: grid; grid-template-columns: repeat(3, 1fr); }
+  .mail-result-counts { grid-template-columns: 1fr; }
+}
+
 .mail-header {
   text-align: center;
   margin-bottom: var(--spacing-xl);
@@ -2806,6 +2899,11 @@ a:focus-visible {
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
+
+.class-assignment-badges { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 0.4rem; }
+.class-file-indicator { display: inline-flex; align-items: center; gap: 0.3rem; padding: 5px 9px; border: 1px solid; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.02em; white-space: nowrap; }
+.class-file-indicator.is-ready { border-color: color-mix(in srgb, var(--success-color) 40%, transparent); background: color-mix(in srgb, var(--success-color) 10%, var(--card-background)); color: var(--success-color); }
+.class-file-indicator.is-missing { border-color: var(--border-color); background: var(--background-light); color: var(--text-muted); }
 
 .teacher-assignment-list {
   display: flex;

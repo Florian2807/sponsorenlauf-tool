@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/router';
 import { API_ENDPOINTS, downloadFile } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
 import { useAsyncOperation } from '../hooks/useAsyncOperation';
@@ -12,8 +13,10 @@ import ClassStructureDialog from '../components/dialogs/setup/ClassStructureDial
 import CombinedImportDialog from '../components/dialogs/setup/CombinedImportDialog';
 import ModuleSettingsDialog from '../components/dialogs/setup/ModuleSettingsDialog';
 import OperationsDialog from '../components/dialogs/setup/OperationsDialog';
+import SmtpSettingsDialog from '../components/dialogs/setup/SmtpSettingsDialog';
 
 export default function Setup() {
+    const router = useRouter();
     const [insertedCount, setInsertedCount] = useState(0);
     const [replacementAmount, setReplacementAmount] = useState(0);
     const [classes, setClasses] = useState([]);
@@ -36,8 +39,12 @@ export default function Setup() {
     // Dialog-Management
     const { refs: dialogRefs, openDialog, closeDialog } = useDialogs([
         'generateLabels', 'detailedDelete',
-        'classStructure', 'combinedImport', 'moduleSettings', 'operations'
+        'classStructure', 'combinedImport', 'moduleSettings', 'smtpSettings', 'operations'
     ]);
+
+    useEffect(() => {
+        if (router.isReady && router.query.smtp === '1') openDialog('smtpSettings');
+    }, [openDialog, router.isReady, router.query.smtp]);
 
     // Fetch-Funktionen mit useCallback für stabile Referenzen
     const fetchClasses = useCallback(async () => {
@@ -390,6 +397,19 @@ export default function Setup() {
                             </button>
 
                             <button
+                                onClick={() => openDialog('smtpSettings')}
+                                className="setup-action-btn"
+                                data-tour="smtp"
+                                title="E-Mail-Server einrichten, testen und die Anbieter-Anleitung öffnen."
+                            >
+                                <span className="setup-btn-icon">📨</span>
+                                <span className="setup-btn-content">
+                                    <span className="setup-btn-text">E-Mail-Versand</span>
+                                    <span className="setup-btn-subtitle">Microsoft 365 oder SMTP</span>
+                                </span>
+                            </button>
+
+                            <button
                                 type="button"
                                 onClick={() => window.location.assign('/setup?tour=1')}
                                 className="setup-action-btn"
@@ -460,6 +480,8 @@ export default function Setup() {
             <ModuleSettingsDialog
                 dialogRef={dialogRefs.moduleSettingsRef}
             />
+
+            <SmtpSettingsDialog dialogRef={dialogRefs.smtpSettingsRef} />
 
             <OperationsDialog dialogRef={dialogRefs.operationsRef} />
         </div>

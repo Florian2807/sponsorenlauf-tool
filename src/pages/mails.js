@@ -5,8 +5,8 @@ import { useApi } from '../hooks/useApi';
 import { useGlobalError } from '../contexts/ErrorContext';
 import { useModuleConfig } from '../contexts/ModuleConfigContext';
 import BaseDialog from '../components/BaseDialog';
-import SendMailsDialog from '../components/dialogs/mails/SendMailsDialog';
 import MailTemplateSelector from '../components/dialogs/mails/MailTemplateSelector';
+import { matchClassName } from '../utils/importHelpers';
 
 // ===================================================================
 // CONSTANTS & TEMPLATES
@@ -61,7 +61,13 @@ const DEFAULT_EMAIL_SETTINGS = {
     fromAddress: '',
     fromName: 'Schülervertretung',
     passwordConfigured: false,
+    mailSubject: 'Sponsorenlauf {jahr} – Ergebnisliste Klasse {klasse}',
     mailText: EMAIL_TEMPLATES[0].content
+};
+
+const getClassFile = (files, className) => {
+    const match = matchClassName(className, Object.keys(files || {}));
+    return ['exact', 'normalized', 'token'].includes(match.status) ? files[match.value] : null;
 };
 
 // ===================================================================
@@ -75,8 +81,8 @@ const useConnectivity = () => {
     const checkConnectivity = useCallback(async () => {
         setIsChecking(true);
         try {
-            await request('/api/check-connectivity', { timeout: 5000 });
-            setIsConnected(true);
+            const result = await request('/api/check-connectivity', { timeout: 5000 });
+            setIsConnected(Boolean(result?.connected));
         } catch (error) {
             setIsConnected(false);
         } finally {
@@ -95,10 +101,7 @@ const useConnectivity = () => {
 
 const useSmtpConfiguration = (setEmailSettings) => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [isAuthenticating, setIsAuthenticating] = useState(false);
-    const [authMessage, setAuthMessage] = useState('');
     const { request } = useApi();
-    const { showSuccess } = useGlobalError();
 
     useEffect(() => {
         const load = async () => {
@@ -111,7 +114,6 @@ const useSmtpConfiguration = (setEmailSettings) => {
                         password: '',
                     }));
                     setIsAuthenticated(Boolean(result.configured));
-                    setAuthMessage(result.configured ? 'SMTP-Server ist konfiguriert' : '');
                 }
             } catch {
                 setIsAuthenticated(false);
@@ -120,43 +122,7 @@ const useSmtpConfiguration = (setEmailSettings) => {
         load();
     }, [request, setEmailSettings]);
 
-    const authenticate = async (configuration) => {
-        setIsAuthenticating(true);
-        setAuthMessage('');
-
-        try {
-            await request('/api/smtp-settings', {
-                method: 'POST',
-                data: configuration,
-                errorContext: 'Beim Testen des SMTP-Servers'
-            });
-            const saved = await request('/api/smtp-settings', {
-                method: 'PUT',
-                data: configuration,
-                errorContext: 'Beim Speichern der SMTP-Konfiguration'
-            });
-            setEmailSettings((current) => ({
-                ...current,
-                ...saved.configuration,
-                password: '',
-            }));
-            setIsAuthenticated(true);
-            setAuthMessage('SMTP-Verbindung erfolgreich getestet und gespeichert');
-            showSuccess('SMTP-Verbindung erfolgreich getestet und gespeichert', 'E-Mail-Server');
-        } catch (error) {
-            setAuthMessage(error.message || 'SMTP-Verbindung fehlgeschlagen');
-            setIsAuthenticated(false);
-        } finally {
-            setIsAuthenticating(false);
-        }
-    };
-
-    const resetAuth = () => {
-        setIsAuthenticated(false);
-        setAuthMessage('');
-    };
-
-    return { isAuthenticated, isAuthenticating, authMessage, authenticate, resetAuth };
+    return { isAuthenticated };
 };
 
 const useFileGeneration = () => {
@@ -489,6 +455,7 @@ const ManualEmailRow = ({ email, index, onEmailChange, isLastEmpty = false }) =>
 
 const ClassAssignmentCard = ({
     className,
+    hasFile,
     mode,
     teacherData,
     manualEmailData,
@@ -507,8 +474,12 @@ const ClassAssignmentCard = ({
         <div className="class-assignment-card">
             <div className="class-assignment-header">
                 <h3 className="class-assignment-name">Klasse {className}</h3>
-                <div className="teacher-count-badge">
-                    {validCount} {isManual ? 'E-Mails' : 'Lehrer'}
+                <div className="class-assignment-badges">
+                    <span className={`class-file-indicator ${hasFile ? 'is-ready' : 'is-missing'}`}>
+                        <span aria-hidden="true">{hasFile ? '✓' : '–'}</span>
+                        {hasFile ? 'Liste bereit' : 'Keine Liste'}
+                    </span>
+                    <span className="teacher-count-badge">{validCount} {isManual ? 'E-Mails' : 'Lehrer'}</span>
                 </div>
             </div>
 
@@ -551,26 +522,19 @@ const ClassAssignmentCard = ({
     );
 };
 
-const SendProgress = ({ isLoading, progress }) => {
+const SendProgress = ({ isLoading, classCount }) => {
     if (!isLoading) return null;
 
     return (
-        <div className="send-progress">
-            <div className="progress-bar">
-                <div
-                    className="progress-fill"
-                    style={{ width: `${progress}%` }}
-                ></div>
-            </div>
-            <div className="progress-text">
-                {progress}% abgeschlossen
-            </div>
+        <div className="mail-sending-state" role="status" aria-live="polite">
+            <span className="mail-sending-spinner" aria-hidden="true" />
+            <div><strong>E-Mails werden versendet</strong><span>Bitte warten Sie, während {classCount} Klassen verarbeitet werden.</span></div>
         </div>
     );
 };
 
 const EmailSummary = ({ summary, mode }) => {
-    const { totalClasses, assignedClasses, totalRecipients, unassignedClasses } = summary;
+    const { totalClasses, sendableClasses, sendableRecipients, unassignedClasses } = summary;
     const recipientType = mode === 'manual' ? 'E-Mail-Adressen' : 'Lehrer';
 
     return (
@@ -578,7 +542,7 @@ const EmailSummary = ({ summary, mode }) => {
             <div className="send-preview">
                 <span className="preview-icon">📋</span>
                 <span>
-                    Bereit zum Versenden an <strong>{totalRecipients} {recipientType}</strong> für <strong>{assignedClasses} von {totalClasses} Klassen</strong>
+                    Bereit zum Versenden an <strong>{sendableRecipients} {recipientType}</strong> für <strong>{sendableClasses} von {totalClasses} Klassen</strong>
                 </span>
             </div>
 
@@ -615,7 +579,7 @@ export default function MailsPage() {
 
     // State
     const [emailSettings, setEmailSettings] = useState(DEFAULT_EMAIL_SETTINGS);
-    const { isAuthenticated, isAuthenticating, authMessage, authenticate, resetAuth } = useSmtpConfiguration(setEmailSettings);
+    const { isAuthenticated } = useSmtpConfiguration(setEmailSettings);
     const [availableClasses, setAvailableClasses] = useState([]);
     const [emailMode, setEmailMode] = useState(config.teachers ? 'teachers' : 'manual');
 
@@ -627,12 +591,22 @@ export default function MailsPage() {
     const [manualEmails, setManualEmails] = useState({});
 
     const [isSending, setIsSending] = useState(false);
-    const [sendProgress, setSendProgress] = useState(0);
+    const [sendResult, setSendResult] = useState(null);
+    const [classSearch, setClassSearch] = useState('');
+    const [classFilter, setClassFilter] = useState('all');
     const [sendCopyToSender, setSendCopyToSender] = useState(false);
 
     // Refs
-    const sendMailsPopup = useRef(null);
     const sendConfirmPopup = useRef(null);
+    const sendResultRef = useRef(null);
+
+    useEffect(() => {
+        if (!sendResult) return;
+        requestAnimationFrame(() => {
+            sendResultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            sendResultRef.current?.focus({ preventScroll: true });
+        });
+    }, [sendResult]);
 
     // Initialize data when component mounts
     useEffect(() => {
@@ -695,11 +669,6 @@ export default function MailsPage() {
     // Event Handlers
     const handleEmailSettingsChange = (field, value) => {
         setEmailSettings(prev => ({ ...prev, [field]: value }));
-
-        const smtpFields = ['host', 'port', 'security', 'username', 'password', 'fromAddress', 'fromName'];
-        if (smtpFields.includes(field) && isAuthenticated) {
-            resetAuth();
-        }
     };
 
     const handleTemplateSelect = (template) => {
@@ -805,6 +774,7 @@ export default function MailsPage() {
     };
 
     const getCurrentSummary = () => {
+        const hasFile = (className) => Boolean(getClassFile(files, className));
         if (emailMode === 'teachers') {
             const assignedClasses = availableClasses.filter(className =>
                 getAssignedTeachers(className).length > 0
@@ -812,13 +782,17 @@ export default function MailsPage() {
             const totalRecipients = availableClasses.reduce((sum, className) =>
                 sum + getAssignedTeachers(className).length, 0
             );
+            const sendable = assignedClasses.filter(hasFile);
 
             return {
                 totalClasses: availableClasses.length,
                 assignedClasses: assignedClasses.length,
                 totalRecipients,
+                sendableClasses: sendable.length,
+                sendableRecipients: sendable.reduce((sum, className) => sum + getAssignedTeachers(className).length, 0),
+                missingFileClasses: assignedClasses.filter(className => !hasFile(className)),
                 unassignedClasses: availableClasses.filter(className =>
-                    getAssignedTeachers(className).length === 0
+                    hasFile(className) && getAssignedTeachers(className).length === 0
                 )
             };
         } else {
@@ -828,13 +802,17 @@ export default function MailsPage() {
             const totalRecipients = availableClasses.reduce((sum, className) =>
                 sum + getValidEmails(className).length, 0
             );
+            const sendable = assignedClasses.filter(hasFile);
 
             return {
                 totalClasses: availableClasses.length,
                 assignedClasses: assignedClasses.length,
                 totalRecipients,
+                sendableClasses: sendable.length,
+                sendableRecipients: sendable.reduce((sum, className) => sum + getValidEmails(className).length, 0),
+                missingFileClasses: assignedClasses.filter(className => !hasFile(className)),
                 unassignedClasses: availableClasses.filter(className =>
-                    getValidEmails(className).length === 0
+                    hasFile(className) && getValidEmails(className).length === 0
                 )
             };
         }
@@ -880,35 +858,37 @@ export default function MailsPage() {
             showError(errorMessage, 'E-Mail-Versand');
             return;
         }
+        if (summary.sendableRecipients === 0) {
+            showError('Für die ausgewählten Klassen sind keine Ergebnislisten verfügbar. Es gibt daher nichts zu versenden.', 'E-Mail-Versand');
+            return;
+        }
 
         setIsSending(true);
-        setSendProgress(0);
+        setSendResult(null);
 
         try {
-            // Simulate progress
-            const progressInterval = setInterval(() => {
-                setSendProgress(prev => Math.min(prev + 10, 90));
-            }, 500);
-
             const emailData = getEmailData();
 
             const result = await request('/api/send-mails', {
                 method: 'POST',
                 data: {
                     teacherEmails: emailData,
-                    teacherFiles: files,
+                    teacherFiles: Object.fromEntries(
+                        Object.keys(emailData).map((className) => [className, getClassFile(files, className)])
+                    ),
+                    mailSubject: emailSettings.mailSubject,
                     mailText: emailSettings.mailText,
                     sendCopyToSender: sendCopyToSender
                 },
-                errorContext: 'Beim Senden der E-Mails'
+                errorContext: 'Beim Senden der E-Mails',
+                timeout: 5 * 60 * 1000
             });
-
-            clearInterval(progressInterval);
-            setSendProgress(100);
-
-            showSuccess(result.message || 'E-Mails wurden erfolgreich versendet!', 'E-Mail-Versand');
-
-            setTimeout(() => setSendProgress(0), 2000);
+            setSendResult(result);
+            if (result.results?.failed > 0) {
+                showError(result.message, 'E-Mail-Versand teilweise fehlgeschlagen');
+            } else {
+                showSuccess(result.message || 'E-Mails wurden erfolgreich versendet!', 'E-Mail-Versand');
+            }
         } catch (error) {
             // Error is handled by useApi
         } finally {
@@ -931,12 +911,22 @@ export default function MailsPage() {
             showError(errorMessage, 'E-Mail-Versand');
             return;
         }
+        if (currentSummary.sendableRecipients === 0) {
+            showError('Für die ausgewählten Klassen sind keine Ergebnislisten verfügbar. Es gibt daher nichts zu versenden.', 'E-Mail-Versand');
+            return;
+        }
 
         sendConfirmPopup.current?.showModal();
     };
 
     // Get current summary for display
     const summary = getCurrentSummary();
+    const visibleClasses = availableClasses.filter((className) => {
+        const matchesSearch = className.toLocaleLowerCase('de').includes(classSearch.trim().toLocaleLowerCase('de'));
+        const hasRecipient = emailMode === 'manual' ? getValidEmails(className).length > 0 : getAssignedTeachers(className).length > 0;
+        const isReady = hasRecipient && Boolean(getClassFile(files, className));
+        return matchesSearch && (classFilter === 'all' || (classFilter === 'ready' ? isReady : !isReady));
+    });
 
     return (
         <div className="mail-page-container">
@@ -953,6 +943,12 @@ export default function MailsPage() {
                 </p>
 
                 {/* Status Overview */}
+                <div className="mail-flow-steps" aria-label="Versandfortschritt">
+                    <div className={`mail-flow-step ${isAuthenticated ? 'is-complete' : 'is-current'}`}><span>1</span><div><strong>Versand verbinden</strong><small>{isAuthenticated ? 'Eingerichtet' : 'Noch erforderlich'}</small></div></div>
+                    <div className={`mail-flow-step ${Object.keys(files).length ? 'is-complete' : isAuthenticated ? 'is-current' : ''}`}><span>2</span><div><strong>Listen vorbereiten</strong><small>{Object.keys(files).length ? `${Object.keys(files).length} Dateien bereit` : 'Excel-Dateien erstellen'}</small></div></div>
+                    <div className={`mail-flow-step ${Object.keys(files).length ? 'is-current' : ''}`}><span>3</span><div><strong>Prüfen & senden</strong><small>Empfänger und Nachricht</small></div></div>
+                </div>
+
                 <div className="mail-status-overview">
                     <div className="status-item">
                         <span className="status-icon">🌐</span>
@@ -963,9 +959,11 @@ export default function MailsPage() {
                     </div>
                     <div className="status-item">
                         <span className="status-icon">🔐</span>
-                        <span className="status-label">E-Mail Login:</span>
+                        <span className="status-label">E-Mail-Versand:</span>
                         <span className={`status-value ${isAuthenticated ? 'success' : 'pending'}`}>
-                            {isAuthenticated ? 'Authentifiziert' : 'Nicht konfiguriert'}
+                            {isAuthenticated
+                                ? (emailSettings.provider === 'microsoft' ? 'Microsoft 365 (OAuth)' : 'SMTP konfiguriert')
+                                : 'Nicht konfiguriert'}
                         </span>
                     </div>
                     <div className="status-item">
@@ -987,39 +985,16 @@ export default function MailsPage() {
 
                         <button
                             className={`btn btn-lg mail-start-button ${isConnected === false ? 'btn-disabled' : 'btn-primary'}`}
-                            onClick={() => sendMailsPopup.current.showModal()}
-                            disabled={isConnected === false}
+                            onClick={() => isAuthenticated ? generateFiles() : window.location.assign('/setup?smtp=1')}
+                            disabled={isConnected === false || isGenerating}
                             title={isConnected === false ? 'Internetverbindung erforderlich' : ''}
                         >
-                            <span className="button-icon">🚀</span>
-                            E-Mail-Versand konfigurieren
+                            <span className="button-icon">{isAuthenticated ? '🚀' : '⚙️'}</span>
+                            {isGenerating ? 'Excel-Dateien werden erstellt…' : isAuthenticated ? 'E-Mail-Versand vorbereiten' : 'E-Mail-Versand unter Einstellungen einrichten'}
                         </button>
                     </div>
                 )}
             </div>
-
-            {/* Send Mails Dialog */}
-            <SendMailsDialog
-                dialogRef={sendMailsPopup}
-                fileData={emailSettings}
-                setFileData={setEmailSettings}
-                credentialsCorrect={isAuthenticated}
-                handleLogin={() => authenticate(emailSettings)}
-                status={{
-                    loginLoading: isAuthenticating,
-                    uploadLoading: isGenerating,
-                    loginMessage: authMessage
-                }}
-                handleUpload={() => {
-                    generateFiles();
-                    if (sendMailsPopup.current) {
-                        sendMailsPopup.current.close();
-                    }
-                }}
-                internetConnected={isConnected}
-                connectivityLoading={isChecking}
-                checkInternetConnectivity={checkConnectivity}
-            />
 
             {/* Main Content - Show after files are generated */}
             {Object.keys(files).length > 0 && (
@@ -1043,12 +1018,22 @@ export default function MailsPage() {
                             isTeacherModuleEnabled={config.teachers}
                         />
 
+                        <div className="mail-class-toolbar">
+                            <label><span className="sr-only">Klasse suchen</span><input type="search" value={classSearch} onChange={(event) => setClassSearch(event.target.value)} placeholder="Klasse suchen…" /></label>
+                            <div className="mail-filter-group" aria-label="Klassen filtern">
+                                <button type="button" className={classFilter === 'all' ? 'active' : ''} onClick={() => setClassFilter('all')}>Alle <span>{availableClasses.length}</span></button>
+                                <button type="button" className={classFilter === 'ready' ? 'active' : ''} onClick={() => setClassFilter('ready')}>Bereit <span>{summary.sendableClasses}</span></button>
+                                <button type="button" className={classFilter === 'missing' ? 'active' : ''} onClick={() => setClassFilter('missing')}>Nicht bereit <span>{summary.totalClasses - summary.sendableClasses}</span></button>
+                            </div>
+                        </div>
+
                         {/* Assignment Grid */}
                         <div className="classes-grid">
-                            {availableClasses.map(className => (
+                            {visibleClasses.map(className => (
                                 <ClassAssignmentCard
                                     key={className}
                                     className={className}
+                                    hasFile={Boolean(getClassFile(files, className))}
                                     mode={emailMode}
                                     teacherData={{
                                         assignments: teacherAssignments[className] || [],
@@ -1062,6 +1047,7 @@ export default function MailsPage() {
                                 />
                             ))}
                         </div>
+                        {visibleClasses.length === 0 && <div className="mail-empty-filter">Keine Klassen entsprechen diesem Filter.</div>}
                     </div>
 
                     {/* Mail Content Section */}
@@ -1077,6 +1063,19 @@ export default function MailsPage() {
                             currentText={emailSettings.mailText}
                             onChange={(text) => handleEmailSettingsChange('mailText', text)}
                         />
+
+                        <div className="form-group mail-subject-field">
+                            <label className="form-label" htmlFor="mail-subject">Betreff</label>
+                            <input
+                                id="mail-subject"
+                                type="text"
+                                value={emailSettings.mailSubject}
+                                onChange={(event) => handleEmailSettingsChange('mailSubject', event.target.value)}
+                                className="form-control"
+                                maxLength="200"
+                            />
+                            <small>Variablen: <code>{'{klasse}'}</code> und <code>{'{jahr}'}</code></small>
+                        </div>
 
                         <div className="form-group">
                             <label className="form-label" htmlFor="mail-text">E-Mail Nachricht</label>
@@ -1126,7 +1125,14 @@ export default function MailsPage() {
                             {isSending ? 'E-Mails werden gesendet...' : 'E-Mails jetzt senden'}
                         </button>
 
-                        <SendProgress isLoading={isSending} progress={sendProgress} />
+                        <SendProgress isLoading={isSending} classCount={summary.sendableClasses} />
+
+                        {sendResult && <div ref={sendResultRef} tabIndex={-1} className={`mail-send-result ${sendResult.results?.failed ? 'has-errors' : 'is-success'}`} aria-live="polite">
+                            <div className="mail-send-result-header"><span>{sendResult.results?.failed ? '!' : '✓'}</span><div><strong>{sendResult.results?.failed ? 'Versand teilweise abgeschlossen' : 'Versand abgeschlossen'}</strong><p>{sendResult.message}</p></div></div>
+                            <div className="mail-result-counts"><span><strong>{sendResult.results?.successful || 0}</strong> gesendet</span><span><strong>{sendResult.results?.failed || 0}</strong> fehlgeschlagen</span><span><strong>{sendResult.results?.skipped || 0}</strong> übersprungen</span></div>
+                            {sendResult.results?.errors?.length > 0 && <details><summary>Fehlerdetails anzeigen</summary><ul>{sendResult.results.errors.map((error) => <li key={error}>{error}</li>)}</ul></details>}
+                            {sendResult.results?.skippedDetails?.length > 0 && <details><summary>Übersprungene Klassen anzeigen</summary><ul>{sendResult.results.skippedDetails.map((item) => <li key={`${item.className}-${item.reason}`}><strong>Klasse {item.className}:</strong> {item.reason}</li>)}</ul></details>}
+                        </div>}
                     </div>
                 </>
             )}
@@ -1153,7 +1159,7 @@ export default function MailsPage() {
                 ]}
             >
                 <p>
-                    Sie versenden E-Mails an <strong>{summary.totalRecipients} {emailMode === 'manual' ? 'E-Mail-Adressen' : 'Lehrer'}</strong> für <strong>{summary.assignedClasses} von {summary.totalClasses} Klassen</strong>.
+                    Sie versenden E-Mails an <strong>{summary.sendableRecipients} {emailMode === 'manual' ? 'E-Mail-Adressen' : 'Lehrer'}</strong> für <strong>{summary.sendableClasses} von {summary.totalClasses} Klassen</strong>.
                 </p>
                 {summary.unassignedClasses.length > 0 ? (
                     <div className="message message-warning">
@@ -1161,6 +1167,7 @@ export default function MailsPage() {
                     </div>
                 ) : null}
                 <p className="text-muted">Die erzeugten Excel-Dateien werden direkt an die zugewiesenen Empfänger verschickt.</p>
+                {summary.sendableRecipients > summary.sendableClasses && <p className="mail-cc-notice">Mehrere Empfänger derselben Klasse werden gemeinsam angeschrieben und sehen sich gegenseitig im CC.</p>}
             </BaseDialog>
         </div>
     );

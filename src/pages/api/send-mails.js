@@ -8,6 +8,10 @@ const applyTemplateVariables = (mailText, className, currentYear) => {
     .replaceAll('{klasse}', className);
 };
 
+const MAX_CLASSES_PER_SEND = 100;
+const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
+const MAX_TOTAL_ATTACHMENT_BYTES = 30 * 1024 * 1024;
+
 const escapeHtml = (value) => {
   return String(value)
     .replaceAll('&', '&amp;')
@@ -17,13 +21,18 @@ const escapeHtml = (value) => {
     .replaceAll("'", '&#39;');
 };
 
-const sendClassEmail = async (transporter, className, teacherData, classFileBase64, mailText, senderName, senderEmail, sendCopyToSender = false) => {
+const sendClassEmail = async (transporter, className, teacherData, classFileBase64, mailText, mailSubject, senderName, senderEmail, sendCopyToSender = false) => {
   if (!classFileBase64 || !teacherData.length) {
     console.warn(`Überspringe Klasse ${className}: Keine Datei oder Lehrer`);
     return false;
   }
 
-  const teacherEmails = teacherData.map(teacher => teacher.email).filter(Boolean);
+  const teacherEmails = [...new Map(
+    teacherData
+      .map(teacher => String(teacher.email || '').trim())
+      .filter(Boolean)
+      .map(email => [email.toLocaleLowerCase(), email])
+  ).values()];
 
   if (teacherEmails.length === 0) {
     console.warn(`Überspringe Klasse ${className}: Keine gültigen E-Mail-Adressen`);
@@ -32,12 +41,13 @@ const sendClassEmail = async (transporter, className, teacherData, classFileBase
 
   const currentYear = new Date().getFullYear();
   const resolvedMailText = applyTemplateVariables(mailText, className, currentYear);
+  const resolvedSubject = applyTemplateVariables(mailSubject, className, currentYear);
   const resolvedMailHtml = escapeHtml(resolvedMailText).replace(/\n/g, '<br>');
   const mailOptions = {
     from: `${senderName} <${senderEmail}>`,
     to: teacherEmails[0],
     cc: teacherEmails.slice(1).join(', '),
-    subject: `Sponsorenlauf ${currentYear} - Ergebnisliste Klasse ${className}`,
+    subject: resolvedSubject,
     text: resolvedMailText,
     html: `
       <!DOCTYPE html>
@@ -126,7 +136,7 @@ ${resolvedMailHtml}
                 </div>
                 <div style="flex: 1; min-width: 0;">
                   <h3 class="accent-color" style="margin: 0 0 8px 0; font-size: 16px; font-weight: 600; color: #3b82f6;">
-                    📊 Excel-Datei im Anhang
+                    📎 Ihre Excel-Datei ist angehängt
                   </h3>
                   <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: 500; color: #64748b; word-wrap: break-word;">
                     Sponsorenlauf_${currentYear}_Klasse_${className}.xlsx
@@ -143,6 +153,7 @@ ${resolvedMailHtml}
                 <strong>❓ Fragen oder Probleme?</strong><br>
                 Bei Fragen wenden Sie sich an die Schülervertretung oder antworten Sie direkt auf diese E-Mail.
               </p>
+            </div>
             </div>
             
           </div>
@@ -174,6 +185,7 @@ ${resolvedMailHtml}
         filename: `Sponsorenlauf_${currentYear}_Klasse_${className}.xlsx`,
         content: Buffer.from(classFileBase64, 'base64'),
         contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        contentDisposition: 'attachment',
       },
     ],
   };
@@ -186,8 +198,6 @@ ${resolvedMailHtml}
   try {
     await transporter.sendMail(mailOptions);
 
-    // Rate limiting um den E-Mail-Server nicht zu überlasten
-    await new Promise(resolve => setTimeout(resolve, 1000));
     return true;
   } catch (error) {
     console.error(`Fehler beim Senden der E-Mail für Klasse ${className}:`, error);
@@ -195,7 +205,7 @@ ${resolvedMailHtml}
   }
 };
 
-const validateEmailData = (teacherData, teacherFiles, mailText) => {
+const validateEmailData = (teacherData, teacherFiles, mailText, mailSubject) => {
   const errors = [];
 
   // Basis-Validierung
@@ -224,6 +234,10 @@ const validateEmailData = (teacherData, teacherFiles, mailText) => {
     errors.push('E-Mail-Text ist zu lang (maximal 10.000 Zeichen)');
   }
 
+  if (!mailSubject?.trim()) errors.push('E-Mail-Betreff ist erforderlich');
+  if (mailSubject && mailSubject.length > 200) errors.push('E-Mail-Betreff ist zu lang (maximal 200 Zeichen)');
+  if (mailSubject && /[\r\n]/.test(mailSubject)) errors.push('E-Mail-Betreff darf keinen Zeilenumbruch enthalten');
+
   // Detaillierte Lehrer-Validierung (nicht blockierend für leere Klassen)
   if (teacherData) {
     Object.entries(teacherData).forEach(([className, teachers]) => {
@@ -243,14 +257,23 @@ const validateEmailData = (teacherData, teacherFiles, mailText) => {
 
   // File-Validation (nicht blockierend für Klassen ohne Lehrer)
   if (teacherFiles && teacherData) {
+    const classNames = Object.keys(teacherData);
+    if (classNames.length > MAX_CLASSES_PER_SEND) {
+      errors.push(`Zu viele Klassen in einem Versand (maximal ${MAX_CLASSES_PER_SEND})`);
+    }
+
+    let totalAttachmentBytes = 0;
     Object.keys(teacherData).forEach(className => {
       // Nur prüfen wenn Klasse Lehrer hat
       if (teacherData[className] && Array.isArray(teacherData[className]) && teacherData[className].length > 0) {
-        if (!teacherFiles[className]) {
-          errors.push(`Klasse ${className}: Zugehörige Datei fehlt`);
+        if (teacherFiles[className]) {
+          const estimatedBytes = Math.ceil(String(teacherFiles[className]).length * 0.75);
+          totalAttachmentBytes += estimatedBytes;
+          if (estimatedBytes > MAX_ATTACHMENT_BYTES) errors.push(`Klasse ${className}: Anhang ist zu groß`);
         }
       }
     });
+    if (totalAttachmentBytes > MAX_TOTAL_ATTACHMENT_BYTES) errors.push('Anhänge sind insgesamt zu groß');
   }
 
   return errors;
@@ -266,6 +289,7 @@ export default async function handler(req, res) {
       teacherEmails: teacherData,
       teacherFiles,
       mailText,
+      mailSubject = 'Sponsorenlauf {jahr} - Ergebnisliste Klasse {klasse}',
       sendCopyToSender = false
     } = req.body;
 
@@ -273,7 +297,8 @@ export default async function handler(req, res) {
     const validationErrors = validateEmailData(
       teacherData,
       teacherFiles,
-      mailText
+      mailText,
+      mailSubject
     );
 
     if (validationErrors.length > 0) {
@@ -286,6 +311,7 @@ export default async function handler(req, res) {
     try {
       await transporter.verify();
     } catch (verifyError) {
+      transporter.close?.();
       console.error('E-Mail-Server-Verbindung fehlgeschlagen:', verifyError);
       return handleError(res, verifyError, 401, 'E-Mail-Server-Verbindung fehlgeschlagen. Überprüfen Sie Ihre Anmeldedaten.');
     }
@@ -296,15 +322,21 @@ export default async function handler(req, res) {
       const teachers = teacherData[className];
       return Array.isArray(teachers) && teachers.length > 0 && teachers.some(teacher => teacher.email);
     });
+    const classNamesWithoutFiles = classNamesWithTeachers.filter(className => !teacherFiles[className]);
+    const classNamesToSend = classNamesWithTeachers.filter(className => Boolean(teacherFiles[className]));
 
     const results = {
       total: allClassNames.length,
-      processed: classNamesWithTeachers.length,
-      skipped: allClassNames.length - classNamesWithTeachers.length,
+      processed: classNamesToSend.length,
+      skipped: allClassNames.length - classNamesToSend.length,
       successful: 0,
       failed: 0,
       errors: [],
-      skippedClasses: allClassNames.filter(className => !classNamesWithTeachers.includes(className))
+      skippedClasses: allClassNames.filter(className => !classNamesToSend.includes(className)),
+      skippedDetails: [
+        ...allClassNames.filter(className => !classNamesWithTeachers.includes(className)).map(className => ({ className, reason: 'Keine Empfänger zugeordnet' })),
+        ...classNamesWithoutFiles.map(className => ({ className, reason: 'Keine Ergebnisliste verfügbar' })),
+      ],
     };
 
     // Log übersprungene Klassen
@@ -312,7 +344,7 @@ export default async function handler(req, res) {
       console.log(`Überspringe ${results.skipped} Klassen ohne Lehrer-Zuordnungen:`, results.skippedClasses);
     }
 
-    for (const className of classNamesWithTeachers) {
+    for (const [classIndex, className] of classNamesToSend.entries()) {
       try {
         const success = await sendClassEmail(
           transporter,
@@ -320,6 +352,7 @@ export default async function handler(req, res) {
           teacherData[className],
           teacherFiles[className],
           mailText,
+          mailSubject,
           smtpConfiguration.fromName,
           smtpConfiguration.fromAddress,
           sendCopyToSender
@@ -336,18 +369,23 @@ export default async function handler(req, res) {
         results.errors.push(`Klasse ${className}: ${error.message}`);
         console.error(`Fehler beim Senden für Klasse ${className}:`, error);
       }
+      if (classIndex < classNamesToSend.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 250));
+      }
     }
+
+    transporter.close?.();
 
     // Ergebnis zurückgeben
     let message;
     if (results.failed === 0 && results.skipped === 0) {
       message = `Alle ${results.successful} E-Mails wurden erfolgreich versendet!`;
     } else if (results.failed === 0) {
-      message = `${results.successful} E-Mails erfolgreich versendet. ${results.skipped} Klassen übersprungen (keine Lehrer zugeordnet).`;
+      message = `${results.successful} E-Mails erfolgreich versendet. ${results.skipped} Klassen wurden übersprungen.`;
     } else {
       message = `${results.successful} von ${results.processed} E-Mails erfolgreich versendet. ${results.failed} fehlgeschlagen.`;
       if (results.skipped > 0) {
-        message += ` ${results.skipped} Klassen übersprungen (keine Lehrer zugeordnet).`;
+        message += ` ${results.skipped} Klassen wurden übersprungen.`;
       }
     }
 
@@ -372,3 +410,7 @@ export default async function handler(req, res) {
     return handleError(res, error, 500, 'Unerwarteter Fehler beim Senden der E-Mails');
   }
 }
+
+export const config = {
+  api: { bodyParser: { sizeLimit: '45mb' } },
+};

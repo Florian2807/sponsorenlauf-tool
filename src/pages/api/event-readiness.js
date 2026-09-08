@@ -39,7 +39,7 @@ export default async function handler(req, res) {
             backup: backups[0] || null,
             stations,
             lastScan,
-            smtp: { configured: Boolean(smtp), host: smtp?.host || null },
+            smtp: { configured: Boolean(smtp), provider: smtp?.provider || null, host: smtp?.host || null },
             connectivity,
             application: { version: process.env.SPONSORENLAUF_VERSION || 'development', uptimeSeconds: Math.round(process.uptime()) },
         }, 'Veranstaltungsbereitschaft geprüft');

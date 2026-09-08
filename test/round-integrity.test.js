@@ -23,6 +23,8 @@ let setAdminPin;
 let verifyAdminPin;
 let createAdminSession;
 let verifyAdminSessionToken;
+let saveSmtpConfiguration;
+let getSmtpConfiguration;
 
 const openDatabase = () => new sqlite3.Database(path.join(temporaryDirectory, 'database.db'));
 
@@ -136,6 +138,7 @@ before(async () => {
     createAdminSession,
     verifyAdminSessionToken,
   } = await import('../src/utils/adminAuthService.js'));
+  ({ saveSmtpConfiguration, getSmtpConfiguration } = await import('../src/utils/smtpService.js'));
 });
 
 after(async () => {
@@ -439,6 +442,29 @@ test('versioned migrations upgrade an existing database exactly once', async () 
   assert.equal(versions.latest, latestVersion);
   assert.equal(roundColumns.some((column) => column.name === 'scan_id'), true);
   assert.equal(roundColumns.some((column) => column.name === 'recorded_at'), true);
+});
+
+test('Microsoft Graph credentials are encrypted and secrets are never returned to the browser', async () => {
+  const clientSecret = 'microsoft-test-secret-value';
+  const saved = await saveSmtpConfiguration({
+    provider: 'microsoft',
+    tenantId: '11111111-1111-4111-8111-111111111111',
+    clientId: '22222222-2222-4222-8222-222222222222',
+    clientSecret,
+    fromAddress: 'sv@example.org',
+    fromName: 'Schülervertretung',
+  });
+  const row = await get('SELECT provider, client_secret_encrypted FROM smtp_configuration WHERE id = 1');
+
+  assert.equal(saved.provider, 'microsoft');
+  assert.equal(saved.clientSecretConfigured, true);
+  assert.equal(saved.clientSecret, undefined);
+  assert.equal(row.provider, 'microsoft');
+  assert.notEqual(row.client_secret_encrypted, clientSecret);
+  assert.equal(row.client_secret_encrypted.includes(clientSecret), false);
+
+  const internal = await getSmtpConfiguration({ includePassword: true });
+  assert.equal(internal.clientSecret, clientSecret);
 });
 
 test('administrator setup is atomic and sessions are validated server-side', async () => {

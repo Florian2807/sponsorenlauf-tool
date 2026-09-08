@@ -100,7 +100,7 @@ Unter **E-Mails → SMTP-Server einrichten** wird ein vorhandener SMTP-Server vo
 - Benutzername und Passwort oder ein lokaler Server ohne Anmeldung
 - Absenderadresse und Absendername
 
-Die Verbindung wird vor dem Speichern getestet. SMTP-Passwörter werden mit dem nur lokal gespeicherten `SPONSORENLAUF_SECRET_KEY` verschlüsselt; das Passwort wird nie wieder an den Browser zurückgegeben. Zertifikate werden regulär geprüft. Bei Microsoft 365 oder Gmail kann je nach Schulkonto ein App-Passwort oder eine administrativ freigeschaltete SMTP-Anmeldung erforderlich sein.
+Die Verbindung wird vor dem Speichern mit einer echten Test-E-Mail geprüft. SMTP-Passwörter und Microsoft-Client-Secrets werden mit dem nur lokal gespeicherten `SPONSORENLAUF_SECRET_KEY` verschlüsselt und nie wieder an den Browser zurückgegeben. Microsoft 365 wird über Microsoft Graph mit OAuth angebunden und funktioniert dadurch auch bei aktivierter Zwei-Faktor-Authentifizierung; andere Anbieter können über einen eigenen SMTP-Mailserver verbunden werden.
 
 Die Anwendung stellt bewusst keinen öffentlich erreichbaren Mailserver bereit. Sie verbindet sich mit dem SMTP-Dienst der Schule oder eines Mailanbieters – das vermeidet Spam-, DNS-, Zustellbarkeits- und Wartungsprobleme eines eigenen Mailservers.
 

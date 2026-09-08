@@ -56,7 +56,7 @@ production_image_tag() {
 }
 
 run_update() {
-  local request_id="$1" container previous_image previous_commit backup_filename image_tag repo_owner tracked_changes
+  local request_id="$1" container previous_image previous_commit new_commit current_branch backup_filename image_tag image_reference repo_owner tracked_changes
   write_status running update 'Erstelle Sicherheitsbackup.' "$request_id"
   container="$(docker_compose ps -q app)"
   [ -n "$container" ] || { write_status failed update 'Produktionscontainer wurde nicht gefunden.' "$request_id"; return 1; }
@@ -73,12 +73,34 @@ run_update() {
     || { write_status failed update 'Installierte Git-Version konnte nicht ermittelt werden.' "$request_id"; return 1; }
   run_logged 'git pull --ff-only' sudo -u "$repo_owner" git -C "$REPO_DIR" pull --ff-only \
     || { write_status failed update 'Repository konnte nicht sicher aktualisiert werden.' "$request_id"; return 1; }
-  run_logged 'docker compose pull app' docker_compose pull app \
-    || {
+  current_branch="$(sudo -u "$repo_owner" git -C "$REPO_DIR" branch --show-current)"
+  new_commit="$(sudo -u "$repo_owner" git -C "$REPO_DIR" rev-parse --short=12 HEAD)"
+
+  if [ "$current_branch" = main ]; then
+    write_status running update 'Lade das fertige Produktions-Image.' "$request_id"
+    if ! run_logged 'docker compose pull app' docker_compose pull app; then
+      write_status running update 'Produktions-Image nicht verfügbar; baue die neue Version lokal.' "$request_id"
+      if ! run_logged "docker compose build app (${new_commit})" docker_compose build --build-arg "APP_VERSION=${new_commit}" app; then
+        image_tag="$(production_image_tag)"
+        image_reference="ghcr.io/florian2807/sponsorenlauf-tool:${image_tag:-latest}"
+        run_logged 'docker tag (bisheriges Image wiederherstellen)' docker tag "$previous_image" "$image_reference" || true
+        run_logged 'git reset --hard (Update zurücknehmen)' sudo -u "$repo_owner" git -C "$REPO_DIR" reset --hard "$previous_commit" || true
+        write_status failed update 'Image-Download und lokaler Ersatz-Build sind fehlgeschlagen; der vorherige Stand wurde wiederhergestellt.' "$request_id"
+        return 1
+      fi
+    fi
+  else
+    append_progress "Verwende lokalen Build für Git-Branch: ${current_branch:-detached}"
+    write_status running update 'Der aktuelle Entwicklungsbranch wird lokal gebaut, damit kein fremdes main-Image verwendet wird.' "$request_id"
+    if ! run_logged "docker compose build app (${new_commit})" docker_compose build --build-arg "APP_VERSION=${new_commit}" app; then
+      image_tag="$(production_image_tag)"
+      image_reference="ghcr.io/florian2807/sponsorenlauf-tool:${image_tag:-latest}"
+      run_logged 'docker tag (bisheriges Image wiederherstellen)' docker tag "$previous_image" "$image_reference" || true
       run_logged 'git reset --hard (Update zurücknehmen)' sudo -u "$repo_owner" git -C "$REPO_DIR" reset --hard "$previous_commit" || true
-      write_status failed update 'Produktions-Image konnte nicht geladen werden; Installationsdateien wurden zurückgesetzt.' "$request_id"
+      write_status failed update 'Der lokale Build ist fehlgeschlagen; der vorherige Stand wurde wiederhergestellt.' "$request_id"
       return 1
-    }
+    fi
+  fi
 
   write_status running update 'Starte und prüfe die neue Version.' "$request_id"
   if run_logged 'docker compose up -d --remove-orphans' docker_compose up -d --remove-orphans && wait_for_healthy_app; then

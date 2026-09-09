@@ -12,6 +12,7 @@ const sanitizeLabel = (value) => String(value || 'backup')
     .slice(0, 50) || 'backup';
 
 const MANAGED_BACKUP_PATTERN = /^\d{4}-\d{2}-\d{2}T.+_[0-9a-f]{8}\.db$/;
+const BACKUP_FILENAME_PATTERN = /^(?!\.)[a-zA-Z0-9._-]+\.db$/;
 
 const pruneManagedBackups = async (backupDirectory, currentFilename) => {
     const configuredLimit = Number.parseInt(process.env.SPONSORENLAUF_MAX_BACKUPS || '20', 10);
@@ -263,4 +264,21 @@ export const listDatabaseBackups = async () => {
             };
         }));
     return backups.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+};
+
+export const deleteDatabaseBackup = async (filename) => {
+    if (!BACKUP_FILENAME_PATTERN.test(String(filename || ''))) {
+        throw new Error('Ungültiger Backup-Dateiname');
+    }
+
+    const backupDirectory = getBackupDirectory();
+    const backupPath = path.resolve(backupDirectory, filename);
+    const databasePath = path.resolve(getDatabasePath());
+
+    if (path.dirname(backupPath) !== backupDirectory || backupPath === databasePath) {
+        throw new Error('Ungültiger Backup-Pfad');
+    }
+
+    await fs.unlink(backupPath);
+    return { filename };
 };

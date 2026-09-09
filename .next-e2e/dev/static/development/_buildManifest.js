@@ -1,0 +1,62 @@
+self.__BUILD_MANIFEST = {
+  "/scan": [
+    "static/chunks/pages/scan.js"
+  ],
+  "/show": [
+    "static/chunks/pages/show.js"
+  ],
+  "__rewrites": {
+    "afterFiles": [],
+    "beforeFiles": [],
+    "fallback": []
+  },
+  "sortedPages": [
+    "/_app",
+    "/_error",
+    "/admin-login",
+    "/api/addReplacements",
+    "/api/admin-auth",
+    "/api/advancedExport",
+    "/api/backups",
+    "/api/check-connectivity",
+    "/api/classStructure",
+    "/api/deleteAllStudents",
+    "/api/deleteAllTeachers",
+    "/api/detailedDelete",
+    "/api/donationSettings",
+    "/api/donations",
+    "/api/event-readiness",
+    "/api/exportExcel",
+    "/api/exportSpenden",
+    "/api/exportSpendenKlassen",
+    "/api/exportStatisticsHtml",
+    "/api/generate-labels",
+    "/api/getAllStudents",
+    "/api/getAllTeachers",
+    "/api/getAvailableClasses",
+    "/api/getClasses",
+    "/api/importStudents",
+    "/api/importTeachers",
+    "/api/moduleConfig",
+    "/api/rounds/[id]",
+    "/api/runden",
+    "/api/saveClassTeacher",
+    "/api/send-mails",
+    "/api/setupStatus",
+    "/api/smtp-settings",
+    "/api/stations/heartbeat",
+    "/api/statistics",
+    "/api/students/[id]",
+    "/api/students/[id]/timestamps",
+    "/api/systemMaintenance",
+    "/api/teachers/[id]",
+    "/donations",
+    "/mails",
+    "/manage",
+    "/scan",
+    "/setup",
+    "/show",
+    "/statistics",
+    "/teachers"
+  ]
+};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()

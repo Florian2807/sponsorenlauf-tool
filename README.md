@@ -1,10 +1,110 @@
 # Sponsorenlauf-Tool
 
-Eine Webanwendung zur digitalen Rundenzählung bei Sponsorenläufen. Jeder Schüler erhält eine eindeutige ID als Barcode. An den Stationen werden die Barcodes mit Laptops und handelsüblichen Barcode-Scannern erfasst.
+Mit dem Sponsorenlauf-Tool zählt eine Schule die gelaufenen Runden schnell und digital. Jede Schülerin und jeder Schüler erhält einen persönlichen Barcode. An den Zählstationen wird dieser nach jeder Runde gescannt.
 
-Die Oberfläche ist derzeit auf Deutsch verfügbar.
+Das Tool läuft auf einem Raspberry Pi und stellt vor Ort ein eigenes WLAN bereit. Dadurch kann es auch genutzt werden, wenn auf dem Sportplatz kein Internet verfügbar ist. Die Oberfläche ist auf Deutsch verfügbar.
 
-## So funktioniert die Installation
+## Das kann das Tool
+
+- Schülerinnen und Schüler aus einer Excel-Datei übernehmen
+- persönliche Barcode-Etiketten erstellen
+- Runden an mehreren Stationen gleichzeitig zählen
+- versehentliche Doppel-Scans erkennen
+- den aktuellen Stand und Statistiken live anzeigen
+- Ergebnisse als Excel- oder HTML-Datei speichern
+- auf Wunsch Spendenbeträge erfassen
+- Klassenergebnisse per E-Mail versenden
+- Sicherungskopien erstellen, herunterladen, löschen und wieder einspielen
+
+## Einblicke in das Tool
+
+<details>
+  <summary>Screenshots anzeigen</summary>
+
+  ### Runden zählen
+
+  ![Aktuelle Ansicht zum Zählen der Runden](./screenshots/runden_zaehlen.png)
+
+  ### Schüler anzeigen
+
+  ![Ansicht zum Nachschlagen eines Schülers](./screenshots/schueler_anzeigen.png)
+
+  ### Schüler verwalten
+
+  ![Verwaltung der Schülerdaten](./screenshots/schueler_verwalten.png)
+
+  ### Schüler bearbeiten
+
+  ![Dialog zum Bearbeiten eines Schülers](./screenshots/schueler_verwalten_edit.png)
+
+  ### Statistiken
+
+  ![Statistik des Sponsorenlaufs](./screenshots/statistiken.png)
+
+  ### Admin-Bereich
+
+  ![Admin-Bereich zur Einrichtung](./screenshots/setup.png)
+
+</details>
+
+## Was wird benötigt?
+
+- ein Raspberry Pi 3, 4, 5, Zero W oder Zero 2 W
+- eine passende Stromversorgung und eine Speicherkarte
+- ein Netzwerkkabel mit Internetzugang für die erste Einrichtung und für Updates
+- pro Zählstation ein Laptop und ein handelsüblicher Barcode-Scanner
+
+Für die einmalige Installation ist Unterstützung durch eine technisch erfahrene Person sinnvoll. Danach werden Vorbereitung, Rundenzählung, Auswertung, Sicherungen und Updates bequem im Browser erledigt.
+
+## So läuft ein Sponsorenlauf ab
+
+### 1. Veranstaltung vorbereiten
+
+Beim ersten Öffnen führt eine kurze Tour durch das Tool. Danach:
+
+1. Unter **Admin** die Jahrgänge und Klassen anlegen.
+2. Die benötigten Bereiche des Tools ein- oder ausschalten.
+3. Schülerdaten aus einer Excel-Datei übernehmen.
+4. Barcode-Etiketten erstellen, ausdrucken und verteilen.
+5. Einen Test-Scan durchführen.
+6. Eine Sicherungskopie erstellen und auf einem anderen Gerät speichern.
+
+Änderungen in der Verwaltung sind mit einer persönlichen Admin-PIN geschützt. Die PIN wird beim ersten Start festgelegt und darf aus beliebig vielen Ziffern bestehen.
+
+### 2. Zählstationen verbinden
+
+1. Raspberry Pi einschalten.
+2. Die Laptops mit dem WLAN **Sponsorenlauf Backend** verbinden.
+3. Im Browser `http://10.0.0.1` öffnen.
+4. Auf jedem Zähl-Laptop **Runden zählen** auswählen.
+5. Barcode-Scanner anschließen und einen Probe-Scan machen.
+
+Alternativ kann `http://sponsorenlauf.local` funktionieren. Die Adresse `http://10.0.0.1` funktioniert mit den Standardeinstellungen immer.
+
+### 3. Runden zählen
+
+Nach jeder Runde wird der Barcode der laufenden Person gescannt. Die neue Runde erscheint sofort auf dem Bildschirm.
+
+Wird ein Barcode sehr schnell zweimal erfasst, fragt das Tool zur Sicherheit nach. Falls die Verbindung zum Raspberry Pi kurz ausfällt, merkt sich der geöffnete Browser noch nicht übertragene Scans und sendet sie nach der Wiederverbindung. Die Scan-Seite sollte dabei geöffnet bleiben.
+
+Unter **Schüler anzeigen** kann ein Barcode geprüft werden, ohne dabei eine weitere Runde einzutragen. Unter **Statistiken** ist der aktuelle Stand des Laufs sichtbar.
+
+### 4. Ergebnisse sichern
+
+Nach dem Lauf können die Ergebnisse als Gesamtauswertung oder getrennt nach Klassen gespeichert, an Klassenlehrkräfte versendet und als Sicherungskopie heruntergeladen werden. Falls das Spenden-Modul eingeschaltet ist, lassen sich zugesagte und eingegangene Beträge ebenfalls erfassen und auswerten.
+
+## Checkliste für den Veranstaltungstag
+
+- [ ] Alle Schülerinnen und Schüler sind eingetragen.
+- [ ] Die Barcode-Etiketten sind gedruckt und verteilt.
+- [ ] Jeder Scanner wurde erfolgreich getestet.
+- [ ] Alle Zählstationen können `http://10.0.0.1` öffnen.
+- [ ] Unter **Admin → Bereitschaft, Backups & Wartung** werden keine wichtigen Warnungen angezeigt.
+- [ ] Eine aktuelle Sicherungskopie liegt auf einem Laptop oder USB-Stick.
+- [ ] Falls E-Mails genutzt werden: Der E-Mail-Versand wurde getestet.
+- [ ] Eine zuverlässige Stromversorgung für den Raspberry Pi ist vorhanden.
+
+## Einmalige technische Einrichtung
 
 Die Anwendung läuft vollständig in Docker. Raspberry Pi OS muss nur noch den WLAN-Hotspot bereitstellen:
 
@@ -168,7 +268,7 @@ Volume anzeigen:
 sudo docker volume inspect sponsorenlauf-data
 ```
 
-Backups können in **Setup → Bereitschaft & Sicherheit** erstellt, heruntergeladen und wiederhergestellt werden. Vor jeder Wiederherstellung prüft die Anwendung die SQLite-Datei und legt zusätzlich ein Sicherheitsbackup des aktuellen Zustands an.
+Backups können in **Setup → Bereitschaft & Sicherheit** erstellt, heruntergeladen, gelöscht und wiederhergestellt werden. Vor dem Löschen fragt das Tool noch einmal nach einer Bestätigung. Vor jeder Wiederherstellung prüft die Anwendung die SQLite-Datei und legt zusätzlich ein Sicherheitsbackup des aktuellen Zustands an.
 
 Backups im Container anzeigen:
 
@@ -241,24 +341,3 @@ ghcr.io/florian2807/sponsorenlauf-tool:latest
 Das GitHub-Paket muss öffentlich lesbar sein, damit neue Raspberry Pis das Image ohne Registry-Anmeldung herunterladen können.
 
 Vor der Veröffentlichung laufen Tests, ESLint, der Produktions-Build und ein Audit auf kritische Produktionsabhängigkeiten. Das Image wird mit Herkunftsnachweis und Software-Stückliste (SBOM) veröffentlicht. Dependabot prüft npm-, Docker- und GitHub-Actions-Abhängigkeiten regelmäßig.
-
-## Screenshots
-
-<details>
-  <summary>Screenshots anzeigen</summary>
-
-  ### Runden zählen
-  ![Runden zählen](./screenshots/runden_zaehlen.png)
-
-  ### Schüler anzeigen
-  ![Schüler anzeigen](./screenshots/schueler_anzeigen.png)
-
-  ### Schüler verwalten
-  ![Schüler verwalten](./screenshots/schueler_verwalten.png)
-
-  ### Statistiken
-  ![Statistiken](./screenshots/statistiken.png)
-
-  ### Setup
-  ![Setup](./screenshots/setup.png)
-</details>

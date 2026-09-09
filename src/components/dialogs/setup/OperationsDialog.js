@@ -66,6 +66,21 @@ export default function OperationsDialog({ dialogRef }) {
         downloadFile(blob, filename);
     };
 
+    const deleteBackup = async (backup) => {
+        const createdAt = new Date(backup.createdAt).toLocaleString('de-DE');
+        if (!window.confirm(`Backup vom ${createdAt} wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) return;
+
+        setBusy(true);
+        try {
+            await request('/api/backups', {
+                method: 'POST',
+                data: { action: 'delete', filename: backup.filename },
+            });
+            showSuccess('Backup erfolgreich gelöscht', 'Datensicherung');
+            await refresh();
+        } finally { setBusy(false); }
+    };
+
     const restoreBackup = async () => {
         if (!restoreFile || restoreConfirmation !== 'WIEDERHERSTELLEN') return;
         setBusy(true);
@@ -128,16 +143,36 @@ export default function OperationsDialog({ dialogRef }) {
                 </div>
 
                 <div className="system-maintenance-card">
-                    <h3>Backup erstellen</h3>
-                    <button className="btn btn-primary" type="button" onClick={createBackup} disabled={busy}>Jetzt sichern</button>
-                    <ul className="system-maintenance-steps">
-                        {backups.slice(0, 5).map((backup) => (
-                            <li key={backup.filename}>
-                                <button className="btn btn-secondary btn-sm" type="button" onClick={() => downloadBackup(backup.filename)}>Herunterladen</button>{' '}
-                                {new Date(backup.createdAt).toLocaleString('de-DE')} · {formatBytes(backup.size)}
-                            </li>
-                        ))}
-                    </ul>
+                    <div className="backup-card-header">
+                        <div>
+                            <h3>Backups</h3>
+                            <p>Erstellen, herunterladen oder nicht mehr benötigte Sicherungen löschen.</p>
+                        </div>
+                        <button className="btn btn-primary" type="button" onClick={createBackup} disabled={busy}>＋ Neues Backup</button>
+                    </div>
+                    {backups.length === 0 ? (
+                        <p className="backup-empty-state">Noch keine Backups vorhanden.</p>
+                    ) : (
+                        <ul className="backup-list">
+                            {backups.map((backup) => (
+                                <li className="backup-list-item" key={backup.filename}>
+                                    <div className="backup-list-details">
+                                        <strong>{new Date(backup.createdAt).toLocaleString('de-DE')}</strong>
+                                        <span>{formatBytes(backup.size)}</span>
+                                        <small title={backup.filename}>{backup.filename}</small>
+                                    </div>
+                                    <div className="backup-list-actions">
+                                        <button className="btn btn-sm backup-download-button" type="button" onClick={() => downloadBackup(backup.filename)} disabled={busy} aria-label={`Backup vom ${new Date(backup.createdAt).toLocaleString('de-DE')} herunterladen`}>
+                                            <span aria-hidden="true">↓</span> Herunterladen
+                                        </button>
+                                        <button className="btn btn-sm backup-delete-button" type="button" onClick={() => deleteBackup(backup)} disabled={busy} aria-label={`Backup vom ${new Date(backup.createdAt).toLocaleString('de-DE')} löschen`}>
+                                            <span aria-hidden="true">🗑</span> Löschen
+                                        </button>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
                 </div>
 
                 <div className="system-maintenance-card">

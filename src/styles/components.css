@@ -2872,11 +2872,133 @@ button.method-option {
 .maintenance-log-output div::before { content: '› '; color: #60a5fa; }
 .maintenance-log-output pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; color: inherit; }
 
-.system-maintenance-steps {
+.backup-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.backup-card-header h3 {
+  margin-bottom: 0.3rem;
+}
+
+.backup-card-header p {
   margin: 0;
-  padding-left: 1.1rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.backup-card-header .btn {
+  flex-shrink: 0;
+  margin: 0;
+}
+
+.backup-list {
+  display: grid;
+  gap: 0.65rem;
+  max-height: 270px;
+  margin: 0;
+  padding: 0 0.2rem 0 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.backup-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.9rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--card-background);
+}
+
+.backup-list-details {
+  display: grid;
+  min-width: 0;
   color: var(--text-color);
-  line-height: 1.55;
+}
+
+.backup-list-details strong {
+  font-size: 0.9rem;
+}
+
+.backup-list-details span,
+.backup-list-details small {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
+.backup-list-details small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.backup-list-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 0.45rem;
+}
+
+.backup-list-actions .btn {
+  margin: 0;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.backup-download-button {
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+  box-shadow: 0 4px 10px color-mix(in srgb, var(--primary-color) 22%, transparent);
+}
+
+.backup-download-button:hover {
+  background: linear-gradient(135deg, var(--primary-hover), var(--primary-color));
+}
+
+.backup-delete-button {
+  border-color: color-mix(in srgb, var(--danger-color) 45%, transparent) !important;
+  background: transparent;
+  color: var(--danger-color);
+}
+
+.backup-delete-button:hover {
+  background: var(--danger-color);
+  color: #fff;
+}
+
+.backup-empty-state {
+  margin: 0;
+  padding: 1rem;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .backup-card-header,
+  .backup-list-item {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .backup-card-header .btn {
+    width: 100%;
+  }
+
+  .backup-list-actions {
+    width: 100%;
+  }
+
+  .backup-list-actions .btn {
+    flex: 1;
+  }
 }
 
 /* Setup Redesign */

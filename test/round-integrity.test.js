@@ -16,6 +16,7 @@ let deleteData;
 let systemMaintenanceHandler;
 let runDatabaseMigrations;
 let createDatabaseBackup;
+let deleteDatabaseBackup;
 let restoreDatabaseBackup;
 let verifyApplicationDatabaseBackup;
 let getLatestSchemaVersion;
@@ -133,6 +134,7 @@ before(async () => {
   ({ runDatabaseMigrations, getLatestSchemaVersion } = await import('../src/utils/migrationService.js'));
   ({
     createDatabaseBackup,
+    deleteDatabaseBackup,
     restoreDatabaseBackup,
     verifyApplicationDatabaseBackup,
   } = await import('../src/utils/backupService.js'));
@@ -527,4 +529,12 @@ test('a verified startup snapshot can restore the live database', async () => {
 
   assert.equal((await get('SELECT COUNT(*) AS count FROM students WHERE id = 112')).count, 1);
   assert.equal((await get('SELECT COUNT(*) AS count FROM rounds WHERE student_id = 112')).count, 1);
+});
+
+test('a stored backup can be deleted without allowing path traversal', async () => {
+  const backup = await createDatabaseBackup({ reason: 'delete-test' });
+
+  assert.deepEqual(await deleteDatabaseBackup(backup.filename), { filename: backup.filename });
+  await assert.rejects(stat(backup.backupPath), { code: 'ENOENT' });
+  await assert.rejects(deleteDatabaseBackup('../database.db'), /Ungültiger Backup-Dateiname/);
 });

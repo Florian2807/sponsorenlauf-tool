@@ -1,0 +1,193 @@
+/* [project]/src/styles/Topbar.module.css [client] (css) */
+.Topbar-module__q43dPW__topbar {
+  z-index: 100;
+  background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 20px;
+  display: grid;
+  position: sticky;
+  top: 0;
+  box-shadow: 0 8px 24px #0000001f;
+}
+
+.Topbar-module__q43dPW__brand {
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  text-decoration: none;
+  display: inline-flex;
+}
+
+.Topbar-module__q43dPW__logo {
+  flex-shrink: 0;
+  width: auto;
+  height: 54px;
+}
+
+.Topbar-module__q43dPW__navContainer {
+  justify-content: center;
+  min-width: 0;
+  display: flex;
+}
+
+.Topbar-module__q43dPW__primaryNav {
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  display: flex;
+}
+
+.Topbar-module__q43dPW__navLink {
+  color: #fff;
+  white-space: nowrap;
+  border: 1px solid #0000;
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color .2s, transform .2s, box-shadow .2s;
+}
+
+.Topbar-module__q43dPW__navLink:hover {
+  background: #ffffff2e;
+  transform: translateY(-1px);
+}
+
+.Topbar-module__q43dPW__navLinkActive {
+  background: #ffffff38;
+  box-shadow: inset 0 0 0 1px #ffffff40;
+}
+
+.Topbar-module__q43dPW__navLink:focus-visible, .Topbar-module__q43dPW__brand:focus-visible, .Topbar-module__q43dPW__themeToggle:focus-visible {
+  outline-offset: 2px;
+  outline: 3px solid #ffffffeb;
+}
+
+.Topbar-module__q43dPW__themeToggle {
+  cursor: pointer;
+  background: #fff3;
+  border: 2px solid #ffffff4d;
+  border-radius: 50%;
+  flex-shrink: 0;
+  justify-content: center;
+  align-items: center;
+  width: 50px;
+  height: 50px;
+  font-size: 1.5rem;
+  transition: background-color .2s, transform .2s, box-shadow .2s;
+  display: flex;
+}
+
+.Topbar-module__q43dPW__headerActions {
+  align-items: center;
+  gap: 10px;
+  display: flex;
+}
+
+.Topbar-module__q43dPW__logoutButton {
+  color: #fff;
+  cursor: pointer;
+  background: #ffffff29;
+  border: 1px solid #ffffff59;
+  border-radius: 999px;
+  padding: 9px 14px;
+  font-weight: 700;
+}
+
+.Topbar-module__q43dPW__logoutButton:hover {
+  background: #ffffff42;
+}
+
+.Topbar-module__q43dPW__themeToggle:hover {
+  background: #ffffff4d;
+  transform: translateY(-1px);
+}
+
+.Topbar-module__q43dPW__themeToggle:active {
+  transform: scale(.95);
+}
+
+[data-theme="dark"] .Topbar-module__q43dPW__topbar {
+  background: linear-gradient(135deg, #161b22 0%, #21262d 100%);
+  box-shadow: 0 8px 24px #00000052;
+}
+
+[data-theme="dark"] .Topbar-module__q43dPW__navLink {
+  color: #e6edf3;
+}
+
+[data-theme="dark"] .Topbar-module__q43dPW__navLink:hover, [data-theme="dark"] .Topbar-module__q43dPW__navLinkActive {
+  background: #e6edf324;
+}
+
+[data-theme="dark"] .Topbar-module__q43dPW__themeToggle {
+  background: #e6edf31a;
+  border: 2px solid #e6edf333;
+}
+
+[data-theme="dark"] .Topbar-module__q43dPW__themeToggle:hover {
+  background: #e6edf333;
+}
+
+@media (max-width: 1200px) {
+  .Topbar-module__q43dPW__topbar {
+    grid-template-columns: auto 1fr;
+    grid-template-areas: "brand toggle"
+                         "nav nav";
+  }
+
+  .Topbar-module__q43dPW__brand {
+    grid-area: brand;
+  }
+
+  .Topbar-module__q43dPW__navContainer {
+    grid-area: nav;
+  }
+
+  .Topbar-module__q43dPW__themeToggle, .Topbar-module__q43dPW__headerActions {
+    grid-area: toggle;
+    justify-self: end;
+  }
+}
+
+@media (max-width: 768px) {
+  .Topbar-module__q43dPW__topbar {
+    gap: 14px;
+    padding: 14px;
+  }
+
+  .Topbar-module__q43dPW__logo {
+    height: 44px;
+  }
+
+  .Topbar-module__q43dPW__primaryNav {
+    scrollbar-width: thin;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    padding-bottom: 2px;
+    overflow-x: auto;
+  }
+
+  .Topbar-module__q43dPW__navLink {
+    padding: 8px 12px;
+    font-size: .95rem;
+  }
+
+  .Topbar-module__q43dPW__themeToggle {
+    width: 40px;
+    height: 40px;
+    font-size: 1.2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .Topbar-module__q43dPW__navLink {
+    padding: 7px 10px;
+    font-size: .9rem;
+  }
+}
+
+/*# sourceMappingURL=src_styles_Topbar_module_css_0uu1l2n._.single.css.map*/

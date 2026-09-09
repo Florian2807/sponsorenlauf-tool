@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import {
     createDatabaseBackup,
+    deleteDatabaseBackup,
     getBackupDirectory,
     listDatabaseBackups,
     restoreDatabaseBackup,
@@ -32,6 +33,20 @@ export default async function handler(req, res) {
         if (req.body?.action === 'create') {
             const backup = await createDatabaseBackup({ reason: 'manual-export' });
             return handleSuccess(res, backup, 'Backup erstellt', 201);
+        }
+        if (req.body?.action === 'delete') {
+            if (!safeBackupName(req.body?.filename) || String(req.body.filename).startsWith('.')) {
+                return handleError(res, new Error('Ungültiger Dateiname'), 400);
+            }
+            try {
+                const deleted = await deleteDatabaseBackup(req.body.filename);
+                return handleSuccess(res, deleted, 'Backup gelöscht');
+            } catch (deleteError) {
+                if (deleteError?.code === 'ENOENT') {
+                    return handleError(res, new Error('Backup wurde nicht gefunden'), 404);
+                }
+                throw deleteError;
+            }
         }
         if (req.body?.action === 'restore') {
             const encoded = req.body?.base64;

@@ -1,0 +1,14 @@
+{
+  "/_app": "pages/_app.js",
+  "/_document": "pages/_document.js",
+  "/api/admin-auth": "pages/api/admin-auth.js",
+  "/api/donationSettings": "pages/api/donationSettings.js",
+  "/api/moduleConfig": "pages/api/moduleConfig.js",
+  "/api/runden": "pages/api/runden.js",
+  "/api/setupStatus": "pages/api/setupStatus.js",
+  "/api/stations/heartbeat": "pages/api/stations/heartbeat.js",
+  "/api/students/[id]": "pages/api/students/[id].js",
+  "/api/students/[id]/timestamps": "pages/api/students/[id]/timestamps.js",
+  "/scan": "pages/scan.js",
+  "/show": "pages/show.js"
+}

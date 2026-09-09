@@ -1,0 +1,3 @@
+{
+  "/api/students/[id]/timestamps": "pages/api/students/[id]/timestamps.js"
+}

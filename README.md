@@ -270,6 +270,8 @@ sudo docker volume inspect sponsorenlauf-data
 
 Backups können in **Setup → Bereitschaft & Sicherheit** erstellt, heruntergeladen, gelöscht und wiederhergestellt werden. Vor dem Löschen fragt das Tool noch einmal nach einer Bestätigung. Vor jeder Wiederherstellung prüft die Anwendung die SQLite-Datei und legt zusätzlich ein Sicherheitsbackup des aktuellen Zustands an.
 
+Unter **Admin → Daten löschen** steht außerdem ein kompletter Reset zur Verfügung. Er entfernt alle Veranstaltungsdaten und Einstellungen und startet anschließend die Einführung erneut. Admin-PIN und vorhandene Backups bleiben erhalten; direkt vor dem Reset wird ein weiteres Sicherheitsbackup erstellt.
+
 Backups im Container anzeigen:
 
 ```bash

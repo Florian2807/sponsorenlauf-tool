@@ -14,7 +14,8 @@ const DetailedDeleteDialog = ({
         rounds: false,
         replacements: false,
         expectedDonations: false,
-        receivedDonations: false
+        receivedDonations: false,
+        fullReset: false
     });
 
     const [confirmationText, setConfirmationText] = useState('');
@@ -34,7 +35,8 @@ const DetailedDeleteDialog = ({
                     rounds: false,
                     replacements: false,
                     expectedDonations: false,
-                    receivedDonations: false
+                    receivedDonations: false,
+                    fullReset: false
                 });
                 setConfirmationText('');
             };
@@ -45,7 +47,14 @@ const DetailedDeleteDialog = ({
 
     const handleOptionChange = (option) => {
         setSelectedOptions(prev => {
+            if (option === 'fullReset') {
+                return Object.fromEntries(
+                    Object.keys(prev).map((key) => [key, key === 'fullReset' ? !prev.fullReset : false])
+                );
+            }
+
             const newOptions = { ...prev, [option]: !prev[option] };
+            newOptions.fullReset = false;
 
             // Wenn Schüler gelöscht werden, müssen auch alle zugehörigen Daten gelöscht werden
             if (option === 'students' && newOptions.students) {
@@ -73,14 +82,16 @@ const DetailedDeleteDialog = ({
             rounds: 'Alle Runden-Daten',
             replacements: 'Alle Ersatz-IDs',
             expectedDonations: 'Alle erwarteten Spenden',
-            receivedDonations: 'Alle erhaltenen Spenden'
+            receivedDonations: 'Alle erhaltenen Spenden',
+            fullReset: 'Kompletter Reset'
         };
 
         return selected.map(key => descriptions[key]).join(', ');
     };
 
     const isConfirmValid = () => {
-        return confirmationText === 'LÖSCHEN' && getSelectedCount() > 0;
+        const requiredConfirmation = selectedOptions.fullReset ? 'ALLES LÖSCHEN' : 'LÖSCHEN';
+        return confirmationText === requiredConfirmation && getSelectedCount() > 0;
     };
 
     const handleDelete = async () => {
@@ -102,11 +113,16 @@ const DetailedDeleteDialog = ({
 
             showSuccess(successMessage, 'Löschvorgang abgeschlossen');
 
+            dialogRef.current.close();
+
+            if (result.fullReset) {
+                window.location.assign('/setup?tour=1');
+                return;
+            }
+
             if (onDeleteSuccess) {
                 onDeleteSuccess();
             }
-
-            dialogRef.current.close();
 
         } catch (error) {
             showError(error, 'Beim Löschen der Daten');
@@ -262,6 +278,24 @@ const DetailedDeleteDialog = ({
                                 </div>
                             </div>
                         </label>
+
+                        <label className="delete-option delete-option-critical delete-option-full-reset">
+                            <input
+                                type="checkbox"
+                                checked={selectedOptions.fullReset}
+                                onChange={() => handleOptionChange('fullReset')}
+                                disabled={isDeleting}
+                            />
+                            <div className="option-content">
+                                <span className="option-icon">♻️</span>
+                                <div className="option-details">
+                                    <span className="option-title">Kompletter Reset</span>
+                                    <span className="option-description">
+                                        Löscht alle Veranstaltungsdaten, Klassen, Einstellungen, E-Mail-Zugangsdaten und Scannerstationen. Admin-PIN und Backups bleiben erhalten.
+                                    </span>
+                                </div>
+                            </div>
+                        </label>
                     </div>
                 </div>
 
@@ -275,7 +309,7 @@ const DetailedDeleteDialog = ({
                         <div className="confirmation-checkbox">
                             <label className="checkbox-confirm-label" htmlFor="delete-confirmation">
                                 <span className="checkbox-text">
-                                    Zum Bestätigen exakt <strong>LÖSCHEN</strong> eingeben:
+                                    Zum Bestätigen exakt <strong>{selectedOptions.fullReset ? 'ALLES LÖSCHEN' : 'LÖSCHEN'}</strong> eingeben:
                                 </span>
                                 <input
                                     id="delete-confirmation"
@@ -394,6 +428,10 @@ const DetailedDeleteDialog = ({
                 .delete-option-financial {
                     border-left: 4px solid var(--warning-color);
                     background: linear-gradient(135deg, var(--card-background), rgba(230, 126, 34, 0.03));
+                }
+
+                .delete-option-full-reset {
+                    grid-column: 1 / -1;
                 }
 
                 [data-theme="dark"] .delete-option-financial {

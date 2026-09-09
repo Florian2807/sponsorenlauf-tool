@@ -496,6 +496,64 @@ test('administrator setup is atomic and sessions are validated server-side', asy
   assert.equal((await get('SELECT COUNT(*) AS count FROM admin_sessions WHERE token_hash = ?', [session.token])).count, 0);
 });
 
+test('complete reset clears application data but preserves the admin PIN and recovery backups', async () => {
+  await run('INSERT INTO classes (grade, class_name) VALUES (?, ?)', ['5', '5a']);
+  await createStudent(113);
+  await run(
+    'INSERT INTO teachers (id, vorname, nachname, klasse, email) VALUES (?, ?, ?, ?, ?)',
+    [113, 'Test', 'Lehrkraft', '5a', 'test@example.org']
+  );
+  await recordRound({
+    studentId: 113,
+    scanId: 'scan_before_full_reset',
+    doubleScanPrevention: { ...prevention, enabled: false },
+    now: new Date('2026-08-31T10:45:00.000Z'),
+  });
+  await run('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', ['setup_completed', 'true']);
+  await run(
+    'INSERT INTO station_activity (device_id, last_seen_at, scan_count) VALUES (?, ?, ?)',
+    ['reset-test-station', new Date().toISOString(), 1]
+  );
+
+  await assert.rejects(
+    deleteData({ types: ['fullReset'], confirmation: 'LÖSCHEN' }),
+    /exakt „ALLES LÖSCHEN“/
+  );
+  await assert.rejects(
+    deleteData({ types: ['fullReset', 'students'], confirmation: 'ALLES LÖSCHEN' }),
+    /nicht mit anderen Löschoptionen kombiniert/
+  );
+
+  const result = await deleteData({
+    types: ['fullReset'],
+    confirmation: 'ALLES LÖSCHEN',
+  });
+  const backupPath = path.join(temporaryDirectory, 'backups', result.backupFilename);
+
+  assert.equal(result.fullReset, true);
+  for (const table of [
+    'students',
+    'teachers',
+    'classes',
+    'rounds',
+    'replacements',
+    'expected_donations',
+    'received_donations',
+    'settings',
+    'smtp_configuration',
+    'station_activity',
+    'admin_login_attempts',
+  ]) {
+    assert.equal((await get(`SELECT COUNT(*) AS count FROM ${table}`)).count, 0);
+  }
+  assert.equal(await verifyAdminPin('246810'), true);
+  assert.equal((await getFromDatabase(backupPath, 'PRAGMA integrity_check')).integrity_check, 'ok');
+  assert.equal((await getFromDatabase(
+    backupPath,
+    'SELECT COUNT(*) AS count FROM students WHERE id = 113'
+  )).count, 1);
+});
+
 test('restore rejects an intact SQLite database from another application', async () => {
   const unrelatedPath = path.join(temporaryDirectory, 'unrelated.db');
   const unrelatedDb = new sqlite3.Database(unrelatedPath);

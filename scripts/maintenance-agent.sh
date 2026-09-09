@@ -84,6 +84,12 @@ refresh_maintenance_service() {
   return "$result"
 }
 
+refresh_cli_command() {
+  local cli="$REPO_DIR/scripts/sponsorenlauf"
+  [ -f "$cli" ] || return 0
+  chmod 0755 "$cli" && ln -sfn "$cli" /usr/local/bin/sponsorenlauf
+}
+
 production_image_tag() {
   sed -n 's/^SPONSORENLAUF_IMAGE_TAG=//p' "$PRODUCTION_ENV_FILE" | tail -n 1
 }
@@ -108,6 +114,7 @@ run_update() {
     || { write_status failed update 'Installierte Git-Version konnte nicht ermittelt werden.' "$request_id"; return 1; }
   run_logged 'git pull --ff-only' sudo -u "$repo_owner" git -C "$REPO_DIR" pull --ff-only \
     || { write_status failed update 'Repository konnte nicht sicher aktualisiert werden.' "$request_id"; return 1; }
+  refresh_cli_command || append_progress 'Der Terminal-Befehl konnte nicht aktualisiert werden.'
   if ! run_logged 'Prüfe aktualisierte Docker-Compose-Konfiguration' docker_compose config --quiet; then
     run_logged 'git reset --hard (Update zurücknehmen)' sudo -u "$repo_owner" git -C "$REPO_DIR" reset --hard "$previous_commit" || true
     write_status failed update 'Die neue Compose-Konfiguration ist mit dieser Installation nicht kompatibel; der vorherige Stand wurde wiederhergestellt.' "$request_id"

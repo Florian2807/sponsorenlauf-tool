@@ -9,6 +9,7 @@
     "build": "next build",
     "start": "next start",
     "migrate": "node initDB.js",
+    "cli": "node scripts/cli.mjs",
     "lint": "eslint .",
     "test": "node --test --test-concurrency=1 test/*.test.js",
     "test:e2e": "playwright test",

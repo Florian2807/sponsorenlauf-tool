@@ -125,6 +125,8 @@ install_application() {
   fi
 
   chmod +x "$REPO_DIR/scripts/maintenance-agent.sh"
+  chmod +x "$REPO_DIR/scripts/sponsorenlauf"
+  run_root ln -sfn "$REPO_DIR/scripts/sponsorenlauf" /usr/local/bin/sponsorenlauf
   local unit_file
   unit_file="$(mktemp)"
   sed "s|__REPO_DIR__|$REPO_DIR|g" "$REPO_DIR/deployment/templates/sponsorenlauf-maintenance.service.template" > "$unit_file"

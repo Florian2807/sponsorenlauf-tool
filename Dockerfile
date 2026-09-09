@@ -58,6 +58,7 @@ COPY --from=builder --chown=node:node /app/src ./src
 COPY --from=builder --chown=node:node /app/initDB.js ./initDB.js
 COPY --from=builder --chown=node:node /app/package.json ./package.json
 COPY --chown=node:node scripts/start-container.sh ./scripts/start-container.sh
+COPY --chown=node:node scripts/cli.mjs ./scripts/cli.mjs
 
 RUN mkdir -p /data/backups && chown -R node:node /data
 

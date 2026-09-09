@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+REPO_DIR="${SPONSORENLAUF_REPO_DIR:-$(cd "$(dirname "$SCRIPT_PATH")/.." && pwd)}"
+PRODUCTION_ENV_FILE="${SPONSORENLAUF_PRODUCTION_ENV:-$REPO_DIR/deployment/production.env}"
+
+docker_compose() {
+  if docker compose version >/dev/null 2>&1; then
+    docker compose --env-file "$PRODUCTION_ENV_FILE" -f "$REPO_DIR/compose.prod.yaml" "$@"
+  else
+    docker-compose --env-file "$PRODUCTION_ENV_FILE" -f "$REPO_DIR/compose.prod.yaml" "$@"
+  fi
+}
+
+app_exec() {
+  if [ -t 0 ] && [ -t 1 ]; then
+    docker_compose exec app node scripts/cli.mjs "$@"
+  else
+    docker_compose exec -T app node scripts/cli.mjs "$@"
+  fi
+}
+
+case "${1:-help}" in
+  logs)
+    shift
+    if [ "$#" -eq 0 ]; then
+      docker_compose logs -f app
+    else
+      docker_compose logs "$@"
+    fi
+    ;;
+  start)
+    docker_compose up -d --remove-orphans
+    ;;
+  stop)
+    docker_compose down
+    ;;
+  status|doctor)
+    command_name="$1"
+    shift
+    container="$(docker_compose ps -q app)"
+    if [ -z "$container" ]; then
+      docker_compose ps
+      if [ "$command_name" = doctor ]; then docker_compose logs --tail=50 app || true; fi
+      printf 'Die Anwendung läuft nicht. Starten mit: sponsorenlauf start\n' >&2
+      exit 2
+    fi
+    app_exec "$command_name" "$@"
+    ;;
+  *)
+    container="$(docker_compose ps -q app)"
+    if [ -z "$container" ]; then
+      printf 'Die Anwendung läuft nicht. Starten mit: sponsorenlauf start\n' >&2
+      exit 1
+    fi
+    if [ "${1:-}" = backup ] && [ "${2:-}" = copy ]; then
+      [ -n "${3:-}" ] || { printf 'Zielordner fehlt.\n' >&2; exit 1; }
+      destination="$(readlink -f "$3")"
+      [ -d "$destination" ] || { printf 'Zielordner existiert nicht: %s\n' "$destination" >&2; exit 1; }
+      backup_json="$(docker_compose exec -T app node scripts/cli.mjs backup create --json)"
+      filename="$(printf '%s\n' "$backup_json" | sed -n 's/^[[:space:]]*"filename": "\([^"]*\)".*/\1/p')"
+      [ -n "$filename" ] || { printf 'Backup-Dateiname konnte nicht ermittelt werden.\n' >&2; exit 1; }
+      docker cp "$container:/data/backups/$filename" "$destination/$filename"
+      printf 'Backup kopiert: %s/%s\n' "$destination" "$filename"
+      exit 0
+    fi
+    app_exec "$@"
+    ;;
+esac

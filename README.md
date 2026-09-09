@@ -129,6 +129,35 @@ Der neue Container muss seinen Healthcheck bestehen. Falls das nicht innerhalb v
 
 Der vom Installer eingerichtete Wartungsdienst akzeptiert nur die Aktionen `update` und `restart`. Die Anwendung bekommt bewusst keinen Zugriff auf den Docker-Socket, da dieser praktisch Root-Zugriff auf den Raspberry Pi ermöglichen würde.
 
+## Terminal-Werkzeug für technische Betreuung
+
+Bei einer Raspberry-Pi-Installation steht zusätzlich der Befehl `sponsorenlauf` zur Verfügung. Er ist für Notfälle und technische Wartung gedacht, insbesondere wenn die Webseite nicht erreichbar ist.
+
+```bash
+sudo sponsorenlauf status
+sudo sponsorenlauf doctor
+sudo sponsorenlauf admin reset-pin
+sudo sponsorenlauf admin unlock
+sudo sponsorenlauf backup create
+sudo sponsorenlauf backup list
+sudo sponsorenlauf backup copy /media/usb
+sudo sponsorenlauf backup verify /data/backups/backup.db
+sudo sponsorenlauf backup restore /data/backups/backup.db
+sudo sponsorenlauf database check
+sudo sponsorenlauf database migrate
+sudo sponsorenlauf database optimize
+sudo sponsorenlauf config show
+sudo sponsorenlauf smtp test
+sudo sponsorenlauf support-bundle
+sudo sponsorenlauf logs
+sudo sponsorenlauf start
+sudo sponsorenlauf stop
+sudo sponsorenlauf maintenance restart
+sudo sponsorenlauf maintenance update
+```
+
+PINs werden verdeckt abgefragt. Wiederherstellungen, Updates und Neustarts benötigen eine ausdrückliche Bestätigung; für beaufsichtigte Automatisierung kann `--yes` verwendet werden. Lesende Befehle unterstützen `--json`. Updates verwenden denselben abgesicherten Ablauf wie die Weboberfläche und führen bei einem fehlgeschlagenen Start automatisch ein Rollback aus.
+
 ## Daten, Backups und Wiederherstellung
 
 Die Produktionsdaten liegen im Docker-Volume `sponsorenlauf-data`. Ein Austausch oder Update des Containers löscht sie nicht.

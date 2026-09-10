@@ -62,6 +62,15 @@ check_command git
 check_interface "$WLAN_INTERFACE" 'WLAN'
 check_interface "$UPLINK_INTERFACE" 'LAN'
 
+if command -v nmcli >/dev/null 2>&1; then
+  wifi_radio_state="$(nmcli radio wifi 2>/dev/null || true)"
+  if [ "$wifi_radio_state" = enabled ]; then
+    pass 'WLAN-Funk ist in NetworkManager aktiviert'
+  else
+    warn "WLAN-Funk ist in NetworkManager ${wifi_radio_state:-nicht abfragbar}; der Installer aktiviert ihn automatisch"
+  fi
+fi
+
 available_kb="$(df -Pk "$REPO_DIR" 2>/dev/null | awk 'NR==2 { print $4 }')"
 if [ -n "$available_kb" ] && [ $((available_kb / 1024)) -ge "$MIN_FREE_SPACE_MB" ]; then
   pass 'Genügend freier Speicher vorhanden'

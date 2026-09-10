@@ -63,6 +63,18 @@ const readLogTail = async (filePath, maxCharacters) => {
     }
 };
 
+const replaceLog = async (filePath, content) => {
+    const temporaryPath = `${filePath}.${randomUUID()}.tmp`;
+    try {
+        await fs.writeFile(temporaryPath, content, { mode: 0o660 });
+        await fs.chmod(temporaryPath, 0o660);
+        await fs.rename(temporaryPath, filePath);
+    } catch (error) {
+        await fs.rm(temporaryPath, { force: true });
+        throw error;
+    }
+};
+
 export const getMaintenanceLogs = async () => {
     if (!isMaintenanceAvailable()) return { progress: [], details: '' };
     const [progress, details] = await Promise.all([
@@ -146,8 +158,8 @@ export const queueMaintenanceAction = async (action) => {
     try {
         const startedAt = new Date().toISOString();
         await Promise.all([
-            fs.writeFile(getProgressPath(), `${startedAt} ${action === 'update' ? 'Update' : 'Neustart'} wurde angefordert.\n`, { mode: 0o660 }),
-            fs.writeFile(getRawLogPath(), `=== ${startedAt} ${action.toUpperCase()} ===\n`, { mode: 0o660 }),
+            replaceLog(getProgressPath(), `${startedAt} ${action === 'update' ? 'Update' : 'Neustart'} wurde angefordert.\n`),
+            replaceLog(getRawLogPath(), `=== ${startedAt} ${action.toUpperCase()} ===\n`),
         ]);
         await writeStatus(queuedStatus);
         await fs.writeFile(temporaryPath, `${action}\n`, { mode: 0o660 });

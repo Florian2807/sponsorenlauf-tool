@@ -207,6 +207,9 @@ run_restart() {
 mkdir -p "$MAINTENANCE_DIR"
 chown root:"$MAINTENANCE_GROUP" "$MAINTENANCE_DIR"
 chmod 0770 "$MAINTENANCE_DIR"
+touch "$PROGRESS_FILE" "$RAW_LOG_FILE"
+chown root:"$MAINTENANCE_GROUP" "$PROGRESS_FILE" "$RAW_LOG_FILE"
+chmod 0660 "$PROGRESS_FILE" "$RAW_LOG_FILE"
 if [ ! -f "$STATUS_FILE" ]; then
   write_status idle none 'Keine Systemaktion aktiv.' none
 else

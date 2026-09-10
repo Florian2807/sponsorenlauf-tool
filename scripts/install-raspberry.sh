@@ -56,12 +56,34 @@ install_packages() {
   run_root systemctl enable --now docker NetworkManager avahi-daemon
 }
 
+configure_hostname() {
+  log 'Setze Gerätenamen auf sponsorenlauf'
+
+  # Debian expects the local hostname at 127.0.1.1. Update /etc/hosts before
+  # changing the hostname so subsequent sudo calls can resolve it immediately.
+  if grep -qE '^127\.0\.1\.1([[:space:]]|$)' /etc/hosts; then
+    run_root sed -i -E \
+      's/^127\.0\.1\.1([[:space:]]+).*/127.0.1.1\1sponsorenlauf/' \
+      /etc/hosts
+  else
+    printf '127.0.1.1\tsponsorenlauf\n' | run_root tee -a /etc/hosts >/dev/null
+  fi
+
+  run_root hostnamectl set-hostname sponsorenlauf
+}
+
 configure_hotspot() {
   log "Richte WLAN-Hotspot „${AP_SSID}“ über NetworkManager ein"
 
   if [ "${#AP_PASSPHRASE}" -lt 8 ] || [ "${#AP_PASSPHRASE}" -gt 63 ]; then
     fail 'Das WLAN-Passwort muss zwischen 8 und 63 Zeichen lang sein.'
   fi
+
+  # NetworkManager persists its Wi-Fi radio state. On a freshly provisioned
+  # Raspberry Pi it may therefore be disabled even though wlan0 exists and is
+  # not blocked by rfkill.
+  log "Aktiviere WLAN-Funk für ${WLAN_INTERFACE}"
+  run_root nmcli radio wifi on
 
   if nmcli -t -f NAME connection show | grep -Fxq "$AP_CONNECTION_NAME"; then
     run_root nmcli connection modify "$AP_CONNECTION_NAME" \
@@ -92,9 +114,9 @@ configure_hotspot() {
       ipv6.method disabled
   fi
 
-  run_root hostnamectl set-hostname sponsorenlauf
+  configure_hostname
   run_root systemctl restart avahi-daemon
-  run_root nmcli connection up "$AP_CONNECTION_NAME"
+  run_root nmcli connection up "$AP_CONNECTION_NAME" ifname "$WLAN_INTERFACE"
 }
 
 install_application() {

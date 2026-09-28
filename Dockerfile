@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM node:20-bookworm-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0 AS dependencies
+FROM node:25-bookworm-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370 AS dependencies
 WORKDIR /app
 RUN apt-get update \
     && apt-get install -y --no-install-recommends python3 make g++ \
@@ -20,14 +20,14 @@ RUN printf '%s-source-v1\n' "$(sha256sum package-lock.json | cut -d ' ' -f 1)" >
 EXPOSE 3000
 CMD ["sh", "scripts/start-development-container.sh"]
 
-FROM node:20-bookworm-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0 AS builder
+FROM node:25-bookworm-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370 AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
-FROM node:20-bookworm-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0 AS production-dependencies
+FROM node:25-bookworm-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370 AS production-dependencies
 WORKDIR /app
 RUN apt-get update \
     && apt-get install -y --no-install-recommends python3 make g++ \
@@ -36,7 +36,7 @@ COPY package.json package-lock.json ./
 RUN npm_config_build_from_source=true npm ci --omit=dev \
     && npm cache clean --force
 
-FROM node:20-bookworm-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0 AS runner
+FROM node:25-bookworm-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370 AS runner
 WORKDIR /app
 
 ARG APP_VERSION=development

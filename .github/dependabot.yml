@@ -4,6 +4,11 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # eslint-config-next currently pulls eslint-plugin-react, whose peer range
+      # does not support ESLint 10 yet. Remove this once that stack is compatible.
+      - dependency-name: eslint
+        versions: [">=10"]
   - package-ecosystem: docker
     directory: /
     schedule:

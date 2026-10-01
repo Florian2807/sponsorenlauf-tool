@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
+import useNotificationPopover from '../components/NotificationPopover';
+import { createPortal } from 'react-dom';
 
 const ErrorContext = createContext();
 
@@ -6,6 +8,7 @@ export const ErrorProvider = ({ children }) => {
     const [notification, setNotification] = useState(null);
     const [isVisible, setIsVisible] = useState(false);
     const timeoutRef = useRef(null);
+    const [notificationRef, dialog] = useNotificationPopover(Boolean(notification));
 
     const showNotification = useCallback((message, type = 'error', context = '', autoClose = true) => {
         // Clear existing timeout
@@ -59,8 +62,8 @@ export const ErrorProvider = ({ children }) => {
     return (
         <ErrorContext.Provider value={{ showError, showSuccess, dismiss }}>
             {children}
-            {notification && (
-                <div className={`notification ${isVisible ? 'show' : ''} ${notification.type}`}>
+            {notification && createPortal(
+                <div ref={notificationRef} popover="manual" className={`notification ${isVisible ? 'show' : ''} ${notification.type}`}>
                     <div className="notification-content">
                         <div className="notification-icon">
                             {notification.type === 'success' ? (
@@ -106,17 +109,21 @@ export const ErrorProvider = ({ children }) => {
                     <div className="notification-progress-bar">
                         <div className="notification-progress-fill"></div>
                     </div>
-                </div>
+                </div>,
+                dialog || document.body
             )}
             <style jsx>{`
                 .notification {
                     position: fixed;
+                    inset: auto;
                     top: 20px;
                     right: 20px;
                     max-width: 400px;
                     border-radius: 8px;
                     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-                    z-index: 1000;
+                    z-index: 10000;
+                    margin: 0;
+                    padding: 0;
                     transform: translateX(100%);
                     transition: transform 0.3s ease-in-out;
                     overflow: hidden;

@@ -429,7 +429,6 @@ const TeacherAssignmentRow = ({ teacher, index, allTeachers, onTeacherChange, is
             {allTeachers.map(teacherOption => (
                 <option key={teacherOption.id} value={teacherOption.id}>
                     {teacherOption.vorname} {teacherOption.nachname}
-                    {teacherOption.email && ` (${teacherOption.email})`}
                 </option>
             ))}
         </select>

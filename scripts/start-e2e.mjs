@@ -22,8 +22,10 @@ process.env.PORT = '3100';
 
 const { runDatabaseMigrations } = await import('../src/utils/migrationService.js');
 const { dbRun } = await import('../src/utils/database.js');
+const { setAdminPin } = await import('../src/utils/adminAuthService.js');
 
 await runDatabaseMigrations();
+await setAdminPin('246810');
 await dbRun(
     'INSERT INTO classes (grade, class_name) VALUES (?, ?)',
     ['5', '5a']
@@ -42,9 +44,19 @@ for (let studentId = 1003; studentId <= 1008; studentId += 1) {
         [studentId, 'Test', `Schüler${studentId}`, '5a', 'männlich']
     );
 }
+for (let teacherId = 1; teacherId <= 4; teacherId += 1) {
+    await dbRun(
+        'INSERT INTO teachers (id, vorname, nachname, klasse, email) VALUES (?, ?, ?, ?, ?)',
+        [teacherId, `Lehrer${teacherId}`, 'Test', teacherId <= 2 ? '5a' : null, `lehrer${teacherId}@example.org`]
+    );
+}
 await dbRun(
     'INSERT INTO settings (key, value) VALUES (?, ?)',
     ['setup_completed', JSON.stringify(true)]
+);
+await dbRun(
+    'INSERT INTO settings (key, value) VALUES (?, ?)',
+    ['class_structure', JSON.stringify({ '5': ['5a'] })]
 );
 
 const nextBinary = path.join(projectDirectory, 'node_modules', 'next', 'dist', 'bin', 'next');

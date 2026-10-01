@@ -33,29 +33,47 @@ const ClassTeacherDialog = ({
             showDefaultClose={false}
         >
             <div className="class-teacher-container">
-                {allPossibleClasses.map((className) => (
-                    <div key={className} className="class-container">
-                        <div className="class-title">{className}</div>
-                        <div className="email-fields">
-                            {[...Array(2)].map((_, index) => (
-                                <div key={index} className="email-field">
-                                    <select
-                                        value={classTeacher[className]?.[index]?.id || ''}
-                                        onChange={handleTeacherChange(className, index)}
-                                        className="form-select"
-                                    >
-                                        <option value="">Wählen Sie einen Lehrer</option>
-                                        {teachers.map((teacherOption) => (
-                                            <option key={teacherOption.id} value={teacherOption.id || ''}>
-                                                {teacherOption.vorname} {teacherOption.nachname}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                ))}
+                {allPossibleClasses.map((className) => {
+                    const assignments = classTeacher[className] || [{ id: null }];
+                    const selectedCount = assignments.filter((assignment) => assignment.id).length;
+                    return (
+                        <section key={className} className="class-assignment-card">
+                            <div className="class-assignment-header">
+                                <h3 className="class-assignment-name">Klasse {className}</h3>
+                                <span className="teacher-count-badge">{selectedCount} Lehrer</span>
+                            </div>
+                            <div className="teacher-assignment-list">
+                                {assignments.map((assignment, index) => {
+                                    const selectedTeacher = teachers.find((teacher) => teacher.id === assignment.id);
+                                    const isLastEmpty = index === assignments.length - 1 && !assignment.id;
+                                    return (
+                                        <div
+                                            key={assignment.id || 'empty'}
+                                            className={`teacher-assignment-row ${isLastEmpty ? 'empty-field' : ''}`}
+                                        >
+                                            <select
+                                                value={assignment.id || ''}
+                                                onChange={handleTeacherChange(className, index)}
+                                                className="teacher-assignment-select"
+                                                aria-label={`Klasse ${className}, Lehrer ${index + 1}`}
+                                            >
+                                                <option value="">{isLastEmpty ? '+ Lehrer hinzufügen...' : 'Lehrer auswählen...'}</option>
+                                                {teachers.map((teacherOption) => (
+                                                    <option key={teacherOption.id} value={teacherOption.id}>
+                                                        {teacherOption.vorname} {teacherOption.nachname}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            {selectedTeacher?.email && (
+                                                <div className="teacher-email-display">{selectedTeacher.email}</div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </section>
+                    );
+                })}
             </div>
         </BaseDialog>
     );

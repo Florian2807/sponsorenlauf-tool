@@ -25,6 +25,8 @@ export default function Teachers() {
         email: ''
     });
     const [classTeacher, setClassTeacher] = useState({});
+    const [teachersLoaded, setTeachersLoaded] = useState(false);
+    const [classesLoaded, setClassesLoaded] = useState(false);
 
     const { request, loading } = useApi();
     const { showError, showSuccess } = useGlobalError();
@@ -44,6 +46,7 @@ export default function Teachers() {
             });
             const classes = Object.values(data).flat();
             setAllPossibleClasses(classes);
+            setClassesLoaded(true);
         } catch (error) {
             // Fehler wird automatisch über useApi gehandelt
         }
@@ -55,6 +58,7 @@ export default function Teachers() {
                 errorContext: 'Beim Laden der Lehrerdaten'
             });
             setTeachers(data);
+            setTeachersLoaded(true);
         } catch (error) {
             // Fehler wird automatisch über useApi gehandelt
         }
@@ -70,31 +74,33 @@ export default function Teachers() {
     };
 
     const handleTeacherChange = (className, index) => (e) => {
-        const newId = parseInt(e.target.value);
-        const newT = [...classTeacher[className]];
+        const newId = e.target.value ? Number(e.target.value) : null;
 
         // Check if the teacher is already selected
-        if (newT.some((teacher, i) => teacher.id === newId && i !== index)) {
+        if (newId && classTeacher[className]?.some((teacher, i) => teacher.id === newId && i !== index)) {
             showError('Dieser Lehrer ist bereits ausgewählt.', 'Klassenlehrer');
             return;
         }
 
-        newT[index] = { ...newT[index], id: newId };
-        if (!newT[index].id) {
-            newT.splice(index, 1);
-        }
-
-        setClassTeacher((prev) => ({
-            ...prev,
-            [className]: newT
-        }));
+        setClassTeacher((prev) => {
+            const classTeachers = [...(prev[className] || [{ id: null }])];
+            classTeachers[index] = { id: newId };
+            return {
+                ...prev,
+                [className]: [...classTeachers.filter((teacher) => teacher.id), { id: null }]
+            };
+        });
     };
 
     const saveClassTeacher = async () => {
         try {
+            const assignments = Object.fromEntries(allPossibleClasses.map((className) => [
+                className,
+                (classTeacher[className] || []).filter((teacher) => teacher.id)
+            ]));
             const data = await request('/api/saveClassTeacher', {
                 method: 'POST',
-                data: classTeacher,
+                data: assignments,
                 errorContext: 'Beim Speichern des Klassenlehrers'
             });
             classTeacherPopup.current.close();
@@ -172,7 +178,10 @@ export default function Teachers() {
     const classTeacherClick = () => {
         const newClassTeacher = {};
         for (const className of allPossibleClasses) {
-            newClassTeacher[className] = teachers.filter(teacher => teacher.klasse === className).map(teacher => ({ id: teacher.id }));
+            newClassTeacher[className] = [
+                ...teachers.filter(teacher => teacher.klasse === className).map(teacher => ({ id: teacher.id })),
+                { id: null }
+            ];
         }
         setClassTeacher(newClassTeacher);
         classTeacherPopup.current.showModal();
@@ -213,7 +222,13 @@ export default function Teachers() {
             <div className="search-container">
                 <div className="btn-group">
                     <button className="btn" onClick={addTeacherClick}>Lehrer hinzufügen</button>
-                    <button className="btn btn-secondary" onClick={classTeacherClick}>Klassenlehrer Konfigurieren</button>
+                    <button
+                        className="btn btn-secondary"
+                        onClick={classTeacherClick}
+                        disabled={!teachersLoaded || !classesLoaded}
+                    >
+                        Klassenlehrer Konfigurieren
+                    </button>
                 </div>
                 <label className="sr-only" htmlFor="teachers-search">Lehrer suchen</label>
                 <input

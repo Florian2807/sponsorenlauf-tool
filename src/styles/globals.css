@@ -2914,7 +2914,7 @@ a:focus-visible {
 .teacher-assignment-row {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 .teacher-assignment-row.empty-field {
@@ -2933,6 +2933,7 @@ a:focus-visible {
 
 .teacher-assignment-select {
   width: 100%;
+  margin-bottom: 0;
   padding: 14px 16px;
   border: 2px solid var(--border-light);
   border-radius: 8px;

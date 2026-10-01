@@ -1,6 +1,8 @@
 import { dbAll, dbRun } from './database.js';
 
 export const STATION_ID_PATTERN = /^[a-zA-Z0-9_-]{1,100}$/;
+let lastCleanupAt = 0;
+const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 
 export const recordStationHeartbeat = async (deviceId, { scanned = false } = {}) => {
     if (!STATION_ID_PATTERN.test(String(deviceId || ''))) throw new Error('Ungültige Stations-ID');
@@ -14,14 +16,21 @@ export const recordStationHeartbeat = async (deviceId, { scanned = false } = {})
             scan_count = station_activity.scan_count + ?`,
         [deviceId, now, scanned ? now : null, scanned ? 1 : 0, scanned ? 1 : 0, scanned ? 1 : 0]
     );
-    // Station IDs are browser-generated. Keep abandoned browsers from growing
-    // this operational table forever.
-    await dbRun('DELETE FROM station_activity WHERE last_seen_at < ?', [
-        new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-    ]);
-    await dbRun(`DELETE FROM station_activity WHERE device_id NOT IN (
-        SELECT device_id FROM station_activity ORDER BY last_seen_at DESC LIMIT 500
-    )`);
+    // Cleanup is operational housekeeping, not part of accepting a scan.
+    if (!scanned && Date.now() - lastCleanupAt >= CLEANUP_INTERVAL_MS) {
+        lastCleanupAt = Date.now();
+        try {
+            await dbRun('DELETE FROM station_activity WHERE last_seen_at < ?', [
+                new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+            ]);
+            await dbRun(`DELETE FROM station_activity WHERE device_id NOT IN (
+                SELECT device_id FROM station_activity ORDER BY last_seen_at DESC LIMIT 500
+            )`);
+        } catch (error) {
+            lastCleanupAt = 0;
+            console.error('Station cleanup failed:', error);
+        }
+    }
 };
 
 export const getRecentStations = async (minutes = 15) => {

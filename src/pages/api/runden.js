@@ -65,8 +65,11 @@ export default async function handler(req, res) {
       sourceDeviceId,
     });
 
-    if (sourceDeviceId && result.accepted) {
-      await recordStationHeartbeat(sourceDeviceId, { scanned: true });
+    if (sourceDeviceId && result.accepted && !result.idempotentReplay) {
+      // Station telemetry must never turn a committed round into a failed scan response.
+      recordStationHeartbeat(sourceDeviceId, { scanned: true }).catch((error) => {
+        console.error('Station scan telemetry failed:', error);
+      });
     }
 
     if (!result.accepted && result.blocked) {

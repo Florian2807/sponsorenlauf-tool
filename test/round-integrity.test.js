@@ -166,6 +166,20 @@ test('simultaneous laptops cannot both bypass double-scan prevention', async () 
   assert.equal((await get('SELECT COUNT(*) AS count FROM rounds WHERE student_id = 101')).count, 1);
 });
 
+test('six simultaneous stations can record different students', async () => {
+  const studentIds = [201, 202, 203, 204, 205, 206];
+  for (const studentId of studentIds) await createStudent(studentId);
+  const results = await Promise.all(studentIds.map((studentId, index) => recordRound({
+    studentId,
+    scanId: `scan_station_${index + 1}`,
+    sourceDeviceId: `device_${index + 1}`,
+    doubleScanPrevention: prevention,
+  })));
+
+  assert.equal(results.filter((result) => result.accepted).length, 6);
+  assert.equal((await get('SELECT COUNT(*) AS count FROM rounds WHERE student_id BETWEEN 201 AND 206')).count, 6);
+});
+
 test('retrying a scan after a lost response is idempotent', async () => {
   await createStudent(102);
   const input = {

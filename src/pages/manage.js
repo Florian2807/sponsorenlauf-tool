@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/router';
 import { getNextId, API_ENDPOINTS } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
 import { useGlobalError } from '../contexts/ErrorContext';
@@ -6,10 +7,12 @@ import { useSortableTable } from '../hooks/useSortableTable';
 import { useSearch } from '../hooks/useSearch';
 import EditStudentDialog from '../components/dialogs/manage/EditStudentDialog';
 import AddReplacementDialog from '../components/dialogs/manage/AddReplacementDialog';
+import { normalizeReplacementId } from '../utils/studentId';
 import AddStudentDialog from '../components/dialogs/manage/AddStudentDialog';
 import ConfirmDeleteDialog from '../components/dialogs/manage/ConfirmDeleteDialog';
 
 export default function Manage() {
+  const router = useRouter();
   const [students, setStudents] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [editForm, setEditForm] = useState({ vorname: '', nachname: '', klasse: '', geschlecht: 'männlich' });
@@ -42,6 +45,7 @@ export default function Manage() {
   const confirmDeletePopup = useRef(null);
   const addReplacementPopup = useRef(null);
   const loadMoreRef = useRef(null);
+  const openedStudentQueryRef = useRef(null);
 
   const fetchAvailableClasses = useCallback(async () => {
     try {
@@ -131,6 +135,20 @@ export default function Manage() {
     editStudentPopup.current.showModal();
   }, []);
 
+  useEffect(() => {
+    if (!router.isReady || students.length === 0) return;
+
+    const rawStudentId = router.query.student;
+    const requestedStudentId = Array.isArray(rawStudentId) ? rawStudentId[0] : rawStudentId;
+    if (!requestedStudentId || openedStudentQueryRef.current === requestedStudentId) return;
+
+    const requestedStudent = students.find((student) => String(student.id) === requestedStudentId);
+    if (!requestedStudent) return;
+
+    openedStudentQueryRef.current = requestedStudentId;
+    editStudentClick(requestedStudent);
+  }, [editStudentClick, router.isReady, router.query.student, students]);
+
   const deleteTimestamp = useCallback(async (roundId) => {
     if (!selectedStudent) return;
 
@@ -211,10 +229,16 @@ export default function Manage() {
     try {
       if (newReplacement.trim()) {
         // Spezifische Ersatz-ID verwenden
+        const normalizedReplacementId = normalizeReplacementId(newReplacement);
+        if (!normalizedReplacementId) {
+          setMessage('Bitte geben Sie eine gültige Ersatz-ID ein');
+          return;
+        }
+
         const data = await request('/api/addReplacements', {
           method: 'POST',
           data: {
-            customId: newReplacement.trim().replace(new RegExp(`^(${new Date().getFullYear()}-|E)`, 'gi'), ''),
+            customId: normalizedReplacementId,
             studentId: selectedStudent.id
           }
         });

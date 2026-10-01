@@ -3881,6 +3881,54 @@ button.method-option {
   padding: var(--spacing-xl);
 }
 
+.scan-student-hero-actions {
+  display: grid;
+  justify-items: stretch;
+  gap: 0.75rem;
+  min-width: 180px;
+}
+
+.student-edit-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  padding: 0.7rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--primary-color) 35%, var(--border-color));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--primary-color) 9%, var(--card-background));
+  color: var(--primary-color);
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+}
+
+.student-edit-action:hover {
+  border-color: var(--primary-color);
+  background: color-mix(in srgb, var(--primary-color) 15%, var(--card-background));
+  color: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.student-edit-action:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--primary-color) 30%, transparent);
+  outline-offset: 2px;
+}
+
+.student-info-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: var(--spacing-md);
+}
+
+.student-info-heading h2 {
+  margin: 0;
+}
+
 .scan-student-identity h2,
 .scan-empty-hero h2,
 .scan-input-panel-header h2 {
@@ -4355,6 +4403,16 @@ button.method-option {
   }
 
   .scan-student-hero {
+    flex-direction: column;
+  }
+
+  .scan-student-hero-actions,
+  .student-info-heading {
+    width: 100%;
+  }
+
+  .student-info-heading {
+    align-items: stretch;
     flex-direction: column;
   }
 

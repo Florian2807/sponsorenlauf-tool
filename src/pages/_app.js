@@ -9,6 +9,7 @@ import { AdminAuthProvider } from '../contexts/AdminAuthContext';
 import FirstRunGate from '../components/FirstRunGate';
 import FirstRunTour from '../components/FirstRunTour';
 import UpdateNotice from '../components/UpdateNotice';
+import MaintenanceProgress from '../components/MaintenanceProgress';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 
 function MyApp({ Component, pageProps }) {
@@ -16,6 +17,7 @@ function MyApp({ Component, pageProps }) {
     <ErrorProvider>
       <AdminAuthProvider>
         <UpdateNotice />
+        <MaintenanceProgress />
         <FirstRunGate>
           <ModuleConfigProvider>
             <DonationDisplayModeProvider>

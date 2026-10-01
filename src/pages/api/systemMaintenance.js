@@ -5,6 +5,10 @@ import { getMaintenanceLogs, getMaintenanceStatus, queueMaintenanceAction } from
 export default async function handler(req, res) {
     try {
         if (req.method === 'GET') {
+            res.setHeader('Cache-Control', 'no-store');
+            if (req.query.summary === '1') {
+                return handleSuccess(res, await getMaintenanceStatus(), 'Systemstatus geladen');
+            }
             const [status, connectivity, logs] = await Promise.all([
                 getMaintenanceStatus(),
                 getSystemConnectivity(),

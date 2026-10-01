@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useApi } from '../../hooks/useApi';
-import { useGlobalError } from '../../contexts/ErrorContext';
+import { trackMaintenance } from '../MaintenanceProgress';
 import Checkbox from '../ui/Checkbox';
 
 const labels = { idle: 'Bereit', queued: 'Eingeplant', running: 'Läuft', succeeded: 'Erfolgreich', failed: 'Fehlgeschlagen', rolled_back: 'Zurückgerollt' };
@@ -8,7 +8,6 @@ const isRunning = (state) => ['queued', 'running'].includes(state);
 
 export default function MaintenancePanel({ active }) {
     const { request } = useApi();
-    const { showSuccess } = useGlobalError();
     const [status, setStatus] = useState(null);
     const [confirmed, setConfirmed] = useState({ update: false, restart: false });
     const [submitting, setSubmitting] = useState(false);
@@ -24,6 +23,7 @@ export default function MaintenancePanel({ active }) {
         try {
             const data = await request('/api/systemMaintenance', { showErrorMessage: false });
             if (mounted.current) { setStatus(data); setLoadError(''); setConnectionLost(false); }
+            if (mounted.current && isRunning(data?.state) && !sessionStorage.getItem('sponsorenlauf-maintenance-progress')) trackMaintenance(data);
             return data;
         } catch (error) {
             if (mounted.current) {
@@ -72,7 +72,7 @@ export default function MaintenancePanel({ active }) {
             });
             setStatus((current) => ({ ...current, ...nextStatus, connectivity: current?.connectivity, logs: current?.logs }));
             setConfirmed((current) => ({ ...current, [action]: false }));
-            showSuccess(action === 'update' ? 'Update wurde eingeplant' : 'Neustart wurde eingeplant', 'Systemwartung');
+            trackMaintenance(nextStatus);
         } catch (error) {
             if (!error.status) {
                 setConnectionLost(true);
@@ -83,6 +83,7 @@ export default function MaintenancePanel({ active }) {
                     message: 'Die Verbindung wurde während des Starts unterbrochen. Status wird automatisch erneut geprüft.',
                     updatedAt: new Date().toISOString(),
                 }));
+                trackMaintenance({ state: 'queued', action, message: 'Prüfe, ob die Wartungsanfrage angekommen ist.' });
             } else {
                 setLoadError(error.message);
             }

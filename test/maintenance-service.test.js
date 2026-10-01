@@ -4,6 +4,43 @@ import { chmod, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { queueMaintenanceAction } from '../src/utils/maintenanceService.js';
+import systemMaintenanceHandler from '../src/pages/api/systemMaintenance.js';
+
+test('summary polling reads maintenance progress without probing the internet', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'sponsorenlauf-maintenance-'));
+    const previousEnvironment = process.env.APP_ENV;
+    const previousDirectory = process.env.SPONSORENLAUF_MAINTENANCE_DIRECTORY;
+    const previousFetch = globalThis.fetch;
+    process.env.APP_ENV = 'production';
+    process.env.SPONSORENLAUF_MAINTENANCE_DIRECTORY = directory;
+    let networkCalls = 0;
+    globalThis.fetch = async () => { networkCalls += 1; throw new Error('offline'); };
+
+    try {
+        await writeFile(path.join(directory, 'status.json'), JSON.stringify({
+            state: 'running', action: 'restart', requestId: 'restart-1', message: 'Anwendung wird neu gestartet.',
+        }));
+        const response = {
+            headers: {},
+            setHeader(name, value) { this.headers[name] = value; },
+            status(code) { this.statusCode = code; return this; },
+            json(body) { this.body = body; return this; },
+        };
+        await systemMaintenanceHandler({ method: 'GET', query: { summary: '1' } }, response);
+        assert.equal(response.statusCode, 200);
+        assert.equal(response.body.data.state, 'running');
+        assert.equal(response.body.data.message, 'Anwendung wird neu gestartet.');
+        assert.equal(response.headers['Cache-Control'], 'no-store');
+        assert.equal(networkCalls, 0);
+    } finally {
+        if (previousEnvironment === undefined) delete process.env.APP_ENV;
+        else process.env.APP_ENV = previousEnvironment;
+        if (previousDirectory === undefined) delete process.env.SPONSORENLAUF_MAINTENANCE_DIRECTORY;
+        else process.env.SPONSORENLAUF_MAINTENANCE_DIRECTORY = previousDirectory;
+        globalThis.fetch = previousFetch;
+        await rm(directory, { recursive: true, force: true });
+    }
+});
 
 test('maintenance queue atomically accepts only one concurrent operation', async () => {
     const directory = await mkdtemp(path.join(tmpdir(), 'sponsorenlauf-maintenance-'));

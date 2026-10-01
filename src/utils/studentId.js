@@ -7,6 +7,13 @@ export const cleanScannedStudentId = (rawId, year = new Date().getFullYear()) =>
         .trim();
 };
 
+export const normalizeReplacementId = (rawId, year = new Date().getFullYear()) => {
+    const cleanedId = cleanScannedStudentId(rawId, year).toUpperCase();
+    const numericId = cleanedId.startsWith('E') ? cleanedId.slice(1) : cleanedId;
+
+    return /^[1-9]\d*$/.test(numericId) ? numericId : '';
+};
+
 export const parseImportedStudentId = (value) => {
     if (value === null || value === undefined || value === '') {
         return null;

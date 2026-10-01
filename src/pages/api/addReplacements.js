@@ -1,5 +1,6 @@
 import { dbGet, dbRun, dbAll } from '../../utils/database.js';
 import { handleMethodNotAllowed, handleError, handleSuccess, handleValidationError } from '../../utils/apiHelpers.js';
+import { normalizeReplacementId } from '../../utils/studentId.js';
 
 const getMaxReplacementID = async () => {
 	const result = await dbGet('SELECT MAX(id) AS maxRID FROM replacements');
@@ -53,16 +54,21 @@ async function handleCreateReplacement(req, res) {
 
 	if (customId) {
 		// Spezifische Ersatz-ID verwenden
-		const exists = await checkReplacementExists(customId);
+		const normalizedCustomId = normalizeReplacementId(customId);
+		if (!normalizedCustomId) {
+			return handleValidationError(res, ['Ungültige Ersatz-ID']);
+		}
+
+		const exists = await checkReplacementExists(normalizedCustomId);
 		if (exists) {
 			return handleError(res, new Error('Diese Ersatz-ID ist bereits vergeben'), 409);
 		}
 
-		await insertReplacement(customId, studentId);
+		await insertReplacement(normalizedCustomId, studentId);
 		return handleSuccess(res, {
 			count: 1,
-			newReplacements: [customId]
-		}, `Ersatz-ID "${customId}" erfolgreich erstellt`);
+			newReplacements: [normalizedCustomId]
+		}, `Ersatz-ID "${normalizedCustomId}" erfolgreich erstellt`);
 	} else {
 		// Automatische Ersatz-IDs erstellen
 		if (!amount || typeof amount !== 'number' || amount <= 0) {

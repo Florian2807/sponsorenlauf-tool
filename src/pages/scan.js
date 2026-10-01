@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import { formatDate, timeAgo, calculateTimeDifference } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
 import { useGlobalError } from '../contexts/ErrorContext';
+import { useAdminAuth } from '../contexts/AdminAuthContext';
 import DoubleScanConfirmationDialog from '../components/dialogs/scan/DoubleScanConfirmationDialog';
 import { cleanScannedStudentId } from '../utils/studentId';
 import axios from 'axios';
@@ -43,6 +45,7 @@ export default function Scan() {
 
   const { request, loading } = useApi();
   const { showError } = useGlobalError();
+  const { authenticated } = useAdminAuth();
   const formRef = useRef(null);
   const inputRef = useRef(null);
   const doubleScanDialogRef = useRef(null);
@@ -75,26 +78,27 @@ export default function Scan() {
     if (!audioContext) return;
 
     const startAt = audioContext.currentTime;
-    const gain = audioContext.createGain();
-    gain.gain.setValueAtTime(0.0001, startAt);
-    gain.gain.exponentialRampToValueAtTime(0.22, startAt + 0.01);
-    gain.gain.setValueAtTime(0.22, startAt + 0.28);
-    gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.36);
-    gain.connect(audioContext.destination);
 
-    const firstTone = audioContext.createOscillator();
-    firstTone.type = 'square';
-    firstTone.frequency.setValueAtTime(330, startAt);
-    firstTone.connect(gain);
-    firstTone.start(startAt);
-    firstTone.stop(startAt + 0.14);
+    const playTone = (frequency, offset) => {
+      const toneStart = startAt + offset;
+      const toneEnd = toneStart + 0.13;
+      const gain = audioContext.createGain();
+      gain.gain.setValueAtTime(0.0001, toneStart);
+      gain.gain.exponentialRampToValueAtTime(0.14, toneStart + 0.015);
+      gain.gain.setValueAtTime(0.14, toneEnd - 0.025);
+      gain.gain.exponentialRampToValueAtTime(0.0001, toneEnd);
+      gain.connect(audioContext.destination);
 
-    const secondTone = audioContext.createOscillator();
-    secondTone.type = 'square';
-    secondTone.frequency.setValueAtTime(180, startAt + 0.17);
-    secondTone.connect(gain);
-    secondTone.start(startAt + 0.17);
-    secondTone.stop(startAt + 0.36);
+      const oscillator = audioContext.createOscillator();
+      oscillator.type = 'triangle';
+      oscillator.frequency.setValueAtTime(frequency, toneStart);
+      oscillator.connect(gain);
+      oscillator.start(toneStart);
+      oscillator.stop(toneEnd);
+    };
+
+    playTone(310, 0);
+    playTone(245, 0.18);
   }, [getAudioContext]);
 
   useEffect(() => {
@@ -287,6 +291,7 @@ export default function Scan() {
         
         // Fall 1: Server möchte Bestätigung für Doppel-Scan
         if (response.requiresConfirmation) {
+          playErrorSound();
           // State setzen
           setDoubleScanData({
             student: response.student,
@@ -300,6 +305,10 @@ export default function Scan() {
           setIsProcessing(false);
           processingHandled = true;
           return;
+        }
+
+        if (response.wasDoubleScan && !confirmDoubleScan) {
+          playErrorSound();
         }
 
         // Fall 2: Runde wurde erfolgreich gespeichert
@@ -403,6 +412,7 @@ export default function Scan() {
             confirmDoubleScan: false,
           }, { timeout: 10000 });
           if (response.data?.requiresConfirmation || response.data?.data?.requiresConfirmation) {
+            playErrorSound();
             setMessage('Ein vorgemerkter Scan benötigt eine Doppel-Scan-Bestätigung. Bitte Barcode erneut scannen.');
             setMessageType('warning');
             persistQueue(scanQueueRef.current.map((entry) => (
@@ -423,7 +433,7 @@ export default function Scan() {
     } finally {
       flushingQueueRef.current = false;
     }
-  }, [persistQueue]);
+  }, [persistQueue, playErrorSound]);
 
   useEffect(() => {
     const handleOnline = () => flushScanQueue();
@@ -620,9 +630,21 @@ export default function Scan() {
                   <p>ID {studentInfo.id}</p>
                 </div>
 
-                <div className="scan-round-summary">
-                  <span>Runden gesamt</span>
-                  <strong>{studentInfo.roundCount || 0}</strong>
+                <div className="scan-student-hero-actions">
+                  {authenticated && (
+                    <Link
+                      href={{ pathname: '/manage', query: { student: studentInfo.id } }}
+                      className="student-edit-action"
+                      aria-label={`${studentInfo.vorname} ${studentInfo.nachname} bearbeiten`}
+                    >
+                      <i className="fa-solid fa-pen-to-square" aria-hidden="true" />
+                      <span>Schüler bearbeiten</span>
+                    </Link>
+                  )}
+                  <div className="scan-round-summary">
+                    <span>Runden gesamt</span>
+                    <strong>{studentInfo.roundCount || 0}</strong>
+                  </div>
                 </div>
               </div>
 
@@ -698,6 +720,7 @@ export default function Scan() {
           onCancel={handleDoubleScanCancel}
         />
       )}
+
     </div>
   );
 }

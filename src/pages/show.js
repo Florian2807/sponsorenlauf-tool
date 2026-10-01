@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import Link from 'next/link';
 import { formatDate, timeAgo, calculateTimeDifference } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
 import { useGlobalError } from '../contexts/ErrorContext';
@@ -85,7 +86,19 @@ export default function Show() {
       </form>
       {studentInfo && (
         <div className="student-info">
-          <h2>Schüler-Informationen</h2>
+          <div className="student-info-heading">
+            <h2>Schüler-Informationen</h2>
+            {authenticated && (
+              <Link
+                href={{ pathname: '/manage', query: { student: studentInfo.id } }}
+                className="student-edit-action"
+                aria-label={`${studentInfo.vorname} ${studentInfo.nachname} bearbeiten`}
+              >
+                <i className="fa-solid fa-pen-to-square" aria-hidden="true" />
+                <span>Schüler bearbeiten</span>
+              </Link>
+            )}
+          </div>
           <p><strong>Klasse:</strong> {studentInfo.klasse}</p>
           <p><strong>Name:</strong> {studentInfo.vorname} {studentInfo.nachname}</p>
           <p><strong>Geschlecht:</strong> {studentInfo.geschlecht || 'Nicht angegeben'}</p>
@@ -131,6 +144,7 @@ export default function Show() {
           )}
         </div>
       )}
+
     </div>
   );
 }

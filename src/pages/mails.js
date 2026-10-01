@@ -81,7 +81,7 @@ const useConnectivity = () => {
     const checkConnectivity = useCallback(async () => {
         setIsChecking(true);
         try {
-            const result = await request('/api/check-connectivity', { timeout: 5000 });
+            const result = await request('/api/check-mail-connectivity', { timeout: 15000, showErrorMessage: false });
             setIsConnected(Boolean(result?.connected));
         } catch (error) {
             setIsConnected(false);
@@ -367,11 +367,11 @@ const ConnectivityStatus = ({ isConnected, isChecking, onRefresh }) => (
                 </span>
             ) : isConnected === true ? (
                 <span className="connectivity-badge connected">
-                    ✅ Internet verfügbar
+                    ✅ E-Mail-Dienst erreichbar
                 </span>
             ) : isConnected === false ? (
                 <span className="connectivity-badge disconnected">
-                    ❌ Keine Internetverbindung
+                    ⚠️ E-Mail-Dienst nicht bestätigt
                 </span>
             ) : (
                 <span className="connectivity-badge unknown">
@@ -383,7 +383,7 @@ const ConnectivityStatus = ({ isConnected, isChecking, onRefresh }) => (
                 className="connectivity-refresh-compact"
                 onClick={onRefresh}
                 disabled={isChecking}
-                title="Internetverbindung erneut prüfen"
+                title="E-Mail-Dienst erneut prüfen"
             >
                 🔄
             </button>
@@ -391,7 +391,7 @@ const ConnectivityStatus = ({ isConnected, isChecking, onRefresh }) => (
 
         {isConnected === false && (
             <div className="connectivity-warning-compact">
-                ⚠️ E-Mail-Versand nicht möglich ohne Internetverbindung
+                Die Verbindung zum E-Mail-Dienst konnte nicht bestätigt werden. Sie können den Versand trotzdem versuchen.
             </div>
         )}
     </div>
@@ -952,9 +952,9 @@ export default function MailsPage() {
                 <div className="mail-status-overview">
                     <div className="status-item">
                         <span className="status-icon">🌐</span>
-                        <span className="status-label">Internetverbindung:</span>
+                        <span className="status-label">E-Mail-Dienst:</span>
                         <span className={`status-value ${isConnected ? 'success' : 'error'}`}>
-                            {isChecking ? 'Prüfe...' : (isConnected ? 'Verfügbar' : 'Nicht verfügbar')}
+                            {isChecking ? 'Prüfe...' : (isConnected === null ? 'Unbekannt' : isConnected ? 'Verfügbar' : 'Nicht bestätigt')}
                         </span>
                     </div>
                     <div className="status-item">
@@ -984,10 +984,9 @@ export default function MailsPage() {
                         />
 
                         <button
-                            className={`btn btn-lg mail-start-button ${isConnected === false ? 'btn-disabled' : 'btn-primary'}`}
+                            className="btn btn-lg mail-start-button btn-primary"
                             onClick={() => isAuthenticated ? generateFiles() : window.location.assign('/setup?smtp=1')}
-                            disabled={isConnected === false || isGenerating}
-                            title={isConnected === false ? 'Internetverbindung erforderlich' : ''}
+                            disabled={isGenerating}
                         >
                             <span className="button-icon">{isAuthenticated ? '🚀' : '⚙️'}</span>
                             {isGenerating ? 'Excel-Dateien werden erstellt…' : isAuthenticated ? 'E-Mail-Versand vorbereiten' : 'E-Mail-Versand unter Einstellungen einrichten'}
@@ -1117,9 +1116,8 @@ export default function MailsPage() {
 
                         <button
                             onClick={handleSendEmails}
-                            className={`btn send-button ${isConnected === false ? 'btn-secondary' : 'btn-success'}`}
-                            disabled={isSending || isConnected === false}
-                            title={isConnected === false ? 'Internetverbindung erforderlich' : ''}
+                            className="btn send-button btn-success"
+                            disabled={isSending}
                         >
                             <span className="button-icon">📤</span>
                             {isSending ? 'E-Mails werden gesendet...' : 'E-Mails jetzt senden'}

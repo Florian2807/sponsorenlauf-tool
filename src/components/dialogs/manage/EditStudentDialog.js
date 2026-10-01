@@ -56,6 +56,7 @@ const EditStudentDialog = ({
             title="Schüler bearbeiten"
             actions={actions}
             size="large"
+            className="edit-student-dialog"
             showDefaultClose={false}
         >
             <div className="manage-dialog-stack">

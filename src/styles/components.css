@@ -830,6 +830,26 @@ dialog h2 {
   flex-wrap: wrap;
 }
 
+/* Keep the edit form and its actions in separate scroll areas in Safari. */
+.edit-student-dialog[open] {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.edit-student-dialog .dialog-body {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.edit-student-dialog .dialog-actions {
+  position: static;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+}
+
 /* Dialog Close Button */
 .dialog-close {
   position: sticky;

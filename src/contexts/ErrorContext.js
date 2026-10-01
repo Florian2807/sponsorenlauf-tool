@@ -165,8 +165,9 @@ export const ErrorProvider = ({ children }) => {
                     min-width: 0;
                 }
 
-                .notification-message p {
+                .notification .notification-message p {
                     margin: 0 0 4px 0;
+                    color: inherit;
                     font-size: 14px;
                     font-weight: 500;
                     line-height: 1.4;

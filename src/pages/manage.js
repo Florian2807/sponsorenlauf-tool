@@ -8,6 +8,7 @@ import { useSearch } from '../hooks/useSearch';
 import EditStudentDialog from '../components/dialogs/manage/EditStudentDialog';
 import AddReplacementDialog from '../components/dialogs/manage/AddReplacementDialog';
 import { normalizeReplacementId } from '../utils/studentId';
+import { createClientId } from '../utils/clientId';
 import AddStudentDialog from '../components/dialogs/manage/AddStudentDialog';
 import ConfirmDeleteDialog from '../components/dialogs/manage/ConfirmDeleteDialog';
 
@@ -187,7 +188,7 @@ export default function Manage() {
         method: 'POST',
         data: { 
           id: studentId, 
-          scanId: crypto.randomUUID(),
+          scanId: createClientId('manual'),
           confirmDoubleScan: true // Bypass double-scan check in manual mode
         }
       });

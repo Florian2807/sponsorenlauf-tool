@@ -6,6 +6,7 @@ import { useGlobalError } from '../contexts/ErrorContext';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
 import DoubleScanConfirmationDialog from '../components/dialogs/scan/DoubleScanConfirmationDialog';
 import { cleanScannedStudentId } from '../utils/studentId';
+import { createClientId } from '../utils/clientId';
 import axios from 'axios';
 
 const PENDING_SCAN_STORAGE_KEY = 'sponsorenlauf.pendingScan';
@@ -23,13 +24,6 @@ const isValidQueuedScan = (entry) => (
   && Number.isFinite(Date.parse(entry.createdAt))
   && Date.now() - Date.parse(entry.createdAt) <= MAX_QUEUED_SCAN_AGE_MS
 );
-
-const createClientId = (prefix) => {
-  const randomPart = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : `${Date.now()}_${Math.random().toString(36).slice(2)}`;
-  return `${prefix}_${randomPart}`;
-};
 
 export default function Scan() {
   const [id, setID] = useState('');

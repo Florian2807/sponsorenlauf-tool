@@ -22,6 +22,14 @@ const isPublicApiRequest = (pathname, method) => {
 
 export async function proxy(request) {
     const { pathname } = request.nextUrl;
+    if ((pathname === '/api/runden' || pathname === '/api/stations/heartbeat')
+        && !hasSafeRequestOrigin({
+            method: request.method,
+            headers: request.headers,
+            urlHost: request.nextUrl.host,
+        })) {
+        return NextResponse.json({ success: false, message: 'Unsichere Anfrage blockiert' }, { status: 403 });
+    }
     const isAdminPage = ADMIN_PAGES.some((page) => pathname === page || pathname.startsWith(`${page}/`));
     const isProtectedApi = pathname.startsWith('/api/') && !isPublicApiRequest(pathname, request.method);
     if (!isAdminPage && !isProtectedApi) return NextResponse.next();

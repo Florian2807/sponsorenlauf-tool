@@ -107,7 +107,7 @@ export default function Scan() {
     try {
       queue = JSON.parse(window.localStorage.getItem(SCAN_QUEUE_STORAGE_KEY) || '[]');
       if (!Array.isArray(queue)) queue = [];
-      queue = queue.filter(isValidQueuedScan).slice(-MAX_QUEUED_SCANS);
+      queue = queue.filter(isValidQueuedScan).map((entry) => ({ ...entry, requiresConfirmation: false }));
     } catch {
       queue = [];
     }
@@ -272,6 +272,7 @@ export default function Scan() {
       const response = await request('/api/runden', {
         method: 'POST',
         showErrorMessage: false,
+        timeout: 8000,
         data: {
           id: cleanedId,
           confirmDoubleScan,
@@ -314,6 +315,9 @@ export default function Scan() {
         setID('');
         setDoubleScanData(null);
         clearPendingScan();
+        if (scanId) {
+          persistQueue(scanQueueRef.current.filter((entry) => entry.scanId !== scanId));
+        }
 
         if (response.round) {
           setRounds((currentRounds) => [
@@ -388,10 +392,11 @@ export default function Scan() {
         setIsProcessing(false);
       }
     }
-  }, [request, loadTimestamps, clearPendingScan, enqueueScan, playErrorSound]);
+  }, [request, loadTimestamps, clearPendingScan, enqueueScan, persistQueue, playErrorSound]);
 
   const flushScanQueue = useCallback(async () => {
-    if (flushingQueueRef.current || !navigator.onLine || scanQueueRef.current.length === 0) return;
+    if (flushingQueueRef.current || !navigator.onLine || scanQueueRef.current.length === 0
+      || pendingScanRef.current || document.querySelector('dialog[open]')) return;
     flushingQueueRef.current = true;
     try {
       while (scanQueueRef.current.length > 0 && navigator.onLine) {
@@ -406,13 +411,21 @@ export default function Scan() {
             confirmDoubleScan: false,
           }, { timeout: 10000 });
           if (response.data?.requiresConfirmation || response.data?.data?.requiresConfirmation) {
+            const confirmation = response.data?.data || response.data;
             playErrorSound();
-            setMessage('Ein vorgemerkter Scan benötigt eine Doppel-Scan-Bestätigung. Bitte Barcode erneut scannen.');
+            setDoubleScanData({
+              student: confirmation.student,
+              lastRoundTime: confirmation.lastRoundTime,
+              thresholdMinutes: confirmation.thresholdMinutes || 5,
+              cleanedId: pending.cleanedId,
+              scanId: pending.scanId,
+            });
+            setMessage('Ein vorgemerkter Scan benötigt eine Doppel-Scan-Bestätigung.');
             setMessageType('warning');
             persistQueue(scanQueueRef.current.map((entry) => (
               entry.scanId === pending.scanId ? { ...entry, requiresConfirmation: true } : entry
             )));
-            continue;
+            break;
           }
           persistQueue(scanQueueRef.current.filter((entry) => entry.scanId !== pending.scanId));
           setMessage('Vorgemerkter Scan wurde erfolgreich nachgetragen');
@@ -457,13 +470,14 @@ export default function Scan() {
   const handleDoubleScanCancel = useCallback(() => {
     doubleScanDialogRef.current?.close();
     setDoubleScanData(null);
+    persistQueue(scanQueueRef.current.filter((entry) => entry.scanId !== doubleScanData?.scanId));
     clearPendingScan();
     idRef.current = '';
     setID('');
     setMessage('Scan abgebrochen - möglicher Doppel-Scan erkannt');
     setMessageType('warning');
     setTimeout(() => inputRef.current?.focus(), 100);
-  }, [clearPendingScan]);
+  }, [clearPendingScan, doubleScanData, persistQueue]);
 
   const handleSubmit = useCallback(async (event) => {
     event.preventDefault();
@@ -484,25 +498,25 @@ export default function Scan() {
       return;
     }
 
+    if (scanQueueRef.current.length >= MAX_QUEUED_SCANS) {
+      setMessage('Zu viele unbestätigte Scans. Bitte Verbindung und vorgemerkte Scans prüfen.');
+      setMessageType('error');
+      playErrorSound();
+      return;
+    }
+
     setIsProcessing(true);
     setMessage('Verarbeite...');
     setMessageType('info');
 
-    const queuedPendingScan = scanQueueRef.current.find((scan) => scan.cleanedId === cleanedId);
-    const existingPendingScan = pendingScanRef.current || queuedPendingScan;
-    const scanId = existingPendingScan?.cleanedId === cleanedId
-      ? existingPendingScan.scanId
-      : createClientId('scan');
-    if (queuedPendingScan?.scanId === scanId) {
-      persistQueue(scanQueueRef.current.filter((scan) => scan.scanId !== scanId));
-    }
+    const scanId = createClientId('scan');
     rememberPendingScan({ cleanedId, scanId, createdAt: new Date().toISOString() });
 
     await performScan(cleanedId, false, scanId); // confirmDoubleScan = false
     
     // Fokus nach Verarbeitung wiederherstellen (performScan handled setIsProcessing)
     setTimeout(() => inputRef.current?.focus(), 100);
-  }, [cleanId, getAudioContext, isProcessing, performScan, persistQueue, playErrorSound, rememberPendingScan]);
+  }, [cleanId, getAudioContext, isProcessing, performScan, playErrorSound, rememberPendingScan]);
 
   const handleDeleteTimestamp = useCallback(async (roundId) => {
     if (!roundId || !studentInfo) {

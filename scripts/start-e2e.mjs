@@ -33,6 +33,16 @@ await dbRun(
     [1001, 'Erika', 'Mustermann', '5a', 'weiblich']
 );
 await dbRun(
+    'INSERT INTO students (id, vorname, nachname, klasse, geschlecht) VALUES (?, ?, ?, ?, ?)',
+    [1002, 'Max', 'Beispiel', '5a', 'männlich']
+);
+for (let studentId = 1003; studentId <= 1008; studentId += 1) {
+    await dbRun(
+        'INSERT INTO students (id, vorname, nachname, klasse, geschlecht) VALUES (?, ?, ?, ?, ?)',
+        [studentId, 'Test', `Schüler${studentId}`, '5a', 'männlich']
+    );
+}
+await dbRun(
     'INSERT INTO settings (key, value) VALUES (?, ?)',
     ['setup_completed', JSON.stringify(true)]
 );

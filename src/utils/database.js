@@ -13,7 +13,6 @@ export const createDbConnection = () => {
     db.configure('busyTimeout', 5000);
     db.serialize(() => {
         db.run('PRAGMA foreign_keys = ON');
-        db.run('PRAGMA journal_mode = WAL');
         db.run('PRAGMA synchronous = NORMAL');
     });
 
@@ -110,9 +109,19 @@ export const dbTransaction = (operations, { mode = 'DEFERRED' } = {}) => {
  * Starts a write transaction before any reads are performed. This is required
  * for read-check-write flows such as accepting a scan from multiple laptops.
  */
-export const dbImmediateTransaction = (operations) => (
-    dbTransaction(operations, { mode: 'IMMEDIATE' })
-);
+let immediateTransactionQueue = Promise.resolve();
+
+export const dbImmediateTransaction = (operations) => {
+    // sqlite3 uses a small worker pool. Concurrent BEGIN IMMEDIATE calls can
+    // occupy every worker waiting for a lock, leaving no worker to finish the
+    // transaction that holds it. Queue writes within this server process.
+    const previous = immediateTransactionQueue;
+    let release;
+    immediateTransactionQueue = new Promise((resolve) => { release = resolve; });
+    return previous
+        .then(() => dbTransaction(operations, { mode: 'IMMEDIATE' }))
+        .finally(() => release());
+};
 
 /**
  * Führt einen Batch-Insert mit Transaktion aus

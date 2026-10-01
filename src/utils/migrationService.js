@@ -1,4 +1,4 @@
-import { dbImmediateTransaction } from './database.js';
+import { dbImmediateTransaction, dbGet } from './database.js';
 
 const dbRun = (db, query, params = []) => new Promise((resolve, reject) => {
     db.run(query, params, function onRun(error) {
@@ -182,33 +182,41 @@ const migrations = [
 
 export const getLatestSchemaVersion = () => migrations.at(-1)?.version || 0;
 
-export const runDatabaseMigrations = async () => dbImmediateTransaction(async (db) => {
-    await dbExec(db, `
-        CREATE TABLE IF NOT EXISTS schema_migrations (
-            version INTEGER PRIMARY KEY,
-            name TEXT NOT NULL,
-            applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-    `);
-
-    const appliedRows = await dbAll(db, 'SELECT version FROM schema_migrations ORDER BY version');
-    const appliedVersions = new Set(appliedRows.map((row) => row.version));
-    const applied = [];
-
-    for (const migration of migrations) {
-        if (appliedVersions.has(migration.version)) continue;
-
-        await migration.up(db);
-        await dbRun(
-            db,
-            'INSERT INTO schema_migrations (version, name) VALUES (?, ?)',
-            [migration.version, migration.name]
-        );
-        applied.push(migration.version);
+export const runDatabaseMigrations = async () => {
+    // WAL is a persistent database setting. Changing it on every connection
+    // requires an exclusive lock and can block concurrent scanner requests.
+    const journalMode = await dbGet('PRAGMA journal_mode = WAL');
+    if (journalMode?.journal_mode?.toLowerCase() !== 'wal') {
+        throw new Error('SQLite WAL mode could not be enabled');
     }
+    return dbImmediateTransaction(async (db) => {
+        await dbExec(db, `
+            CREATE TABLE IF NOT EXISTS schema_migrations (
+                version INTEGER PRIMARY KEY,
+                name TEXT NOT NULL,
+                applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
 
-    const currentVersion = getLatestSchemaVersion();
-    await dbRun(db, `PRAGMA user_version = ${currentVersion}`);
+        const appliedRows = await dbAll(db, 'SELECT version FROM schema_migrations ORDER BY version');
+        const appliedVersions = new Set(appliedRows.map((row) => row.version));
+        const applied = [];
 
-    return { applied, currentVersion };
-});
+        for (const migration of migrations) {
+            if (appliedVersions.has(migration.version)) continue;
+
+            await migration.up(db);
+            await dbRun(
+                db,
+                'INSERT INTO schema_migrations (version, name) VALUES (?, ?)',
+                [migration.version, migration.name]
+            );
+            applied.push(migration.version);
+        }
+
+        const currentVersion = getLatestSchemaVersion();
+        await dbRun(db, `PRAGMA user_version = ${currentVersion}`);
+
+        return { applied, currentVersion };
+    });
+};

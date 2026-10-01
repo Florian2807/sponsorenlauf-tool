@@ -8,12 +8,14 @@ import { ModuleConfigProvider } from '../contexts/ModuleConfigContext';
 import { AdminAuthProvider } from '../contexts/AdminAuthContext';
 import FirstRunGate from '../components/FirstRunGate';
 import FirstRunTour from '../components/FirstRunTour';
+import UpdateNotice from '../components/UpdateNotice';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 
 function MyApp({ Component, pageProps }) {
   return (
     <ErrorProvider>
       <AdminAuthProvider>
+        <UpdateNotice />
         <FirstRunGate>
           <ModuleConfigProvider>
             <DonationDisplayModeProvider>

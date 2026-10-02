@@ -75,24 +75,24 @@ export default function Scan() {
 
     const playTone = (frequency, offset) => {
       const toneStart = startAt + offset;
-      const toneEnd = toneStart + 0.13;
+      const toneEnd = toneStart + 0.22;
       const gain = audioContext.createGain();
       gain.gain.setValueAtTime(0.0001, toneStart);
-      gain.gain.exponentialRampToValueAtTime(0.14, toneStart + 0.015);
-      gain.gain.setValueAtTime(0.14, toneEnd - 0.025);
+      gain.gain.exponentialRampToValueAtTime(0.28, toneStart + 0.01);
+      gain.gain.setValueAtTime(0.28, toneEnd - 0.04);
       gain.gain.exponentialRampToValueAtTime(0.0001, toneEnd);
       gain.connect(audioContext.destination);
 
       const oscillator = audioContext.createOscillator();
-      oscillator.type = 'triangle';
+      oscillator.type = 'square';
       oscillator.frequency.setValueAtTime(frequency, toneStart);
       oscillator.connect(gain);
       oscillator.start(toneStart);
       oscillator.stop(toneEnd);
     };
 
-    playTone(310, 0);
-    playTone(245, 0.18);
+    playTone(740, 0);
+    playTone(520, 0.29);
   }, [getAudioContext]);
 
   useEffect(() => {

@@ -53,7 +53,7 @@ wait_for_healthy_app() {
 }
 
 verify_running_app() {
-  run_logged 'Prüfe Anwendung und Datenbank' docker_compose exec -T app node -e "Promise.all([fetch('http://127.0.0.1:3000/api/setupStatus').then(r=>{if(!r.ok)throw new Error('setupStatus HTTP '+r.status)}),import('./src/utils/database.js').then(({getDatabaseStatus})=>getDatabaseStatus()).then(r=>{if(!r.ready)throw new Error('database/schema is not ready')})]).then(()=>console.log('Anwendung und Datenbank sind betriebsbereit'))"
+  run_logged 'Prüfe Anwendung und Datenbank' docker_compose exec -T app node -e "Promise.all([fetch('http://127.0.0.1:3000/api/setupStatus').then(r=>{if(!r.ok)throw new Error('setupStatus HTTP '+r.status)}),import('./src/utils/database.js').then(({dbGet})=>dbGet('PRAGMA integrity_check')).then(r=>{if(r.integrity_check!=='ok')throw new Error('database integrity: '+r.integrity_check)})]).then(()=>console.log('Anwendung und Datenbank sind betriebsbereit'))"
 }
 
 preflight_update() {
@@ -168,21 +168,6 @@ run_update() {
     return 1
   fi
 
-  write_status running update 'Stoppe Schreibzugriffe und aktualisiere das Rollback-Backup.' "$request_id"
-  if ! run_logged 'docker compose stop app (finaler Snapshot)' docker_compose stop app; then
-    write_status failed update 'Die Anwendung konnte vor dem finalen Snapshot nicht gestoppt werden.' "$request_id"
-    return 1
-  fi
-  # SQLite-to-PostgreSQL first startup refreshes the legacy .db itself. For an
-  # existing PostgreSQL installation take the final dump while the app is stopped.
-  if [[ "$backup_filename" = *.dump ]]; then
-    if ! run_logged 'Finalen PostgreSQL-Snapshot erstellen' docker_compose run --rm --no-deps --entrypoint node app -e "import('./src/utils/backupService.js').then(async ({createDatabaseBackup})=>{const b=await createDatabaseBackup({reason:'before-web-update'});const fs=await import('node:fs/promises');await fs.rename(b.backupPath,'/data/backups/${backup_filename}')})"; then
-      run_logged 'Vorherigen Container nach Snapshotfehler starten' docker start "$container" || true
-      write_status failed update 'Finaler Snapshot fehlgeschlagen; der bisherige Container wurde wieder gestartet.' "$request_id"
-      return 1
-    fi
-  fi
-
   write_status running update 'Starte und prüfe die neue Version.' "$request_id"
   if run_logged 'docker compose up -d --remove-orphans' docker_compose up -d --remove-orphans && wait_for_healthy_app && verify_running_app; then
     write_status succeeded update 'Update erfolgreich installiert.' "$request_id"
@@ -194,7 +179,7 @@ run_update() {
   image_tag="$(production_image_tag)"
   run_logged 'docker tag (vorheriges Image)' docker tag "$previous_image" "ghcr.io/florian2807/sponsorenlauf-tool:${image_tag:-latest}" || true
   run_logged 'docker compose stop app (Rollback)' docker_compose stop app || true
-  if run_logged 'Datenbank-Backup wiederherstellen' docker_compose run --rm --no-deps -e SPONSORENLAUF_BOOTSTRAP_INTERNAL=1 --entrypoint node app -e "import('./src/utils/backupService.js').then(({restoreDatabaseBackup}) => restoreDatabaseBackup('/data/backups/${backup_filename}')).then(r=>{if(!r.restored)process.exit(1)})" \
+  if run_logged 'Datenbank-Backup wiederherstellen' docker_compose run --rm --no-deps --entrypoint node app -e "import('./src/utils/backupService.js').then(({restoreDatabaseBackup}) => restoreDatabaseBackup('/data/backups/${backup_filename}')).then(r=>{if(!r.restored)process.exit(1)})" \
     && run_logged 'docker compose up -d --force-recreate --remove-orphans (Rollback)' docker_compose up -d --force-recreate --remove-orphans \
     && wait_for_healthy_app; then
     if verify_running_app; then
@@ -219,48 +204,3 @@ run_restart() {
   return 1
 }
 
-mkdir -p "$MAINTENANCE_DIR"
-chown root:"$MAINTENANCE_GROUP" "$MAINTENANCE_DIR"
-chmod 0770 "$MAINTENANCE_DIR"
-touch "$PROGRESS_FILE" "$RAW_LOG_FILE"
-chown root:"$MAINTENANCE_GROUP" "$PROGRESS_FILE" "$RAW_LOG_FILE"
-chmod 0660 "$PROGRESS_FILE" "$RAW_LOG_FILE"
-if [ ! -f "$STATUS_FILE" ]; then
-  write_status idle none 'Keine Systemaktion aktiv.' none
-else
-  chown root:"$MAINTENANCE_GROUP" "$STATUS_FILE"
-  chmod 0660 "$STATUS_FILE"
-fi
-
-if [ -f "$LOCK_FILE" ] && ! find "$MAINTENANCE_DIR" -maxdepth 1 -type f -name '*.request' | grep -q .; then
-  if grep -Eq '"state"[[:space:]]*:[[:space:]]*"(queued|running)"' "$STATUS_FILE" 2>/dev/null; then
-    write_status failed unknown 'Eine unterbrochene Wartungsaktion hatte keine wiederaufnehmbare Anfrage. Die Sperre wurde sicher aufgehoben.' unknown
-  fi
-  rm -f "$LOCK_FILE"
-fi
-
-while true; do
-  request_file="$(find "$MAINTENANCE_DIR" -maxdepth 1 -type f -name '*.request' | sort | head -n 1)"
-  if [ -z "$request_file" ]; then
-    sleep 2
-    continue
-  fi
-
-  request_name="$(basename "$request_file")"
-  request_id="${request_name%.request}"
-  action="$(tr -d '\r\n' < "$request_file")"
-  if [[ ! "$request_id" =~ ^[0-9a-f-]{36}$ ]] || { [ "$action" != update ] && [ "$action" != restart ]; }; then
-    write_status failed invalid 'Ungültige Wartungsanfrage wurde verworfen.' invalid
-    rm -f "$request_file" "$LOCK_FILE"
-    continue
-  fi
-
-  if [ "$action" = update ]; then run_update "$request_id" || true; else run_restart "$request_id" || true; fi
-  rm -f "$request_file" "$LOCK_FILE"
-  if [ "$action" = update ]; then
-    refresh_maintenance_service || append_progress 'Die systemd-Dienstdefinition konnte nicht aktualisiert werden.'
-    systemctl daemon-reload >/dev/null 2>&1 || true
-    systemctl restart --no-block sponsorenlauf-maintenance.service >/dev/null 2>&1 || true
-    exit 0
-  fi
-done

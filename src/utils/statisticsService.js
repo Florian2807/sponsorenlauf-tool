@@ -48,7 +48,7 @@ export const loadStudentsForStatistics = async () => {
         FROM received_donations 
         GROUP BY student_id
       ) rd ON s.id = rd.student_id
-      GROUP BY s.id
+      GROUP BY s.id, ed.total_expected, rd.total_received
     `;
 
     const rows = await dbAll(query);

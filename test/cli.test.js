@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
-import { after, before, test } from 'node:test';
+import { after, before, test as nodeTest } from 'node:test';
+import { createTestDatabase } from './helpers/postgres.js';
+const enabled = Boolean(process.env.TEST_DATABASE_URL);
+const test = (name, fn) => nodeTest(name, { skip: !enabled }, fn);
+let cleanup;
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -20,19 +24,20 @@ const run = (script, arguments_ = []) => spawnSync(process.execPath, [script, ..
 });
 
 before(async () => {
+    if (!enabled) return;
+    cleanup = await createTestDatabase();
     directory = await mkdtemp(path.join(tmpdir(), 'sponsorenlauf-cli-test-'));
     environment = {
         ...process.env,
         APP_ENV: 'development',
         NODE_ENV: 'test',
-        SPONSORENLAUF_DATABASE_PATH: path.join(directory, 'database.db'),
         SPONSORENLAUF_BACKUP_DIRECTORY: path.join(directory, 'backups'),
     };
     const result = run(migrate);
     assert.equal(result.status, 0, result.stderr);
 });
 
-after(async () => rm(directory, { recursive: true, force: true }));
+after(async () => { if (!enabled) return; await cleanup(); await rm(directory, { recursive: true, force: true }); });
 
 test('CLI creates and verifies an application backup', () => {
     const created = run(cli, ['backup', 'create', '--json']);
@@ -57,5 +62,5 @@ test('CLI support bundle contains diagnostics but no database', () => {
 test('CLI database check emits machine-readable status', () => {
     const result = run(cli, ['database', 'check', '--json']);
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(JSON.parse(result.stdout).integrity_check, 'ok');
+    assert.equal(JSON.parse(result.stdout).ready, true);
 });

@@ -43,7 +43,7 @@ export const setAdminPin = async (pin, { requireExisting = false } = {}) => {
 
         db.run(query, params, function onPinSaved(error) {
             if (error) {
-                if (!requireExisting && error.code === 'SQLITE_CONSTRAINT') {
+                if (!requireExisting && error.code === '23505') {
                     reject(new Error('Die Administrator-PIN wurde bereits eingerichtet.'));
                 } else {
                     reject(error);

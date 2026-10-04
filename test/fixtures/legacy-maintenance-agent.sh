@@ -203,4 +203,3 @@ run_restart() {
   write_status failed restart 'Anwendung konnte nicht erfolgreich neu gestartet werden.' "$request_id"
   return 1
 }
-

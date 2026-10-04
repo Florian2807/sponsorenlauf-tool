@@ -201,4 +201,3 @@ export const verifySqliteApplicationBackup = async (backupPath) => {
         });
     });
 };
-

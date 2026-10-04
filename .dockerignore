@@ -11,3 +11,9 @@ deployment/install.env
 node_modules
 npm-debug.log*
 screenshots
+
+.next-e2e
+.e2e-data
+playwright-report
+test-results
+database.db-*

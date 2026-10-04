@@ -1,0 +1,19 @@
+# Local development only. Production uses generated credentials in compose.prod.yaml.
+name: sponsorenlauf-local-database
+services:
+  database:
+    image: postgres:18-bookworm@sha256:3725f4e2499eef5134592b3b4ab79a543ed7f8e533b05b5b637af926630f6650
+    environment:
+      POSTGRES_PASSWORD: development-only
+      POSTGRES_DB: sponsorenlauf_dev
+    ports:
+      - "127.0.0.1::5432"
+    volumes:
+      - local-postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d sponsorenlauf_dev"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+volumes:
+  local-postgres:

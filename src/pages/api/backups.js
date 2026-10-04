@@ -10,7 +10,7 @@ import {
 } from '../../utils/backupService.js';
 import { handleError, handleMethodNotAllowed, handleSuccess } from '../../utils/apiHelpers.js';
 
-const safeBackupName = (value) => /^[a-zA-Z0-9._-]+\.db$/.test(String(value || ''));
+const safeBackupName = (value) => /^[a-zA-Z0-9._-]+\.(?:db|dump)$/.test(String(value || ''));
 
 export const config = { api: { bodyParser: { sizeLimit: '100mb' }, responseLimit: false } };
 
@@ -21,7 +21,7 @@ export default async function handler(req, res) {
             const filePath = path.join(getBackupDirectory(), req.query.filename);
             await verifyApplicationDatabaseBackup(filePath);
             const contents = await fs.readFile(filePath);
-            res.setHeader('Content-Type', 'application/vnd.sqlite3');
+            res.setHeader('Content-Type', req.query.filename.endsWith('.db') ? 'application/vnd.sqlite3' : 'application/octet-stream');
             res.setHeader('Content-Disposition', `attachment; filename="${req.query.filename}"`);
             return res.status(200).send(contents);
         }
@@ -66,14 +66,8 @@ export default async function handler(req, res) {
             await fs.writeFile(importPath, decoded, { mode: 0o600 });
             try {
                 await verifyApplicationDatabaseBackup(importPath);
-                const safetyBackup = await createDatabaseBackup({ reason: 'before-manual-restore' });
-                try {
-                    await restoreDatabaseBackup(importPath);
-                } catch (restoreError) {
-                    await restoreDatabaseBackup(safetyBackup.backupPath);
-                    throw restoreError;
-                }
-                return handleSuccess(res, { restored: true, safetyBackup: safetyBackup.filename }, 'Backup wiederhergestellt');
+                const restored = await restoreDatabaseBackup(importPath);
+                return handleSuccess(res, restored, 'Backup wiederhergestellt');
             } finally {
                 await fs.rm(importPath, { force: true });
             }

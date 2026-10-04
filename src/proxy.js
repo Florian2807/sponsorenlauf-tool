@@ -1,3 +1,4 @@
+import { assertDatabaseWritesAllowed } from './utils/migrationGate.js';
 import { NextResponse } from 'next/server';
 import { ADMIN_COOKIE_NAME, verifyAdminSessionToken } from './utils/adminAuthService.js';
 import { hasSafeRequestOrigin } from './utils/requestSecurity.js';
@@ -29,6 +30,12 @@ export async function proxy(request) {
             urlHost: request.nextUrl.host,
         })) {
         return NextResponse.json({ success: false, message: 'Unsichere Anfrage blockiert' }, { status: 403 });
+    }
+    if (pathname.startsWith('/api/') && pathname !== '/api/systemMaintenance'
+        && !['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
+        try { assertDatabaseWritesAllowed(); } catch (error) {
+            return NextResponse.json({ success: false, message: error.message }, { status: 503 });
+        }
     }
     const isAdminPage = ADMIN_PAGES.some((page) => pathname === page || pathname.startsWith(`${page}/`));
     const isProtectedApi = pathname.startsWith('/api/') && !isPublicApiRequest(pathname, request.method);

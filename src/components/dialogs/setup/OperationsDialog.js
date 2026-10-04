@@ -177,7 +177,7 @@ export default function OperationsDialog({ dialogRef }) {
 
                 <div className="system-maintenance-card">
                     <h3>Backup wiederherstellen</h3>
-                    <input type="file" accept=".db,application/vnd.sqlite3" onChange={(event) => setRestoreFile(event.target.files?.[0] || null)} />
+                    <input type="file" accept=".db,.dump,application/vnd.sqlite3,application/octet-stream" onChange={(event) => setRestoreFile(event.target.files?.[0] || null)} />
                     <p className="field-hint">Zum Bestätigen exakt WIEDERHERSTELLEN eingeben.</p>
                     <input className="input" value={restoreConfirmation} onChange={(event) => setRestoreConfirmation(event.target.value)} />
                     <button className="btn btn-danger" type="button" onClick={restoreBackup} disabled={busy || !restoreFile || restoreConfirmation !== 'WIEDERHERSTELLEN'}>Backup wiederherstellen</button>

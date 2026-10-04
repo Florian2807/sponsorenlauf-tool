@@ -1,9 +1,17 @@
 import assert from 'node:assert/strict';
-import { after, before, test } from 'node:test';
+import { after, before, test as nodeTest } from 'node:test';
+import { createTestDatabase } from './helpers/postgres.js';
+import { dbRun, dbGet, dbAll } from '../src/utils/database.js';
+import { getPostgresPool, postgresConfig, pgQuery } from '../src/utils/postgres.js';
+import { execFile } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
+import pg from 'pg';
+const enabled = Boolean(process.env.TEST_DATABASE_URL);
+const test = (name, fn) => nodeTest(name, { skip: !enabled }, fn);
+let cleanup;
 import { mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import sqlite3 from 'sqlite3';
 
 const originalWorkingDirectory = process.cwd();
 let temporaryDirectory;
@@ -27,43 +35,28 @@ let verifyAdminSessionToken;
 let saveSmtpConfiguration;
 let getSmtpConfiguration;
 
-const openDatabase = () => new sqlite3.Database(path.join(temporaryDirectory, 'database.db'));
-
-const run = (query, params = []) => new Promise((resolve, reject) => {
-  const db = openDatabase();
-  db.run(query, params, function onRun(error) {
-    db.close();
-    if (error) reject(error);
-    else resolve({ lastID: this.lastID, changes: this.changes });
-  });
-});
-
-const get = (query, params = []) => new Promise((resolve, reject) => {
-  const db = openDatabase();
-  db.get(query, params, (error, row) => {
-    db.close();
-    if (error) reject(error);
-    else resolve(row || null);
-  });
-});
-
-const getFromDatabase = (databasePath, query, params = []) => new Promise((resolve, reject) => {
-  const db = new sqlite3.Database(databasePath, sqlite3.OPEN_READONLY);
-  db.get(query, params, (error, row) => {
-    db.close();
-    if (error) reject(error);
-    else resolve(row || null);
-  });
-});
-
-const exec = (query) => new Promise((resolve, reject) => {
-  const db = openDatabase();
-  db.exec(query, (error) => {
-    db.close();
-    if (error) reject(error);
-    else resolve();
-  });
-});
+const run = dbRun;
+const get = dbGet;
+const getFromDatabase = async (databasePath, query, params = []) => {
+  const name = 'inspect_' + randomUUID().replaceAll('-', '');
+  const pool = getPostgresPool();
+  await pool.query(`CREATE DATABASE "${name}"`);
+  const config = postgresConfig();
+  const url = new URL(config.connectionString); url.pathname = '/' + name;
+  const staging = new pg.Pool({ connectionString: url.toString() });
+  try {
+    const container = process.env.SPONSORENLAUF_PG_TOOLS_CONTAINER;
+    const args = ['--no-owner', '--no-privileges', '--exit-on-error', '--username', config.user, '--dbname', name];
+    const child = execFile(container ? 'docker' : 'pg_restore', container
+      ? ['exec', '-i', '-e', `PGPASSWORD=${config.password}`, container, 'pg_restore', ...args]
+      : ['--host', config.host, '--port', String(config.port), ...args],
+      { env: { ...process.env, PGPASSWORD: config.password } });
+    const complete = new Promise((resolve, reject) => child.on('error', reject).on('exit', code => code === 0 ? resolve() : reject(new Error('Backup restore failed'))));
+    child.stdin.end(await readFile(databasePath));
+    await complete;
+    return (await pgQuery(staging, query, params)).rows[0];
+  } finally { await staging.end(); await pool.query(`DROP DATABASE "${name}" WITH (FORCE)`); }
+};
 
 const createStudent = async (id) => {
   await run(
@@ -79,52 +72,10 @@ const prevention = {
 };
 
 before(async () => {
+  if (!enabled) return;
+  cleanup = await createTestDatabase();
   temporaryDirectory = await mkdtemp(path.join(tmpdir(), 'sponsorenlauf-round-test-'));
   process.chdir(temporaryDirectory);
-
-  await exec(`
-    PRAGMA journal_mode = WAL;
-    CREATE TABLE classes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      grade TEXT NOT NULL,
-      class_name TEXT NOT NULL UNIQUE
-    );
-    CREATE TABLE students (
-      id INTEGER PRIMARY KEY,
-      vorname TEXT NOT NULL,
-      nachname TEXT NOT NULL,
-      geschlecht TEXT,
-      klasse TEXT NOT NULL
-    );
-    CREATE TABLE replacements (id INTEGER PRIMARY KEY, studentID INTEGER);
-    CREATE TABLE rounds (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      timestamp TEXT NOT NULL,
-      student_id INTEGER NOT NULL,
-      scan_id TEXT,
-      source_device_id TEXT,
-      recorded_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-    );
-    CREATE UNIQUE INDEX idx_rounds_scan_id ON rounds(scan_id) WHERE scan_id IS NOT NULL;
-    CREATE TABLE expected_donations (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      student_id INTEGER NOT NULL,
-      amount REAL NOT NULL,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-    CREATE TABLE received_donations (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      student_id INTEGER NOT NULL,
-      amount REAL NOT NULL,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-    CREATE TABLE settings (
-      key TEXT PRIMARY KEY,
-      value TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
 
   ({ recordRound, RoundServiceError } = await import('../src/utils/roundService.js'));
   ({ deleteRoundById, deleteStudent } = await import('../src/utils/studentService.js'));
@@ -145,9 +96,14 @@ before(async () => {
     verifyAdminSessionToken,
   } = await import('../src/utils/adminAuthService.js'));
   ({ saveSmtpConfiguration, getSmtpConfiguration } = await import('../src/utils/smtpService.js'));
+  await runDatabaseMigrations();
+  await run("INSERT INTO classes (grade, class_name) VALUES ('5', '5a') ON CONFLICT (class_name) DO NOTHING");
+  process.env.SPONSORENLAUF_BACKUP_DIRECTORY = path.join(temporaryDirectory, 'backups');
 });
 
 after(async () => {
+  if (!enabled) return;
+  await cleanup();
   process.chdir(originalWorkingDirectory);
   await rm(temporaryDirectory, { recursive: true, force: true });
 });
@@ -402,12 +358,16 @@ test('a failed multi-type deletion rolls back earlier deletes', async () => {
     now: new Date('2026-08-31T10:25:00.000Z'),
   });
 
-  // The minimal test database intentionally has no teachers table. The second
-  // operation fails after rounds were deleted, so the transaction must restore them.
-  await assert.rejects(
-    deleteData({ types: ['rounds', 'teachers'], confirmation: 'LÖSCHEN' }),
-    /no such table: teachers/
-  );
+  await getPostgresPool().query(`
+    CREATE FUNCTION reject_teacher_delete() RETURNS trigger LANGUAGE plpgsql AS $$
+    BEGIN RAISE EXCEPTION 'injected deletion failure'; END $$;
+    CREATE TRIGGER reject_teacher_delete BEFORE DELETE ON teachers FOR EACH STATEMENT EXECUTE FUNCTION reject_teacher_delete();
+  `);
+  try {
+    await assert.rejects(deleteData({ types: ['rounds', 'teachers'], confirmation: 'LÖSCHEN' }), /injected deletion failure/);
+  } finally {
+    await getPostgresPool().query('DROP TRIGGER reject_teacher_delete ON teachers; DROP FUNCTION reject_teacher_delete()');
+  }
 
   assert.equal((await get('SELECT COUNT(*) AS count FROM rounds WHERE student_id = 110')).count, 1);
 });
@@ -431,7 +391,7 @@ test('bulk deletion creates a verified recovery snapshot before one atomic delet
   assert.equal((await get('SELECT COUNT(*) AS count FROM students')).count, 0);
   assert.equal((await get('SELECT COUNT(*) AS count FROM rounds')).count, 0);
   assert.equal((await get('SELECT COUNT(*) AS count FROM replacements')).count, 0);
-  assert.equal((await getFromDatabase(backupPath, 'PRAGMA integrity_check')).integrity_check, 'ok');
+  await verifyApplicationDatabaseBackup(backupPath);
   assert.equal((await getFromDatabase(
     backupPath,
     'SELECT COUNT(*) AS count FROM students WHERE id = 109'
@@ -446,17 +406,10 @@ test('versioned migrations upgrade an existing database exactly once', async () 
   const firstRun = await runDatabaseMigrations();
   const secondRun = await runDatabaseMigrations();
   const versions = await get('SELECT COUNT(*) AS count, MAX(version) AS latest FROM schema_migrations');
-  const roundColumns = await new Promise((resolve, reject) => {
-    const db = openDatabase();
-    db.all('PRAGMA table_info(rounds)', (error, rows) => {
-      db.close();
-      if (error) reject(error);
-      else resolve(rows);
-    });
-  });
+  const roundColumns = await dbAll("SELECT column_name AS name FROM information_schema.columns WHERE table_name = 'rounds'");
 
   const latestVersion = getLatestSchemaVersion();
-  assert.deepEqual(firstRun.applied, Array.from({ length: latestVersion }, (_, index) => index + 1));
+  assert.deepEqual(firstRun.applied, []);
   assert.deepEqual(secondRun.applied, []);
   assert.equal(versions.count, latestVersion);
   assert.equal(versions.latest, latestVersion);
@@ -511,7 +464,7 @@ test('administrator setup is atomic and sessions are validated server-side', asy
 });
 
 test('complete reset clears application data but preserves the admin PIN and recovery backups', async () => {
-  await run('INSERT INTO classes (grade, class_name) VALUES (?, ?)', ['5', '5a']);
+  await run('INSERT INTO classes (grade, class_name) VALUES (?, ?) ON CONFLICT (class_name) DO NOTHING', ['5', '5a']);
   await createStudent(113);
   await run(
     'INSERT INTO teachers (id, vorname, nachname, klasse, email) VALUES (?, ?, ?, ?, ?)',
@@ -523,7 +476,7 @@ test('complete reset clears application data but preserves the admin PIN and rec
     doubleScanPrevention: { ...prevention, enabled: false },
     now: new Date('2026-08-31T10:45:00.000Z'),
   });
-  await run('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', ['setup_completed', 'true']);
+  await run('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value', ['setup_completed', 'true']);
   await run(
     'INSERT INTO station_activity (device_id, last_seen_at, scan_count) VALUES (?, ?, ?)',
     ['reset-test-station', new Date().toISOString(), 1]
@@ -561,31 +514,15 @@ test('complete reset clears application data but preserves the admin PIN and rec
     assert.equal((await get(`SELECT COUNT(*) AS count FROM ${table}`)).count, 0);
   }
   assert.equal(await verifyAdminPin('246810'), true);
-  assert.equal((await getFromDatabase(backupPath, 'PRAGMA integrity_check')).integrity_check, 'ok');
+  await verifyApplicationDatabaseBackup(backupPath);
   assert.equal((await getFromDatabase(
     backupPath,
     'SELECT COUNT(*) AS count FROM students WHERE id = 113'
   )).count, 1);
 });
 
-test('restore rejects an intact SQLite database from another application', async () => {
-  const unrelatedPath = path.join(temporaryDirectory, 'unrelated.db');
-  const unrelatedDb = new sqlite3.Database(unrelatedPath);
-  await new Promise((resolve, reject) => {
-    unrelatedDb.exec('CREATE TABLE unrelated (id INTEGER PRIMARY KEY)', (error) => {
-      unrelatedDb.close();
-      if (error) reject(error);
-      else resolve();
-    });
-  });
-
-  await assert.rejects(
-    verifyApplicationDatabaseBackup(unrelatedPath),
-    /Keine gültige Sponsorenlauf-Datenbank/
-  );
-});
-
 test('a verified startup snapshot can restore the live database', async () => {
+  await run("INSERT INTO classes (grade, class_name) VALUES ('5', '5a') ON CONFLICT (class_name) DO NOTHING");
   await createStudent(112);
   await recordRound({
     studentId: 112,

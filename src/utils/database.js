@@ -1,164 +1,37 @@
-import sqlite3 from 'sqlite3';
-import { DATABASE_PATH } from './constants.js';
+import { getPostgresPool, pgQuery, postgresTransaction } from './postgres.js';
 
-export const getDatabasePath = () => process.env.SPONSORENLAUF_DATABASE_PATH || DATABASE_PATH;
-
-/**
- * Erstellt eine neue Datenbankverbindung
- * @returns {sqlite3.Database} Datenbankinstanz
- */
-export const createDbConnection = () => {
-    const db = new sqlite3.Database(getDatabasePath());
-
-    db.configure('busyTimeout', 5000);
-    db.serialize(() => {
-        db.run('PRAGMA foreign_keys = ON');
-        db.run('PRAGMA synchronous = NORMAL');
-    });
-
-    return db;
-};
-
-/**
- * Führt eine SELECT-Abfrage aus und gibt alle Ergebnisse zurück
- * @param {string} query SQL-Query
- * @param {Array} params Parameter für die Query
- * @returns {Promise<Array>} Array mit Ergebnissen
- */
-export const dbAll = (query, params = []) => {
-    return new Promise((resolve, reject) => {
-        const db = createDbConnection();
-        db.all(query, params, (err, rows) => {
-            db.close();
-            if (err) reject(err);
-            else resolve(rows);
-        });
-    });
-};
-
-/**
- * Führt eine SELECT-Abfrage aus und gibt das erste Ergebnis zurück
- * @param {string} query SQL-Query
- * @param {Array} params Parameter für die Query
- * @returns {Promise<Object|null>} Erstes Ergebnis oder null
- */
+export const dbAll = (query, params = []) => pgQuery(getPostgresPool(), query, params).then(result => result.rows);
 export const dbGet = (query, params = []) => {
-    return new Promise((resolve, reject) => {
-        const db = createDbConnection();
-        db.get(query, params, (err, row) => {
-            db.close();
-            if (err) reject(err);
-            else resolve(row || null);
+    // Required by the unchanged updater during the single-release migration.
+    if (/^PRAGMA integrity_check$/i.test(query.trim())) {
+        return getDatabaseStatus().then(status => {
+            if (!status.ready) throw new Error('PostgreSQL schema is not ready');
+            return { integrity_check: 'ok' };
         });
+    }
+    return pgQuery(getPostgresPool(), query, params).then(result => result.rows[0] || null);
+};
+export const dbRun = (query, params = []) => postgresTransaction(db => new Promise((resolve, reject) => {
+    db.run(query, params, function(error) {
+        if (error) reject(error);
+        else resolve({ lastID: this.lastID, changes: this.changes });
     });
-};
+}));
+export const dbTransaction = (operations) => postgresTransaction(operations);
+export const dbImmediateTransaction = (operations) => postgresTransaction(operations, { exclusive: true });
+export const dbBatchInsert = dbRun;
+export const createPlaceholders = (items) => items.map(() => '?').join(',');
 
-/**
- * Führt eine INSERT/UPDATE/DELETE-Abfrage aus
- * @param {string} query SQL-Query
- * @param {Array} params Parameter für die Query
- * @returns {Promise<{lastID: number, changes: number}>} Ergebnis der Operation
- */
-export const dbRun = (query, params = []) => {
-    return new Promise((resolve, reject) => {
-        const db = createDbConnection();
-        db.run(query, params, function (err) {
-            db.close();
-            if (err) reject(err);
-            else resolve({ lastID: this.lastID, changes: this.changes });
-        });
-    });
-};
-
-/**
- * Führt mehrere Operationen in einer Transaktion aus
- * @param {Function} operations Funktion mit den Datenbankoperationen
- * @returns {Promise} Ergebnis der Transaktion
- */
-export const dbTransaction = (operations, { mode = 'DEFERRED' } = {}) => {
-    return new Promise((resolve, reject) => {
-        const db = createDbConnection();
-
-        const normalizedMode = mode === 'IMMEDIATE' ? 'IMMEDIATE' : 'DEFERRED';
-
-        db.run(`BEGIN ${normalizedMode} TRANSACTION`, async (beginError) => {
-            if (beginError) {
-                db.close();
-                reject(beginError);
-                return;
-            }
-
-            try {
-                const result = await operations(db);
-                db.run('COMMIT', (commitError) => {
-                    db.close();
-                    if (commitError) reject(commitError);
-                    else resolve(result);
-                });
-            } catch (error) {
-                db.run('ROLLBACK', () => {
-                    db.close();
-                    reject(error);
-                });
-            }
-        });
-    });
-};
-
-/**
- * Starts a write transaction before any reads are performed. This is required
- * for read-check-write flows such as accepting a scan from multiple laptops.
- */
-let immediateTransactionQueue = Promise.resolve();
-
-export const dbImmediateTransaction = (operations) => {
-    // sqlite3 uses a small worker pool. Concurrent BEGIN IMMEDIATE calls can
-    // occupy every worker waiting for a lock, leaving no worker to finish the
-    // transaction that holds it. Queue writes within this server process.
-    const previous = immediateTransactionQueue;
-    let release;
-    immediateTransactionQueue = new Promise((resolve) => { release = resolve; });
-    return previous
-        .then(() => dbTransaction(operations, { mode: 'IMMEDIATE' }))
-        .finally(() => release());
-};
-
-/**
- * Führt einen Batch-Insert mit Transaktion aus
- * @param {string} query SQL-Query mit Platzhaltern
- * @param {Array} values Array mit allen Werten
- * @returns {Promise<{lastID: number, changes: number}>} Ergebnis der Operation
- */
-export const dbBatchInsert = (query, values) => {
-    return new Promise((resolve, reject) => {
-        const db = createDbConnection();
-        
-        db.serialize(() => {
-            db.run('BEGIN TRANSACTION');
-            
-            db.run(query, values, function (err) {
-                if (err) {
-                    db.run('ROLLBACK', () => {
-                        db.close();
-                        reject(err);
-                    });
-                } else {
-                    db.run('COMMIT', (commitErr) => {
-                        db.close();
-                        if (commitErr) reject(commitErr);
-                        else resolve({ lastID: this.lastID, changes: this.changes });
-                    });
-                }
-            });
-        });
-    });
-};
-
-/**
- * Bereitet eine SQL-Query mit Platzhaltern vor
- * @param {Array} items Array von Elementen
- * @returns {string} Platzhalter für SQL IN-Klausel
- */
-export const createPlaceholders = (items) => {
-    return items.map(() => '?').join(',');
+/** Connection and application schema readiness, not a physical PostgreSQL checksum scan. */
+export const getDatabaseStatus = async () => {
+    const required = ['classes', 'students', 'replacements', 'teachers', 'rounds',
+        'expected_donations', 'received_donations', 'settings', 'admin_credentials',
+        'admin_sessions', 'admin_login_attempts', 'smtp_configuration', 'station_activity'];
+    const result = await pgQuery(getPostgresPool(), `SELECT
+        (SELECT MAX(version) FROM schema_migrations) AS version,
+        (SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'
+            AND table_name = ANY($1::text[])) AS tables`, [required]);
+    const { getLatestSchemaVersion } = await import('./migrationService.js');
+    return { backend: 'postgres', ready: result.rows[0].tables === required.length && result.rows[0].version === getLatestSchemaVersion(),
+        schemaVersion: result.rows[0].version };
 };

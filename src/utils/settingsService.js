@@ -40,8 +40,8 @@ export const setSetting = async (key, value) => {
         const serializedValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
 
         await dbRun(
-            `INSERT OR REPLACE INTO settings (key, value, updated_at) 
-             VALUES (?, ?, CURRENT_TIMESTAMP)`,
+            `INSERT INTO settings (key, value, updated_at)
+             VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP`,
             [key, serializedValue]
         );
 

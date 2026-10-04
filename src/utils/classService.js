@@ -167,7 +167,7 @@ export const syncClassesToDatabase = async (structure = null) => {
             if (!normalizedClassName) continue;
 
             await dbRun(
-                'INSERT OR IGNORE INTO classes (grade, class_name) VALUES (?, ?)',
+                'INSERT INTO classes (grade, class_name) VALUES (?, ?) ON CONFLICT(class_name) DO NOTHING',
                 [String(grade || deriveGradeFromClassName(normalizedClassName)).trim(), normalizedClassName]
             );
         }
@@ -186,7 +186,7 @@ export const ensureClassExists = async (className) => {
     const grade = gradeMap[canonicalClassName] || deriveGradeFromClassName(canonicalClassName);
 
     await dbRun(
-        'INSERT OR IGNORE INTO classes (grade, class_name) VALUES (?, ?)',
+        'INSERT INTO classes (grade, class_name) VALUES (?, ?) ON CONFLICT(class_name) DO NOTHING',
         [grade, canonicalClassName]
     );
 };

@@ -78,11 +78,11 @@ const getStatisticsData = async () => {
         s.klasse,
         COUNT(DISTINCT s.id) as student_count,
         COALESCE(SUM((SELECT COUNT(*) FROM rounds WHERE student_id = s.id)), 0) as total_rounds,
-        ROUND(COALESCE(SUM((SELECT COUNT(*) FROM rounds WHERE student_id = s.id)), 0) * 1.0 / COUNT(DISTINCT s.id), 2) as average_rounds,
+        ROUND(CAST(COALESCE(SUM((SELECT COUNT(*) FROM rounds WHERE student_id = s.id)), 0) * 1.0 / COUNT(DISTINCT s.id) AS NUMERIC), 2) as average_rounds,
         COALESCE(SUM((SELECT SUM(amount) FROM expected_donations WHERE student_id = s.id)), 0) as total_expected_donations,
         COALESCE(SUM((SELECT SUM(amount) FROM received_donations WHERE student_id = s.id)), 0) as total_received_donations,
-        ROUND(COALESCE(SUM((SELECT SUM(amount) FROM expected_donations WHERE student_id = s.id)), 0) * 1.0 / COUNT(DISTINCT s.id), 2) as average_expected_donations,
-        ROUND(COALESCE(SUM((SELECT SUM(amount) FROM received_donations WHERE student_id = s.id)), 0) * 1.0 / COUNT(DISTINCT s.id), 2) as average_received_donations
+        ROUND(CAST(COALESCE(SUM((SELECT SUM(amount) FROM expected_donations WHERE student_id = s.id)), 0) * 1.0 / COUNT(DISTINCT s.id) AS NUMERIC), 2) as average_expected_donations,
+        ROUND(CAST(COALESCE(SUM((SELECT SUM(amount) FROM received_donations WHERE student_id = s.id)), 0) * 1.0 / COUNT(DISTINCT s.id) AS NUMERIC), 2) as average_received_donations
       FROM students s
       GROUP BY s.klasse
       ORDER BY s.klasse

@@ -1,4 +1,4 @@
-import { dbImmediateTransaction } from './database.js';
+import { dbImmediateTransaction, dbTransaction } from './database.js';
 
 const dbGet = (db, query, params = []) => new Promise((resolve, reject) => {
     db.get(query, params, (error, row) => {
@@ -34,7 +34,7 @@ export class RoundServiceError extends Error {
 
 /**
  * Atomically checks the latest accepted scan and appends a new round.
- * BEGIN IMMEDIATE serializes competing scanner requests before the check.
+ * Locks the scan identity and student before checking the round.
  */
 export const recordRound = async ({
     studentId,
@@ -43,9 +43,15 @@ export const recordRound = async ({
     scanId = null,
     sourceDeviceId = null,
     now = new Date(),
-}) => dbImmediateTransaction(async (db) => {
+}) => dbTransaction(async (db) => {
     const timestamp = now.toISOString();
     const nowMs = now.getTime();
+
+    {
+        // Scan identity first, then student: consistent lock order across processes.
+        if (scanId) await db.query('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))', [scanId]);
+        await db.query('SELECT id FROM students WHERE id = ? FOR UPDATE', [studentId]);
+    }
 
     if (scanId) {
         const existingScan = await dbGet(db, `

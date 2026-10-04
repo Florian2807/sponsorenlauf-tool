@@ -1,9 +1,8 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { randomUUID } from 'crypto';
-import sqlite3 from 'sqlite3';
-import { getDatabasePath } from './database.js';
-import { runDatabaseMigrations } from './migrationService.js';
+import { assertDatabaseWritesAllowed } from './migrationGate.js';
+import { createPostgresBackup, isPostgresArchive, verifyPostgresBackup, restorePostgresBackup } from './postgresBackup.js';
 
 const sanitizeLabel = (value) => String(value || 'backup')
     .toLowerCase()
@@ -11,8 +10,8 @@ const sanitizeLabel = (value) => String(value || 'backup')
     .replace(/^-+|-+$/g, '')
     .slice(0, 50) || 'backup';
 
-const MANAGED_BACKUP_PATTERN = /^\d{4}-\d{2}-\d{2}T.+_[0-9a-f]{8}\.db$/;
-const BACKUP_FILENAME_PATTERN = /^(?!\.)[a-zA-Z0-9._-]+\.db$/;
+const MANAGED_BACKUP_PATTERN = /^\d{4}-\d{2}-\d{2}T.+_[0-9a-f]{8}\.(?:db|dump)$/;
+const BACKUP_FILENAME_PATTERN = /^(?!\.)[a-zA-Z0-9._-]+\.(?:db|dump)$/;
 
 const pruneManagedBackups = async (backupDirectory, currentFilename) => {
     const configuredLimit = Number.parseInt(process.env.SPONSORENLAUF_MAX_BACKUPS || '20', 10);
@@ -24,6 +23,8 @@ const pruneManagedBackups = async (backupDirectory, currentFilename) => {
         .filter((entry) => (
             entry.isFile()
             && entry.name !== currentFilename
+            && !entry.name.includes('_before-web-update_')
+            && !entry.name.includes('_migration_')
             && MANAGED_BACKUP_PATTERN.test(entry.name)
         ))
         .map(async (entry) => {
@@ -37,223 +38,46 @@ const pruneManagedBackups = async (backupDirectory, currentFilename) => {
     await Promise.all(removable.map(({ filePath }) => fs.rm(filePath, { force: true })));
 };
 
-const closeDatabase = (db) => new Promise((resolve, reject) => {
-    db.close((error) => {
-        if (error) reject(error);
-        else resolve();
-    });
-});
-
-const runBackup = (db, filePath, filenameIsDestination = true) => new Promise((resolve, reject) => {
-    const backup = db.backup(filePath, 'main', 'main', filenameIsDestination);
-    let settled = false;
-
-    const finish = (error = null) => {
-        if (settled) return;
-        settled = true;
-        backup.finish(() => {
-            if (error) reject(error);
-            else resolve();
-        });
-    };
-
-    const copyNextPages = () => {
-        backup.step(256, (error, completed) => {
-            if (error) {
-                finish(error);
-                return;
-            }
-
-            if (completed) {
-                finish();
-                return;
-            }
-
-            setImmediate(copyNextPages);
-        });
-    };
-
-    copyNextPages();
-});
-
-export const verifyDatabaseBackup = (backupPath) => new Promise((resolve, reject) => {
-    const backupDb = new sqlite3.Database(backupPath, sqlite3.OPEN_READONLY, (openError) => {
-        if (openError) {
-            reject(openError);
-            return;
-        }
-
-        backupDb.get('PRAGMA integrity_check', async (integrityError, row) => {
-            try {
-                if (integrityError) throw integrityError;
-                if (row?.integrity_check !== 'ok') {
-                    throw new Error(`Backup-Integritätsprüfung fehlgeschlagen: ${row?.integrity_check || 'unbekannt'}`);
-                }
-
-                await closeDatabase(backupDb);
-                resolve();
-            } catch (error) {
-                try {
-                    await closeDatabase(backupDb);
-                } catch {
-                    // Preserve the integrity-check error.
-                }
-                reject(error);
-            }
-        });
-    });
-});
-
-const REQUIRED_APPLICATION_TABLES = [
-    'classes',
-    'students',
-    'replacements',
-    'teachers',
-    'rounds',
-    'expected_donations',
-    'received_donations',
-    'settings',
-];
-
 export const verifyApplicationDatabaseBackup = async (backupPath) => {
-    await verifyDatabaseBackup(backupPath);
-    return new Promise((resolve, reject) => {
-        const backupDb = new sqlite3.Database(backupPath, sqlite3.OPEN_READONLY, (openError) => {
-            if (openError) {
-                reject(openError);
-                return;
-            }
-            const placeholders = REQUIRED_APPLICATION_TABLES.map(() => '?').join(',');
-            backupDb.all(
-                `SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (${placeholders})`,
-                REQUIRED_APPLICATION_TABLES,
-                async (queryError, rows) => {
-                    try {
-                        if (queryError) throw queryError;
-                        const found = new Set((rows || []).map((row) => row.name));
-                        const missing = REQUIRED_APPLICATION_TABLES.filter((table) => !found.has(table));
-                        if (missing.length > 0) {
-                            throw new Error(`Keine gültige Sponsorenlauf-Datenbank; Tabellen fehlen: ${missing.join(', ')}`);
-                        }
-                        await closeDatabase(backupDb);
-                        resolve();
-                    } catch (error) {
-                        try {
-                            await closeDatabase(backupDb);
-                        } catch {
-                            // Preserve the schema validation error.
-                        }
-                        reject(error);
-                    }
-                }
-            );
-        });
-    });
+    if (await isPostgresArchive(backupPath)) return verifyPostgresBackup(backupPath);
+    const { verifySqliteApplicationBackup } = await import('./sqliteImport.js');
+    return verifySqliteApplicationBackup(backupPath);
 };
 
-/**
- * Creates and verifies a consistent SQLite backup. A caller may hold a write
- * lock on another connection so the snapshot and a following mutation are ordered.
- */
-export const createDatabaseBackup = async ({
-    reason = 'manual',
-    now = new Date(),
-} = {}) => {
-    const databasePath = path.resolve(/* turbopackIgnore: true */ getDatabasePath());
+export const createDatabaseBackup = async ({ reason = 'manual', now = new Date() } = {}) => {
     const backupDirectory = getBackupDirectory();
     const timestamp = now.toISOString().replace(/[:.]/g, '-');
-    const filename = `${timestamp}_${sanitizeLabel(reason)}_${randomUUID().slice(0, 8)}.db`;
+    const filename = `${timestamp}_${sanitizeLabel(reason)}_${randomUUID().slice(0, 8)}.dump`;
     const backupPath = path.join(backupDirectory, filename);
-
     await fs.mkdir(backupDirectory, { recursive: true, mode: 0o700 });
-
-    // A dedicated read-only source connection also works while another
-    // connection holds BEGIN IMMEDIATE to freeze concurrent writes.
-    const db = new sqlite3.Database(databasePath, sqlite3.OPEN_READONLY);
-    db.configure('busyTimeout', 5000);
-
     try {
-        await runBackup(db, backupPath);
-        await fs.chmod(backupPath, 0o600);
-        await verifyDatabaseBackup(backupPath);
-        try {
-            await pruneManagedBackups(backupDirectory, filename);
-        } catch {
-            // A valid new backup should remain usable even if old-file cleanup fails.
-        }
+        await createPostgresBackup(backupPath);
+        await pruneManagedBackups(backupDirectory, filename).catch(() => {});
         return { filename, backupPath };
-    } catch (error) {
-        try {
-            await fs.rm(backupPath, { force: true });
-        } catch {
-            // Keep the original backup error as the actionable failure.
-        }
-        throw error;
-    } finally {
-        await closeDatabase(db);
-    }
+    } catch (error) { await fs.rm(backupPath, { force: true }); throw error; }
 };
 
-/**
- * Restores a previously verified SQLite snapshot into the configured live DB.
- * This is intended for the startup updater while the web server is stopped.
- */
 export const restoreDatabaseBackup = async (backupPath) => {
-    const resolvedBackupPath = path.resolve(backupPath);
-    const databasePath = path.resolve(/* turbopackIgnore: true */ getDatabasePath());
-
-    await verifyApplicationDatabaseBackup(resolvedBackupPath);
-
-    const db = new sqlite3.Database(databasePath);
-    db.configure('busyTimeout', 5000);
-
-    try {
-        await runBackup(db, resolvedBackupPath, false);
-    } finally {
-        await closeDatabase(db);
-    }
-
-    // Legacy backups are accepted when they contain the recognizable base
-    // schema, then upgraded before the application resumes normal operation.
-    await runDatabaseMigrations();
-
-    const verification = await new Promise((resolve, reject) => {
-        const restoredDb = new sqlite3.Database(databasePath, sqlite3.OPEN_READONLY);
-        restoredDb.get('PRAGMA integrity_check', async (error, row) => {
-            try {
-                if (error) throw error;
-                await closeDatabase(restoredDb);
-                if (row?.integrity_check !== 'ok') {
-                    throw new Error('Wiederhergestellte Datenbank ist beschädigt');
-                }
-                resolve(row.integrity_check);
-            } catch (verificationError) {
-                try {
-                    await closeDatabase(restoredDb);
-                } catch {
-                    // Preserve the verification error.
-                }
-                reject(verificationError);
-            }
-        });
-    });
-
-    return { restored: verification === 'ok', databasePath };
+    if (!process.env.SPONSORENLAUF_BOOTSTRAP_INTERNAL) assertDatabaseWritesAllowed();
+    const beforeReplace = () => createDatabaseBackup({ reason: 'before-restore-final' });
+    if (await isPostgresArchive(backupPath)) return restorePostgresBackup(backupPath, { beforeReplace });
+    // Restoring an old backup is a SQLite-to-PostgreSQL migration.
+    const { importSqlite, verifySqliteApplicationBackup } = await import('./sqliteImport.js');
+    await verifySqliteApplicationBackup(backupPath);
+    await importSqlite(backupPath, { replace: true, beforeReplace });
+    return { restored: true, backend: 'postgres', source: 'sqlite' };
 };
 
-export const getBackupDirectory = () => {
-    const databasePath = path.resolve(/* turbopackIgnore: true */ getDatabasePath());
-    return path.resolve(/* turbopackIgnore: true */
-        process.env.SPONSORENLAUF_BACKUP_DIRECTORY || path.join(path.dirname(databasePath), 'backups')
-    );
-};
+export const getBackupDirectory = () => path.resolve(/* turbopackIgnore: true */
+    process.env.SPONSORENLAUF_BACKUP_DIRECTORY || '.local-data/backups'
+);
 
 export const listDatabaseBackups = async () => {
     const backupDirectory = getBackupDirectory();
     await fs.mkdir(backupDirectory, { recursive: true, mode: 0o700 });
     const entries = await fs.readdir(backupDirectory, { withFileTypes: true });
     const backups = await Promise.all(entries
-        .filter((entry) => entry.isFile() && entry.name.endsWith('.db'))
+        .filter((entry) => entry.isFile() && /\.(db|dump)$/.test(entry.name))
         .map(async (entry) => {
             const filePath = path.join(backupDirectory, entry.name);
             const stats = await fs.stat(filePath);
@@ -273,9 +97,8 @@ export const deleteDatabaseBackup = async (filename) => {
 
     const backupDirectory = getBackupDirectory();
     const backupPath = path.resolve(backupDirectory, filename);
-    const databasePath = path.resolve(getDatabasePath());
 
-    if (path.dirname(backupPath) !== backupDirectory || backupPath === databasePath) {
+    if (path.dirname(backupPath) !== backupDirectory) {
         throw new Error('Ungültiger Backup-Pfad');
     }
 

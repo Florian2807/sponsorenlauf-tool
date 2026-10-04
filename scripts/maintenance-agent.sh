@@ -53,7 +53,7 @@ wait_for_healthy_app() {
 }
 
 verify_running_app() {
-  run_logged 'Prüfe Anwendung und Datenbank' docker_compose exec -T app node -e "Promise.all([fetch('http://127.0.0.1:3000/api/setupStatus').then(r=>{if(!r.ok)throw new Error('setupStatus HTTP '+r.status)}),import('./src/utils/database.js').then(({dbGet})=>dbGet('PRAGMA integrity_check')).then(r=>{if(r.integrity_check!=='ok')throw new Error('database integrity: '+r.integrity_check)})]).then(()=>console.log('Anwendung und Datenbank sind betriebsbereit'))"
+  run_logged 'Prüfe Anwendung und Datenbank' docker_compose exec -T app node -e "Promise.all([fetch('http://127.0.0.1:3000/api/setupStatus').then(r=>{if(!r.ok)throw new Error('setupStatus HTTP '+r.status)}),import('./src/utils/database.js').then(({getDatabaseStatus})=>getDatabaseStatus()).then(r=>{if(!r.ready)throw new Error('database/schema is not ready')})]).then(()=>console.log('Anwendung und Datenbank sind betriebsbereit'))"
 }
 
 preflight_update() {
@@ -168,6 +168,21 @@ run_update() {
     return 1
   fi
 
+  write_status running update 'Stoppe Schreibzugriffe und aktualisiere das Rollback-Backup.' "$request_id"
+  if ! run_logged 'docker compose stop app (finaler Snapshot)' docker_compose stop app; then
+    write_status failed update 'Die Anwendung konnte vor dem finalen Snapshot nicht gestoppt werden.' "$request_id"
+    return 1
+  fi
+  # SQLite-to-PostgreSQL first startup refreshes the legacy .db itself. For an
+  # existing PostgreSQL installation take the final dump while the app is stopped.
+  if [[ "$backup_filename" = *.dump ]]; then
+    if ! run_logged 'Finalen PostgreSQL-Snapshot erstellen' docker_compose run --rm --no-deps --entrypoint node app -e "import('./src/utils/backupService.js').then(async ({createDatabaseBackup})=>{const b=await createDatabaseBackup({reason:'before-web-update'});const fs=await import('node:fs/promises');await fs.rename(b.backupPath,'/data/backups/${backup_filename}')})"; then
+      run_logged 'Vorherigen Container nach Snapshotfehler starten' docker start "$container" || true
+      write_status failed update 'Finaler Snapshot fehlgeschlagen; der bisherige Container wurde wieder gestartet.' "$request_id"
+      return 1
+    fi
+  fi
+
   write_status running update 'Starte und prüfe die neue Version.' "$request_id"
   if run_logged 'docker compose up -d --remove-orphans' docker_compose up -d --remove-orphans && wait_for_healthy_app && verify_running_app; then
     write_status succeeded update 'Update erfolgreich installiert.' "$request_id"
@@ -179,7 +194,7 @@ run_update() {
   image_tag="$(production_image_tag)"
   run_logged 'docker tag (vorheriges Image)' docker tag "$previous_image" "ghcr.io/florian2807/sponsorenlauf-tool:${image_tag:-latest}" || true
   run_logged 'docker compose stop app (Rollback)' docker_compose stop app || true
-  if run_logged 'Datenbank-Backup wiederherstellen' docker_compose run --rm --no-deps --entrypoint node app -e "import('./src/utils/backupService.js').then(({restoreDatabaseBackup}) => restoreDatabaseBackup('/data/backups/${backup_filename}')).then(r=>{if(!r.restored)process.exit(1)})" \
+  if run_logged 'Datenbank-Backup wiederherstellen' docker_compose run --rm --no-deps -e SPONSORENLAUF_BOOTSTRAP_INTERNAL=1 --entrypoint node app -e "import('./src/utils/backupService.js').then(({restoreDatabaseBackup}) => restoreDatabaseBackup('/data/backups/${backup_filename}')).then(r=>{if(!r.restored)process.exit(1)})" \
     && run_logged 'docker compose up -d --force-recreate --remove-orphans (Rollback)' docker_compose up -d --force-recreate --remove-orphans \
     && wait_for_healthy_app; then
     if verify_running_app; then

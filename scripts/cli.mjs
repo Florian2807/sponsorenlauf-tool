@@ -8,7 +8,8 @@ import process from 'node:process';
 import readline from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
 import AdmZip from 'adm-zip';
-import { dbAll, dbGet, dbRun, getDatabasePath } from '../src/utils/database.js';
+import { dbAll, dbGet, dbRun, getDatabaseStatus } from '../src/utils/database.js';
+import { getPostgresPool, postgresConfig } from '../src/utils/postgres.js';
 import {
     createDatabaseBackup,
     getBackupDirectory,
@@ -85,20 +86,20 @@ const readSecret = async (label) => {
 };
 
 const readiness = async () => {
-    const databasePath = path.resolve(getDatabasePath());
+    const backupDirectory = getBackupDirectory();
     const [integrity, migrations, backup, stations, smtp, disk, connectivity, lastScan] = await Promise.all([
-        dbGet('PRAGMA quick_check'),
+        getDatabaseStatus(),
         dbGet('SELECT MAX(version) AS version FROM schema_migrations').catch(() => null),
         listDatabaseBackups().then((items) => items[0] || null),
         getRecentStations(15),
         getSmtpConfiguration(),
-        fs.statfs(path.dirname(databasePath)),
+        fs.statfs(path.dirname(backupDirectory)),
         getSystemConnectivity(),
         dbGet('SELECT timestamp, student_id FROM rounds ORDER BY timestamp DESC LIMIT 1'),
     ]);
     const freeBytes = Number(disk.bavail) * Number(disk.bsize);
     const checks = {
-        database: integrity?.quick_check === 'ok',
+        database: integrity.ready,
         schema: migrations?.version === getLatestSchemaVersion(),
         diskSpace: freeBytes >= 500 * 1024 * 1024,
         recentBackup: Boolean(backup && Date.now() - new Date(backup.createdAt).getTime() < 86400000),
@@ -122,14 +123,13 @@ const showReady = async () => {
 
 const doctor = async () => {
     const result = await readiness();
-    const databasePath = path.resolve(getDatabasePath());
-    const permissions = await fs.access(databasePath, fsConstants.R_OK | fsConstants.W_OK).then(() => true).catch(() => false);
+    const permissions = (await getPostgresPool().query("SELECT has_table_privilege(current_user, 'students', 'SELECT,INSERT,UPDATE,DELETE') AS allowed")).rows[0].allowed;
     const maintenance = await getMaintenanceStatus();
-    const details = { ...result, databasePath, databaseReadableAndWritable: permissions, maintenance };
+    const details = { ...result, backend: 'postgres', databaseReadableAndWritable: permissions, maintenance };
     if (json) print(details);
     else {
         await showReady();
-        console.log(`Datenbank: ${databasePath}`);
+        console.log(`Datenbank: PostgreSQL (${postgresConfig().database})`);
         console.log(`Datenbankzugriff: ${permissions ? 'lesen/schreiben möglich' : 'FEHLER'}`);
         console.log(`Wartung: ${maintenance.available ? maintenance.state : 'nicht verfügbar'}`);
     }
@@ -178,10 +178,8 @@ const backupCommand = async (action, target) => {
     if (action === 'restore') {
         await verifyApplicationDatabaseBackup(source);
         if (!await confirm(`ACHTUNG: ${source} wird als aktive Datenbank eingespielt.`)) throw new Error('Abgebrochen.');
-        const safety = await createDatabaseBackup({ reason: 'before-cli-restore' });
-        try { await restoreDatabaseBackup(source); }
-        catch (error) { await restoreDatabaseBackup(safety.backupPath); throw error; }
-        print(json ? { restored: true, safetyBackup: safety.filename } : `Backup wiederhergestellt. Sicherheitsbackup: ${safety.filename}`);
+        const restored = await restoreDatabaseBackup(source);
+        print(json ? restored : 'Backup atomar wiederhergestellt.');
         return;
     }
     throw new Error(`Unbekannte Backup-Aktion: ${action || '-'}`);
@@ -195,7 +193,7 @@ const maskedConfig = async () => {
     const smtp = await getSmtpConfiguration();
     return {
         version: VERSION,
-        databasePath: path.resolve(getDatabasePath()),
+        database: { backend: 'postgres', host: postgresConfig().host, name: postgresConfig().database },
         backupDirectory: getBackupDirectory(),
         maxBackups: process.env.SPONSORENLAUF_MAX_BACKUPS || '20',
         smtp,
@@ -245,12 +243,12 @@ const main = async () => {
     }
     if (command === 'backup') return backupCommand(action, target);
     if (command === 'database' && action === 'check') {
-        const result = await dbGet('PRAGMA integrity_check');
-        print(json ? result : `Datenbankintegrität: ${result.integrity_check}`);
-        if (result.integrity_check !== 'ok') process.exitCode = 2; return;
+        const result = await getDatabaseStatus();
+        print(json ? result : `PostgreSQL bereit: ${result.ready}`);
+        if (!result.ready) process.exitCode = 2; return;
     }
     if (command === 'database' && action === 'migrate') return print(await runDatabaseMigrations());
-    if (command === 'database' && action === 'optimize') { await dbRun('PRAGMA optimize'); print('Datenbank optimiert.'); return; }
+    if (command === 'database' && action === 'optimize') { await getPostgresPool().query('ANALYZE'); print('Datenbank optimiert.'); return; }
     if (command === 'config' && action === 'show') return print(await maskedConfig());
     if (command === 'smtp' && action === 'test') { await testSmtpConfiguration({}); print('Test-E-Mail erfolgreich versendet.'); return; }
     if (command === 'update' && action === 'status') return print(await getMaintenanceStatus());

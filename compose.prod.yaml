@@ -20,15 +20,47 @@ services:
       NODE_ENV: production
       SPONSORENLAUF_RUNTIME: production
       SPONSORENLAUF_DATABASE_PATH: /data/database.db
+      SPONSORENLAUF_DATABASE_BACKEND: postgres
+      PGHOST: database
+      PGDATABASE: sponsorenlauf
+      PGUSER: sponsorenlauf
+      PGPASSWORD_FILE: /credentials/password
+      SPONSORENLAUF_TRANSITION_FILE: /data/postgres-transition.json
       SPONSORENLAUF_BACKUP_DIRECTORY: /data/backups
       SPONSORENLAUF_MAX_BACKUPS: ${SPONSORENLAUF_MAX_BACKUPS:-20}
       SPONSORENLAUF_SECRET_KEY: ${SPONSORENLAUF_SECRET_KEY:?SPONSORENLAUF_SECRET_KEY is required}
       SPONSORENLAUF_MAINTENANCE_DIRECTORY: /maintenance
+    depends_on:
+      database:
+        condition: service_healthy
     volumes:
+      - database-credentials:/credentials:ro
       - production-data:/data
       - /var/lib/sponsorenlauf/maintenance:/maintenance
 
+  database:
+    image: postgres:18-bookworm@sha256:3725f4e2499eef5134592b3b4ab79a543ed7f8e533b05b5b637af926630f6650
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sponsorenlauf_owner
+      POSTGRES_DB: sponsorenlauf
+    entrypoint: ["bash", "/bootstrap/start-postgres.sh"]
+    volumes:
+      - postgres-data:/var/lib/postgresql
+      - database-credentials:/credentials
+      - ./deployment/start-postgres.sh:/bootstrap/start-postgres.sh:ro
+      - ./deployment/init-postgres.sh:/docker-entrypoint-initdb.d/10-application.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U sponsorenlauf_owner -d sponsorenlauf"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
 volumes:
+  postgres-data:
+    name: sponsorenlauf-postgres-data
+  database-credentials:
+    name: sponsorenlauf-database-credentials
   production-data:
     # Keep the established production volume name so existing installations retain their data.
     name: sponsorenlauf-data

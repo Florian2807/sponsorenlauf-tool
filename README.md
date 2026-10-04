@@ -108,8 +108,8 @@ Nach dem Lauf können die Ergebnisse als Gesamtauswertung oder getrennt nach Kla
 
 Die Anwendung läuft vollständig in Docker. Raspberry Pi OS muss nur noch den WLAN-Hotspot bereitstellen:
 
-- **Docker** enthält Node.js, die Anwendung, alle Abhängigkeiten und SQLite.
-- Ein **Docker-Volume** speichert Datenbank und Backups unabhängig vom Container.
+- **Docker** enthält die Anwendung und einen separaten PostgreSQL-Dienst. SQLite wird nur zum Import bestehender Daten benötigt.
+- Eigene **Docker-Volumes** speichern PostgreSQL, Backups und automatisch erzeugte Datenbank-Zugangsdaten unabhängig von den Containern.
 - **NetworkManager** erstellt den WLAN-Hotspot und übernimmt DHCP, DNS-Weiterleitung und Routing.
 - Port 80 wird direkt veröffentlicht; eine eigene iptables-Regel ist nicht notwendig.
 
@@ -225,9 +225,9 @@ Es gibt keine Offline-Warteschlange und keine automatische Wiederholung von Scan
 
 Nach der einmaligen Installation erfolgen Updates und Neustarts unter **Setup → Systemwartung** in der Weboberfläche. Für ein Update muss der Raspberry Pi per Ethernet mit dem Internet verbunden sein.
 
-Vor jedem Update wird automatisch ein geprüftes SQLite-Backup erstellt. Danach werden die aktuellen Installationsdateien und das neue Container-Image geladen. Datenbankmigrationen laufen beim Containerstart automatisch.
+Vor jedem Update wird automatisch ein geprüftes Datenbank-Backup erstellt. Danach werden die aktuellen Installationsdateien und das neue Container-Image geladen. Bestehende SQLite-Installationen werden beim ersten PostgreSQL-Start automatisch migriert: Die alte Anwendung wird ersetzt, der endgültige SQLite-Stand gesichert und alle Anwendungstabellen einschließlich IDs und Scan-IDs importiert und per Prüfsumme verglichen. Dafür genügt eine Veröffentlichung; auch der bisherige Wartungsdienst kann dieses Update installieren. Zusätzliche DB-Zugangsdaten werden automatisch erzeugt. Updates außerhalb des laufenden Sponsorenlaufs durchführen.
 
-Der neue Container muss seinen Healthcheck bestehen. Falls das nicht innerhalb von 90 Sekunden geschieht, stellt das Script automatisch das vorherige Image und das unmittelbar vor dem Update erstellte Datenbank-Backup wieder her.
+Der neue Container muss seinen Healthcheck und die Datenbankprüfung bestehen. Während des Updates bleiben PostgreSQL-Schreibzugriffe gesperrt; beim ersten Wechsel werden sie erst nach dem erfolgreichen Abschluss des Wartungsdienstes freigegeben. Bei fehlgeschlagenem Start stellt das Script die vorherige Version und den endgültigen Snapshot wieder her. Der bisherige Updater wartet ungefähr 90 Sekunden auf den Container; sehr große Datenbestände sollten vorab in einer Testinstallation migriert werden. Nach erfolgreicher Freigabe gibt es keinen automatischen Rückwechsel auf den alten SQLite-Stand.
 
 Der vom Installer eingerichtete Wartungsdienst akzeptiert nur die Aktionen `update` und `restart`. Die Anwendung bekommt bewusst keinen Zugriff auf den Docker-Socket, da dieser praktisch Root-Zugriff auf den Raspberry Pi ermöglichen würde.
 
@@ -243,8 +243,8 @@ sudo sponsorenlauf admin unlock
 sudo sponsorenlauf backup create
 sudo sponsorenlauf backup list
 sudo sponsorenlauf backup copy /media/usb
-sudo sponsorenlauf backup verify /data/backups/backup.db
-sudo sponsorenlauf backup restore /data/backups/backup.db
+sudo sponsorenlauf backup verify /data/backups/backup.dump
+sudo sponsorenlauf backup restore /data/backups/backup.dump
 sudo sponsorenlauf database check
 sudo sponsorenlauf database migrate
 sudo sponsorenlauf database optimize
@@ -262,7 +262,7 @@ PINs werden verdeckt abgefragt. Wiederherstellungen, Updates und Neustarts benö
 
 ## Daten, Backups und Wiederherstellung
 
-Die Produktionsdaten liegen im Docker-Volume `sponsorenlauf-data`. Ein Austausch oder Update des Containers löscht sie nicht.
+Die aktiven Produktionsdaten liegen im Docker-Volume `sponsorenlauf-postgres-data`. Backups, SQLite-Original und Migrationsprotokoll bleiben in `sponsorenlauf-data`; Zugangsdaten liegen in `sponsorenlauf-database-credentials`. Ein Austausch oder Update des Containers löscht sie nicht.
 
 Volume anzeigen:
 
@@ -270,7 +270,7 @@ Volume anzeigen:
 sudo docker volume inspect sponsorenlauf-data
 ```
 
-Backups können in **Setup → Bereitschaft & Sicherheit** erstellt, heruntergeladen, gelöscht und wiederhergestellt werden. Vor dem Löschen fragt das Tool noch einmal nach einer Bestätigung. Vor jeder Wiederherstellung prüft die Anwendung die SQLite-Datei und legt zusätzlich ein Sicherheitsbackup des aktuellen Zustands an.
+Backups können in **Setup → Bereitschaft & Sicherheit** erstellt, heruntergeladen, gelöscht und wiederhergestellt werden. Vor dem Löschen fragt das Tool noch einmal nach einer Bestätigung. Neue Backups sind PostgreSQL-Archive (`.dump`); alte SQLite-Dateien (`.db`) bleiben importierbar. PostgreSQL-Restores werden zunächst in einer separaten Datenbank geprüft und anschließend in einer Transaktion übernommen. Direkt vor der Übernahme entsteht unter Schreibsperre ein Sicherheitsbackup. Eine fehlgeschlagene Übernahme verändert den Datenbestand nicht.
 
 Unter **Admin → Daten löschen** steht außerdem ein kompletter Reset zur Verfügung. Er entfernt alle Veranstaltungsdaten und Einstellungen und startet anschließend die Einführung erneut. Admin-PIN und vorhandene Backups bleiben erhalten; direkt vor dem Reset wird ein weiteres Sicherheitsbackup erstellt.
 
@@ -311,24 +311,24 @@ Die Entwicklungsumgebung verwendet immer Port `3000` und eine eigene Datenbank. 
 
 ### Direkt mit Node.js
 
-Node.js 20.9 oder neuer wird benötigt. Migrationen und das lokale Datenverzeichnis werden automatisch vorbereitet:
+Node.js 20.9 oder neuer und Docker werden benötigt. `npm run dev` startet eine lokale PostgreSQL-Testinstanz auf einem freien Loopback-Port und bereitet die Migrationen vor. Alternativ können `DATABASE_URL` oder die `PGHOST`/`PGPORT`/`PGUSER`/`PGPASSWORD`/`PGDATABASE`-Variablen eine eigene PostgreSQL-Instanz konfigurieren:
 
 ```bash
 npm ci
 npm run dev
 ```
 
-Die Anwendung ist anschließend unter `http://localhost:3000` verfügbar. Entwicklungsdaten liegen ausschließlich unter `.local-data/`.
+Die Anwendung ist anschließend unter `http://localhost:3000` verfügbar. Daten liegen im getrennten Volume der `compose.database.yaml`; lokale Backups liegen unter `.local-data/`. Eine vorhandene `.local-data/development.db` wird beim ersten Start importiert und bleibt erhalten. Nach erfolgreichem Import verwendet `npm run dev` direkt PostgreSQL; der SQLite-Pfad muss nicht erneut angegeben werden. Docker Desktop oder OrbStack betreibt dabei den Datenbank-Container; Next.js läuft direkt auf dem Entwicklungsrechner.
 
-### Mit Docker Desktop
+### Mit Docker Desktop oder OrbStack
 
-Alternativ startet eine vollständig isolierte Entwicklungs-Compose-Datei nur die Anwendung:
+Alternativ startet eine vollständig isolierte Entwicklungs-Compose-Datei Anwendung und PostgreSQL:
 
 ```bash
-docker compose -f compose.dev.yaml up --build
+npm run dev:docker
 ```
 
-Danach ist die Anwendung unter `http://localhost:3000` erreichbar. Sie verwendet die getrennten Volumes `sponsorenlauf-dev-data` und `sponsorenlauf-dev-node-modules`; Produktionsdaten können dadurch nicht versehentlich geöffnet oder migriert werden.
+Danach ist die Anwendung unter `http://localhost:3000` erreichbar. Sie verwendet die getrennten Volumes `sponsorenlauf-dev-data`, `sponsorenlauf-dev-node-modules` und ein eigenes PostgreSQL-Volume; Produktionsdaten können dadurch nicht versehentlich geöffnet oder migriert werden. Dieses PostgreSQL-Volume ist auch von der Datenbank bei direktem `npm run dev` getrennt: Ein Wechsel zwischen den Befehlen übernimmt keine Daten automatisch.
 
 ### Produktionsumgebung
 
@@ -344,4 +344,25 @@ ghcr.io/florian2807/sponsorenlauf-tool:latest
 
 Das GitHub-Paket muss öffentlich lesbar sein, damit neue Raspberry Pis das Image ohne Registry-Anmeldung herunterladen können.
 
-Vor der Veröffentlichung laufen Tests, ESLint, der Produktions-Build und ein Audit auf kritische Produktionsabhängigkeiten. Das Image wird mit Herkunftsnachweis und Software-Stückliste (SBOM) veröffentlicht. Dependabot prüft npm-, Docker- und GitHub-Actions-Abhängigkeiten regelmäßig.
+Vor der Veröffentlichung laufen Tests einschließlich PostgreSQL-Import/Restore und Nebenläufigkeit, ESLint, der Produktions-Build und ein Audit auf kritische Produktionsabhängigkeiten. Das Image wird mit Herkunftsnachweis und Software-Stückliste (SBOM) veröffentlicht. Dependabot prüft npm-, Docker- und GitHub-Actions-Abhängigkeiten regelmäßig.
+
+### PostgreSQL-Migration prüfen
+
+```bash
+TEST_DATABASE_URL=postgres://postgres:passwort@localhost:5432/postgres npm run test:postgres
+```
+
+Der Testbenutzer benötigt `CREATEDB`; die Tests erzeugen und entfernen ihre eigene
+Datenbank. PostgreSQL-18-Clienttools müssen verfügbar sein. Browser-Tests verwenden
+eine eigene temporäre PostgreSQL-Datenbank: `npm run test:e2e`.
+
+Ein manueller Import in eine leere PostgreSQL-Zieldatenbank ist mit konfigurierter
+DB-Verbindung über `npm run migrate:sqlite -- /pfad/backup.db` möglich. Der Import
+verändert die SQLite-Quelle nicht und lehnt nichtleere fremde Ziele ab.
+
+Der direkte Updatepfad kann mit einem alten SQLite-Produktionsimage und dem neuen
+Image geprüft werden: `TEST_LEGACY_IMAGE=altes-image TEST_APPLICATION_IMAGE=neues-image
+node scripts/test-legacy-update.mjs`. Das neue Testimage wird mit
+`APP_VERSION=postgres-migration-test` gebaut. Mit `TEST_FORCE_HEALTH_FAILURE=1` prüft derselbe Test den Rollback. Der Test verwendet einen isolierten
+Compose-Projektnamen und überprüft auch eine erst nach dem Vorbackup gespeicherte
+Runde. Er benötigt die vorhandene lokale Testdatenbank.

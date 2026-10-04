@@ -3,10 +3,12 @@
 import { mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
+import pg from 'pg';
+import { configureLocalPostgres } from './local-postgres.mjs';
 
 const projectDirectory = process.cwd();
 const dataDirectory = path.join(projectDirectory, '.e2e-data');
-const databasePath = path.join(dataDirectory, 'test.db');
 
 await rm(dataDirectory, { recursive: true, force: true });
 await mkdir(path.join(dataDirectory, 'backups'), { recursive: true });
@@ -14,11 +16,20 @@ await mkdir(path.join(dataDirectory, 'backups'), { recursive: true });
 process.env.APP_ENV = 'development';
 process.env.NODE_ENV = 'development';
 process.env.SPONSORENLAUF_RUNTIME = 'development';
-process.env.SPONSORENLAUF_DATABASE_PATH = databasePath;
 process.env.SPONSORENLAUF_BACKUP_DIRECTORY = path.join(dataDirectory, 'backups');
 process.env.SPONSORENLAUF_SECRET_KEY = 'e2e-only-secret';
 process.env.SPONSORENLAUF_NEXT_DIST_DIR = '.next-e2e';
 process.env.PORT = '3100';
+
+await configureLocalPostgres();
+const { postgresConfig } = await import('../src/utils/postgres.js');
+const admin = new pg.Pool(postgresConfig());
+const databaseName = 'e2e_' + randomUUID().replaceAll('-', '');
+await admin.query(`CREATE DATABASE "${databaseName}"`);
+if (process.env.DATABASE_URL) {
+    const url = new URL(process.env.DATABASE_URL); url.pathname = '/' + databaseName; process.env.DATABASE_URL = url.toString();
+}
+process.env.PGDATABASE = databaseName;
 
 const { runDatabaseMigrations } = await import('../src/utils/migrationService.js');
 const { dbRun } = await import('../src/utils/database.js');
@@ -72,7 +83,13 @@ const forwardSignal = (signal) => {
 
 process.on('SIGINT', () => forwardSignal('SIGINT'));
 process.on('SIGTERM', () => forwardSignal('SIGTERM'));
-child.on('exit', (code, signal) => {
+for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, () => child.kill(signal));
+
+child.on('exit', async (code, signal) => {
+    const { closePostgresPools } = await import('../src/utils/postgres.js');
+    await closePostgresPools();
+    await admin.query(`DROP DATABASE "${databaseName}" WITH (FORCE)`);
+    await admin.end();
     if (signal) process.kill(process.pid, signal);
     else process.exit(code ?? 1);
 });

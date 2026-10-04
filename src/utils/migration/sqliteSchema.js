@@ -1,0 +1,223 @@
+// Frozen legacy schema upgrades, used only on isolated SQLite import copies.
+import { dbImmediateTransaction, dbGet } from './sqliteDatabase.js';
+
+const dbRun = (db, query, params = []) => new Promise((resolve, reject) => {
+    db.run(query, params, function onRun(error) {
+        if (error) reject(error);
+        else resolve({ lastID: this.lastID, changes: this.changes });
+    });
+});
+
+const dbAll = (db, query, params = []) => new Promise((resolve, reject) => {
+    db.all(query, params, (error, rows) => {
+        if (error) reject(error);
+        else resolve(rows || []);
+    });
+});
+
+const dbExec = (db, query) => new Promise((resolve, reject) => {
+    db.exec(query, (error) => {
+        if (error) reject(error);
+        else resolve();
+    });
+});
+
+const addColumnIfMissing = async (db, table, column, definition) => {
+    const columns = await dbAll(db, `PRAGMA table_info(${table})`);
+    if (!columns.some((existingColumn) => existingColumn.name === column)) {
+        await dbRun(db, `ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+    }
+};
+
+const migrations = [
+    {
+        version: 1,
+        name: 'create-base-schema',
+        up: async (db) => dbExec(db, `
+            CREATE TABLE IF NOT EXISTS classes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                grade TEXT NOT NULL,
+                class_name TEXT NOT NULL UNIQUE,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS students (
+                id INTEGER PRIMARY KEY,
+                vorname TEXT NOT NULL,
+                nachname TEXT NOT NULL,
+                geschlecht TEXT CHECK (geschlecht IN ('männlich', 'weiblich', 'divers') OR geschlecht IS NULL),
+                klasse TEXT NOT NULL,
+                FOREIGN KEY (klasse) REFERENCES classes(class_name) ON DELETE RESTRICT
+            );
+
+            CREATE TABLE IF NOT EXISTS replacements (
+                id INTEGER PRIMARY KEY,
+                studentID INTEGER REFERENCES students(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS teachers (
+                id INTEGER PRIMARY KEY,
+                vorname TEXT NOT NULL,
+                nachname TEXT NOT NULL,
+                klasse TEXT,
+                email TEXT,
+                FOREIGN KEY (klasse) REFERENCES classes(class_name) ON DELETE SET NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS rounds (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT NOT NULL,
+                student_id INTEGER NOT NULL,
+                scan_id TEXT,
+                source_device_id TEXT,
+                recorded_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS expected_donations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                student_id INTEGER NOT NULL,
+                amount REAL NOT NULL,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS received_donations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                student_id INTEGER NOT NULL,
+                amount REAL NOT NULL,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+        `),
+    },
+    {
+        version: 2,
+        name: 'add-round-scan-metadata',
+        up: async (db) => {
+            await addColumnIfMissing(db, 'rounds', 'scan_id', 'TEXT');
+            await addColumnIfMissing(db, 'rounds', 'source_device_id', 'TEXT');
+            await addColumnIfMissing(db, 'rounds', 'recorded_at', 'TEXT');
+            await dbRun(db, 'UPDATE rounds SET recorded_at = timestamp WHERE recorded_at IS NULL');
+        },
+    },
+    {
+        version: 3,
+        name: 'create-database-indexes',
+        up: async (db) => dbExec(db, `
+            CREATE INDEX IF NOT EXISTS idx_rounds_student_id ON rounds(student_id);
+            CREATE INDEX IF NOT EXISTS idx_rounds_timestamp ON rounds(timestamp);
+            CREATE INDEX IF NOT EXISTS idx_rounds_student_timestamp ON rounds(student_id, timestamp DESC);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_rounds_scan_id ON rounds(scan_id) WHERE scan_id IS NOT NULL;
+            CREATE INDEX IF NOT EXISTS idx_expected_donations_student_id ON expected_donations(student_id);
+            CREATE INDEX IF NOT EXISTS idx_received_donations_student_id ON received_donations(student_id);
+            CREATE INDEX IF NOT EXISTS idx_replacements_student_id ON replacements(studentID);
+        `),
+    },
+    {
+        version: 4,
+        name: 'add-admin-smtp-and-station-security',
+        up: async (db) => dbExec(db, `
+            CREATE TABLE IF NOT EXISTS admin_credentials (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                pin_salt TEXT NOT NULL,
+                pin_hash TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS admin_sessions (
+                token_hash TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                expires_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS admin_login_attempts (
+                client_key TEXT PRIMARY KEY,
+                failed_count INTEGER NOT NULL DEFAULT 0,
+                locked_until TEXT,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS smtp_configuration (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                host TEXT NOT NULL,
+                port INTEGER NOT NULL,
+                security TEXT NOT NULL CHECK (security IN ('tls', 'starttls', 'none')),
+                username TEXT,
+                password_encrypted TEXT,
+                from_address TEXT NOT NULL,
+                from_name TEXT NOT NULL,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS station_activity (
+                device_id TEXT PRIMARY KEY,
+                last_seen_at TEXT NOT NULL,
+                last_scan_at TEXT,
+                scan_count INTEGER NOT NULL DEFAULT 0
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_admin_sessions_expires_at ON admin_sessions(expires_at);
+            CREATE INDEX IF NOT EXISTS idx_station_activity_last_seen_at ON station_activity(last_seen_at);
+        `),
+    },
+    {
+        version: 5,
+        name: 'add-microsoft-graph-mail-provider',
+        up: async (db) => {
+            await addColumnIfMissing(db, 'smtp_configuration', 'provider', "TEXT NOT NULL DEFAULT 'smtp'");
+            await addColumnIfMissing(db, 'smtp_configuration', 'tenant_id', 'TEXT');
+            await addColumnIfMissing(db, 'smtp_configuration', 'client_id', 'TEXT');
+            await addColumnIfMissing(db, 'smtp_configuration', 'client_secret_encrypted', 'TEXT');
+        },
+    },
+];
+
+export const getLatestSchemaVersion = () => migrations.at(-1)?.version || 0;
+
+export const runDatabaseMigrations = async () => {
+    // WAL is a persistent database setting. Changing it on every connection
+    // requires an exclusive lock and can block concurrent scanner requests.
+    const journalMode = await dbGet('PRAGMA journal_mode = WAL');
+    if (journalMode?.journal_mode?.toLowerCase() !== 'wal') {
+        throw new Error('SQLite WAL mode could not be enabled');
+    }
+    return dbImmediateTransaction(async (db) => {
+        await dbExec(db, `
+            CREATE TABLE IF NOT EXISTS schema_migrations (
+                version INTEGER PRIMARY KEY,
+                name TEXT NOT NULL,
+                applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        const appliedRows = await dbAll(db, 'SELECT version FROM schema_migrations ORDER BY version');
+        const appliedVersions = new Set(appliedRows.map((row) => row.version));
+        const applied = [];
+
+        for (const migration of migrations) {
+            if (appliedVersions.has(migration.version)) continue;
+
+            await migration.up(db);
+            await dbRun(
+                db,
+                'INSERT INTO schema_migrations (version, name) VALUES (?, ?)',
+                [migration.version, migration.name]
+            );
+            applied.push(migration.version);
+        }
+
+        const currentVersion = getLatestSchemaVersion();
+        await dbRun(db, `PRAGMA user_version = ${currentVersion}`);
+
+        return { applied, currentVersion };
+    });
+};

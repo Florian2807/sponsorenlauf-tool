@@ -44,7 +44,26 @@ const child = spawn(process.execPath, [nextBinary, 'dev'], {
     stdio: 'inherit',
 });
 
-child.on('exit', (code, signal) => {
-    if (signal) process.kill(process.pid, signal);
-    else process.exit(code ?? 1);
+let shutdownSignal;
+const stop = (signal) => {
+    if (shutdownSignal) return;
+    shutdownSignal = signal;
+    // Keep the wrapper alive until Next has finished cleaning up its terminal
+    // and child processes, even when Ctrl+C also signals Next directly.
+    child.kill(signal);
+};
+process.on('SIGINT', stop);
+process.on('SIGTERM', stop);
+
+child.on('error', (error) => {
+    console.error(`Failed to start Next.js: ${error.message}`);
+    process.exitCode = 1;
+});
+child.on('close', (code, signal) => {
+    process.removeListener('SIGINT', stop);
+    process.removeListener('SIGTERM', stop);
+    const stoppedBy = shutdownSignal || signal;
+    process.exitCode = stoppedBy === 'SIGINT' ? 130
+        : stoppedBy === 'SIGTERM' ? 143
+            : code ?? 1;
 });

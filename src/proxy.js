@@ -14,7 +14,7 @@ const PUBLIC_API_READS = new Set([
 
 const isPublicApiRequest = (pathname, method) => {
     if (pathname === '/api/admin-auth') return true;
-    if (pathname === '/api/runden' && method === 'POST') return true;
+    if (pathname === '/api/runden' && ['POST', 'GET'].includes(method)) return true;
     if (pathname === '/api/stations/heartbeat' && method === 'POST') return true;
     if (/^\/api\/students\/[^/]+(?:\/timestamps)?$/.test(pathname) && method === 'GET') return true;
     return method === 'GET' && PUBLIC_API_READS.has(pathname);

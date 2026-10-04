@@ -14,11 +14,29 @@ const SCAN_ID_PATTERN = /^[a-zA-Z0-9_-]{8,100}$/;
 const DEVICE_ID_PATTERN = /^[a-zA-Z0-9_-]{1,100}$/;
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return handleMethodNotAllowed(res, ['POST']);
+  if (!['POST', 'GET'].includes(req.method)) {
+    return handleMethodNotAllowed(res, ['POST', 'GET']);
   }
 
   try {
+    if (req.method === 'GET') {
+      const { scanId } = req.query;
+      if (typeof scanId !== 'string' || !SCAN_ID_PATTERN.test(scanId)) {
+        return handleValidationError(res, ['Ungültige Scan-ID']);
+      }
+      res.setHeader('Cache-Control', 'no-store');
+      const row = await dbGet(`SELECT r.id, r.timestamp, s.id AS studentId,
+        s.vorname, s.nachname, s.klasse,
+        (SELECT COUNT(*) FROM rounds WHERE student_id = s.id) AS roundCount
+        FROM rounds r JOIN students s ON s.id = r.student_id WHERE r.scan_id = ?`, [scanId]);
+      return res.status(200).json(row ? {
+        success: true, stored: true, scanId,
+        round: { id: row.id, timestamp: row.timestamp },
+        student: { id: row.studentId, vorname: row.vorname, nachname: row.nachname,
+          klasse: row.klasse, roundCount: row.roundCount },
+        message: 'Bereits gespeicherte Runde bestätigt',
+      } : { success: true, stored: false, scanId });
+    }
     const missing = validateRequiredFields(req, ['id']);
     if (missing.length > 0) {
       return handleValidationError(res, ['Schüler-ID ist erforderlich']);
@@ -85,8 +103,10 @@ export default async function handler(req, res) {
     }
 
     if (!result.accepted && result.requiresConfirmation) {
-      return res.status(200).json({
-        success: true,
+      return res.status(409).json({
+        success: false,
+        error: 'DOUBLE_SCAN_CONFIRMATION_REQUIRED',
+        scanId,
         requiresConfirmation: true,
         student: result.student,
         lastRoundTime: result.lastRoundTime,
@@ -98,6 +118,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
+      scanId,
       requiresConfirmation: false,
       student: result.student,
       round: result.round,

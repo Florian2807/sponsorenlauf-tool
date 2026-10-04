@@ -9,21 +9,12 @@ import { cleanScannedStudentId } from '../utils/studentId';
 import { createClientId } from '../utils/clientId';
 import axios from 'axios';
 
-const PENDING_SCAN_STORAGE_KEY = 'sponsorenlauf.pendingScan';
-const SCAN_QUEUE_STORAGE_KEY = 'sponsorenlauf.scanQueue';
+// Only the single in-flight operation survives reload; it is never sent automatically.
+const ACTIVE_SCAN_STORAGE_KEY = 'sponsorenlauf.activeScan';
 const DEVICE_ID_STORAGE_KEY = 'sponsorenlauf.deviceId';
-const MAX_QUEUED_SCANS = 500;
-const MAX_QUEUED_SCAN_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-
-const isValidQueuedScan = (entry) => (
-  entry
-  && typeof entry.cleanedId === 'string'
-  && typeof entry.scanId === 'string'
-  && entry.scanId.length >= 8
-  && entry.scanId.length <= 100
-  && Number.isFinite(Date.parse(entry.createdAt))
-  && Date.now() - Date.parse(entry.createdAt) <= MAX_QUEUED_SCAN_AGE_MS
-);
+const STATUS_CHECK_INTERVAL_MS = 2000;
+const SLOW_STATUS_CHECK_INTERVAL_MS = 5000;
+const UNRESOLVED_WARNING_AFTER_MS = 15000;
 
 export default function Scan() {
   const [id, setID] = useState('');
@@ -35,7 +26,10 @@ export default function Scan() {
   const [timestampsLoading, setTimestampsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [doubleScanData, setDoubleScanData] = useState(null);
-  const [queuedScanCount, setQueuedScanCount] = useState(0);
+  const [unresolvedScan, setUnresolvedScan] = useState(null);
+  const [releaseRequested, setReleaseRequested] = useState(false);
+  const [statusChecking, setStatusChecking] = useState(false);
+  const [statusDelayed, setStatusDelayed] = useState(false);
 
   const { request, loading } = useApi();
   const { showError } = useGlobalError();
@@ -46,8 +40,10 @@ export default function Scan() {
   const idRef = useRef('');
   const pendingScanRef = useRef(null);
   const deviceIdRef = useRef(null);
-  const scanQueueRef = useRef([]);
-  const flushingQueueRef = useRef(false);
+  const lockedRef = useRef(false);
+  const statusRequestInFlightRef = useRef(false);
+  const blockedBarcodeRef = useRef(false);
+  const latestRoundsRequestRef = useRef(0);
   const audioContextRef = useRef(null);
 
   const getAudioContext = useCallback(() => {
@@ -103,34 +99,24 @@ export default function Scan() {
     }
     deviceIdRef.current = deviceId;
 
-    let queue = [];
     try {
-      queue = JSON.parse(window.localStorage.getItem(SCAN_QUEUE_STORAGE_KEY) || '[]');
-      if (!Array.isArray(queue)) queue = [];
-      queue = queue.filter(isValidQueuedScan).map((entry) => ({ ...entry, requiresConfirmation: false }));
-    } catch {
-      queue = [];
-    }
-
-    const storedPendingScan = window.localStorage.getItem(PENDING_SCAN_STORAGE_KEY);
-    if (storedPendingScan) {
-      try {
-        const pendingScan = JSON.parse(storedPendingScan);
-        if (pendingScan?.cleanedId && pendingScan?.scanId) {
-          if (!queue.some((entry) => entry.scanId === pendingScan.scanId)) queue.push(pendingScan);
-          window.localStorage.removeItem(PENDING_SCAN_STORAGE_KEY);
-        }
-      } catch {
-        window.localStorage.removeItem(PENDING_SCAN_STORAGE_KEY);
+      const active = JSON.parse(window.sessionStorage.getItem(ACTIVE_SCAN_STORAGE_KEY) || 'null');
+      if (active?.cleanedId && active?.scanId) {
+        pendingScanRef.current = active;
+        lockedRef.current = true;
+        setUnresolvedScan(active);
+        setMessage('Der letzte Scan ist ungeklärt. Der Speicherstatus wird automatisch geprüft.');
+        setMessageType('warning');
       }
-    }
-
-    scanQueueRef.current = queue;
-    window.localStorage.setItem(SCAN_QUEUE_STORAGE_KEY, JSON.stringify(queue));
-    setQueuedScanCount(queue.length);
-    if (queue.length) {
-      setMessage(`${queue.length} nicht bestätigte Scan(s) werden automatisch erneut gesendet.`);
-      setMessageType('warning');
+      // Preserve old browser queues for manual inspection, never replay them.
+      const oldQueue = JSON.parse(window.localStorage.getItem('sponsorenlauf.scanQueue') || '[]');
+      if (oldQueue?.length || window.localStorage.getItem('sponsorenlauf.pendingScan')) {
+        setMessage('Es liegen alte vorgemerkte Scans im Browser vor. Diese werden nicht automatisch übertragen. Bitte vor dem Lauf mit der Administration klären.');
+        setMessageType('warning');
+      }
+    } catch {
+      setMessage('Browserdaten konnten nicht gelesen werden. Bitte prüfen.');
+      setMessageType('error');
     }
 
     inputRef.current?.focus();
@@ -158,7 +144,7 @@ export default function Scan() {
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [isProcessing]);
+  }, [isProcessing, unresolvedScan, doubleScanData]);
 
   // Dialog öffnen sobald doubleScanData gesetzt wird
   useEffect(() => {
@@ -173,9 +159,26 @@ export default function Scan() {
         return;
       }
 
-      if (document.querySelector('dialog[open]')) {
+      if (lockedRef.current) {
+        // Capture scanner characters before a focused dialog button receives Enter.
+        if (event.key.length === 1 || event.key === 'Backspace') {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          blockedBarcodeRef.current = true;
+          return;
+        }
+        if (event.key === 'Enter' && (blockedBarcodeRef.current || document.activeElement === inputRef.current)) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          blockedBarcodeRef.current = false;
+          playErrorSound();
+          return;
+        }
+        // Keyboard activation of an actual decision button remains available.
         return;
       }
+
+      if (document.querySelector('dialog[open]')) return;
 
       if (document.activeElement === inputRef.current) {
         return;
@@ -212,9 +215,9 @@ export default function Scan() {
       setID(nextValue);
     };
 
-    document.addEventListener('keydown', handleGlobalKeyDown);
-    return () => document.removeEventListener('keydown', handleGlobalKeyDown);
-  }, []);
+    document.addEventListener('keydown', handleGlobalKeyDown, true);
+    return () => document.removeEventListener('keydown', handleGlobalKeyDown, true);
+  }, [playErrorSound]);
 
   const cleanId = useCallback((rawId) => {
     return cleanScannedStudentId(rawId);
@@ -225,298 +228,202 @@ export default function Scan() {
     setID(e.target.value);
   }, []);
 
-  const rememberPendingScan = useCallback((pendingScan) => {
-    pendingScanRef.current = pendingScan;
-    window.localStorage.setItem(PENDING_SCAN_STORAGE_KEY, JSON.stringify(pendingScan));
+  const rememberPendingScan = useCallback((scan) => {
+    window.sessionStorage.setItem(ACTIVE_SCAN_STORAGE_KEY, JSON.stringify(scan));
+    pendingScanRef.current = scan;
+    lockedRef.current = true;
   }, []);
 
   const clearPendingScan = useCallback(() => {
+    window.sessionStorage.removeItem(ACTIVE_SCAN_STORAGE_KEY);
     pendingScanRef.current = null;
-    window.localStorage.removeItem(PENDING_SCAN_STORAGE_KEY);
+    lockedRef.current = false;
+    blockedBarcodeRef.current = false;
+    setUnresolvedScan(null);
+    setReleaseRequested(false);
+    setStatusDelayed(false);
+    setDoubleScanData(null);
   }, []);
 
-  const persistQueue = useCallback((queue) => {
-    scanQueueRef.current = queue;
-    window.localStorage.setItem(SCAN_QUEUE_STORAGE_KEY, JSON.stringify(queue));
-    setQueuedScanCount(queue.length);
-  }, []);
-
-  const enqueueScan = useCallback((pendingScan) => {
-    if (!pendingScan?.scanId) return;
-    const queue = scanQueueRef.current.some((entry) => entry.scanId === pendingScan.scanId)
-      ? scanQueueRef.current
-      : [...scanQueueRef.current, pendingScan].slice(-MAX_QUEUED_SCANS);
-    persistQueue(queue);
-  }, [persistQueue]);
-
-  // Funktion zum asynchronen Laden der Timestamps
-  const loadTimestamps = useCallback(async (studentId) => {
+  const loadTimestamps = useCallback(async (studentId, confirmedRound) => {
+    const requestId = ++latestRoundsRequestRef.current;
     setTimestampsLoading(true);
     try {
       const response = await request(`/api/students/${studentId}/timestamps`);
-      const loadedRounds = response.rounds
-        || (response.timestamps || []).map((timestamp, index) => ({ id: `legacy-${index}`, timestamp }));
-      setRounds(loadedRounds);
+      if (requestId !== latestRoundsRequestRef.current) return;
+      const loaded = response.rounds || [];
+      setRounds(confirmedRound && !loaded.some((round) => round.id === confirmedRound.id)
+        ? [confirmedRound, ...loaded] : loaded);
     } catch (error) {
       console.warn('Timestamps konnten nicht geladen werden:', error);
-      setRounds([]);
     } finally {
-      setTimestampsLoading(false);
+      if (requestId === latestRoundsRequestRef.current) setTimestampsLoading(false);
     }
   }, [request]);
 
-  const performScan = useCallback(async (cleanedId, confirmDoubleScan = false, scanId) => {
-    let processingHandled = false; // Flag um sicherzustellen, dass Loading-State korrekt behandelt wird
-    
+  const acceptStoredScan = useCallback((response, scan) => {
+    if (!response?.success || response.scanId !== scan.scanId
+      || !response.round?.id || !response.round?.timestamp || !response.student?.id) {
+      throw new Error('Keine eindeutige Speicherbestätigung');
+    }
+    setStudentInfo(response.student);
+    setCurrentTimestamp(new Date());
+    setRounds([response.round]);
+    setMessage(response.message || 'Runde erfolgreich gezählt');
+    setMessageType('success');
+    clearPendingScan();
+    loadTimestamps(response.student.id, response.round);
+    const context = getAudioContext();
+    if (context) {
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      gain.gain.setValueAtTime(0.12, context.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.15);
+      oscillator.frequency.value = 880;
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start();
+      oscillator.stop(context.currentTime + 0.15);
+    }
+  }, [clearPendingScan, getAudioContext, loadTimestamps]);
+
+  const markUnresolved = useCallback((scan) => {
+    lockedRef.current = true;
+    setUnresolvedScan(scan);
+    setMessage('Keine sichere Speicherbestätigung. Station gesperrt – Speicherstatus wird automatisch geprüft.');
+    setMessageType('warning');
+    playErrorSound();
+  }, [playErrorSound]);
+
+  const performScan = useCallback(async (scan) => {
+    setIsProcessing(true);
+    setUnresolvedScan(null);
+    setReleaseRequested(false);
     try {
       const response = await request('/api/runden', {
-        method: 'POST',
-        showErrorMessage: false,
-        timeout: 8000,
-        data: {
-          id: cleanedId,
-          confirmDoubleScan,
-          scanId,
-          sourceDeviceId: deviceIdRef.current,
-        }
+        method: 'POST', showErrorMessage: false, timeout: 8000,
+        data: { id: scan.cleanedId, scanId: scan.scanId,
+          confirmDoubleScan: scan.confirmDoubleScan === true,
+          sourceDeviceId: deviceIdRef.current },
       });
-
-      // Server antwortet IMMER mit 200 bei gültigen Anfragen
-      if (response?.success) {
-        
-        // Fall 1: Server möchte Bestätigung für Doppel-Scan
-        if (response.requiresConfirmation) {
-          playErrorSound();
-          // State setzen
-          setDoubleScanData({
-            student: response.student,
-            lastRoundTime: response.lastRoundTime,
-            thresholdMinutes: response.thresholdMinutes || 5,
-            cleanedId,
-            scanId,
-          });
-          setMessage('Doppel-Scan erkannt - bitte bestätigen');
-          setMessageType('warning');
-          setIsProcessing(false);
-          processingHandled = true;
-          return;
-        }
-
-        if (response.wasDoubleScan && !confirmDoubleScan) {
-          playErrorSound();
-        }
-
-        // Fall 2: Runde wurde erfolgreich gespeichert
-        setStudentInfo(response.student);
-        setCurrentTimestamp(new Date());
-        setMessage(response.message || 'Runde erfolgreich gezählt!');
-        setMessageType('success');
-        idRef.current = '';
-        setID('');
-        setDoubleScanData(null);
-        clearPendingScan();
-        if (scanId) {
-          persistQueue(scanQueueRef.current.filter((entry) => entry.scanId !== scanId));
-        }
-
-        if (response.round) {
-          setRounds((currentRounds) => [
-            response.round,
-            ...currentRounds.filter((round) => round.id !== response.round.id)
-          ]);
-        }
-
-        // Timestamps asynchron laden
-        loadTimestamps(cleanedId);
-      }
+      acceptStoredScan(response, scan);
     } catch (error) {
-      // Echte Fehler und Block-Modus landen hier
-      const isRecoverableFailure = !error.status || error.status >= 500 || error.status === 429;
-
-      if (isRecoverableFailure) {
-        enqueueScan(pendingScanRef.current);
-        clearPendingScan();
-        idRef.current = '';
-        setID('');
-        setMessage('Verbindung unterbrochen – Scan sicher vorgemerkt und wird automatisch erneut gesendet');
+      if (error.status === 409 && error.data?.error === 'DOUBLE_SCAN_CONFIRMATION_REQUIRED'
+        && error.data.scanId === scan.scanId && error.data.student) {
+        playErrorSound();
+        setDoubleScanData({ ...error.data, cleanedId: scan.cleanedId });
+        setMessage('Doppel-Scan erkannt – bitte bestätigen oder abbrechen');
         setMessageType('warning');
-        return;
-      }
-
-      idRef.current = '';
-      setID('');
-      clearPendingScan();
-      playErrorSound();
-
-      if (error.status === 404) {
-        setMessage('Schüler mit dieser ID nicht gefunden');
+      } else if (!error.status || error.status >= 500 || error.status === 429) {
+        markUnresolved(scan);
+      } else {
+        clearPendingScan();
+        playErrorSound();
+        setMessage(error.status === 404 ? 'Schüler mit dieser ID nicht gefunden' : error.message);
         setMessageType('error');
-      } else if (error.status === 400) {
-        // Prüfe verschiedene Error-Strukturen für Block-Modus
-        const errorData = error.data || error.response?.data || error || {};
-        const errorCode = errorData.error || error.error;
-        const errorMessage = errorData.message || error.message || '';
-        
-        if (errorCode === 'DOUBLE_SCAN_BLOCKED' || errorMessage.includes('Doppel-Scan blockiert')) {
-          // Block-Modus: Scan wurde komplett abgelehnt
-          if (errorData.timeDifferenceMs && errorData.student) {
-            // Detaillierte Fehlermeldung mit Schülerinfo
-            const timeDiffMinutes = Math.floor(errorData.timeDifferenceMs / 60000);
-            const timeDiffSeconds = Math.floor((errorData.timeDifferenceMs % 60000) / 1000);
-            const timeDisplay = timeDiffMinutes > 0 
-              ? `${timeDiffMinutes} Minute${timeDiffMinutes !== 1 ? 'n' : ''} und ${timeDiffSeconds} Sekunde${timeDiffSeconds !== 1 ? 'n' : ''}`
-              : `${timeDiffSeconds} Sekunde${timeDiffSeconds !== 1 ? 'n' : ''}`;
-            
-            setMessage(`⚠️ Doppel-Scan blockiert: ${errorData.student.vorname} ${errorData.student.nachname} wurde erst vor ${timeDisplay} gescannt. Mindestabstand: ${errorData.thresholdMinutes} Minuten.`);
-            setStudentInfo(errorData.student);
-          } else {
-            // Einfache Fehlermeldung vom Server
-            setMessage(`⚠️ ${errorMessage}`);
-          }
-          setMessageType('error');
-        } else {
-          // Fallback für andere 400-Fehler
-          setMessage(errorMessage || 'Ungültige ID oder Eingabe');
-          setMessageType('error');
-        }
       }
-      
-      const responseErrorCode = error.response?.data?.error;
-      if (error.status !== 400 || responseErrorCode !== 'DOUBLE_SCAN_BLOCKED') {
-        setStudentInfo(null);
-      }
-      setRounds([]);
     } finally {
-      // Stelle sicher, dass Processing immer gestoppt wird (außer bei Dialog)
-      if (!processingHandled) {
-        setIsProcessing(false);
-      }
+      setIsProcessing(false);
     }
-  }, [request, loadTimestamps, clearPendingScan, enqueueScan, persistQueue, playErrorSound]);
+  }, [request, acceptStoredScan, clearPendingScan, markUnresolved, playErrorSound]);
 
-  const flushScanQueue = useCallback(async () => {
-    if (flushingQueueRef.current || !navigator.onLine || scanQueueRef.current.length === 0
-      || pendingScanRef.current || document.querySelector('dialog[open]')) return;
-    flushingQueueRef.current = true;
+  const checkScanStatus = useCallback(async () => {
+    const scan = pendingScanRef.current;
+    if (!scan || isProcessing || statusRequestInFlightRef.current) return;
+    statusRequestInFlightRef.current = true;
+    setStatusChecking(true);
     try {
-      while (scanQueueRef.current.length > 0 && navigator.onLine) {
-        const pendingIndex = scanQueueRef.current.findIndex((entry) => !entry.requiresConfirmation);
-        if (pendingIndex === -1) break;
-        const pending = scanQueueRef.current[pendingIndex];
-        try {
-          const response = await axios.post('/api/runden', {
-            id: pending.cleanedId,
-            scanId: pending.scanId,
-            sourceDeviceId: deviceIdRef.current,
-            confirmDoubleScan: false,
-          }, { timeout: 10000 });
-          if (response.data?.requiresConfirmation || response.data?.data?.requiresConfirmation) {
-            const confirmation = response.data?.data || response.data;
-            playErrorSound();
-            setDoubleScanData({
-              student: confirmation.student,
-              lastRoundTime: confirmation.lastRoundTime,
-              thresholdMinutes: confirmation.thresholdMinutes || 5,
-              cleanedId: pending.cleanedId,
-              scanId: pending.scanId,
-            });
-            setMessage('Ein vorgemerkter Scan benötigt eine Doppel-Scan-Bestätigung.');
-            setMessageType('warning');
-            persistQueue(scanQueueRef.current.map((entry) => (
-              entry.scanId === pending.scanId ? { ...entry, requiresConfirmation: true } : entry
-            )));
-            break;
-          }
-          persistQueue(scanQueueRef.current.filter((entry) => entry.scanId !== pending.scanId));
-          setMessage('Vorgemerkter Scan wurde erfolgreich nachgetragen');
-          setMessageType('success');
-        } catch (error) {
-          if (!error.response || error.response.status >= 500 || error.response.status === 429) break;
-          persistQueue(scanQueueRef.current.filter((entry) => entry.scanId !== pending.scanId));
-          setMessage(`Vorgemerkter Scan wurde verworfen: ${error.response?.data?.message || 'ungültige Daten'}`);
-          setMessageType('error');
-        }
+      const response = await request('/api/runden', {
+        showErrorMessage: false, timeout: 8000, params: { scanId: scan.scanId },
+      });
+      // A result arriving after an explicit release belongs to the old operation.
+      if (pendingScanRef.current !== scan) return;
+      if (response.stored === true) acceptStoredScan(response, scan);
+      else {
+        setMessage('Bisher keine gespeicherte Runde gefunden. Der Speicherstatus wird weiter automatisch geprüft. Bei Bedarf denselben Scan erneut senden.');
+        setMessageType('warning');
       }
+    } catch {
+      if (pendingScanRef.current !== scan) return;
+      setMessage('Speicherstatus nicht erreichbar. Die Station bleibt gesperrt; die automatische Prüfung läuft weiter.');
+      setMessageType('warning');
     } finally {
-      flushingQueueRef.current = false;
+      statusRequestInFlightRef.current = false;
+      setStatusChecking(false);
     }
-  }, [persistQueue, playErrorSound]);
+  }, [request, isProcessing, acceptStoredScan]);
 
+  // Poll only the read endpoint. Never automatically resubmit a round.
   useEffect(() => {
-    const handleOnline = () => flushScanQueue();
-    window.addEventListener('online', handleOnline);
-    const interval = window.setInterval(flushScanQueue, 5000);
-    flushScanQueue();
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.clearInterval(interval);
+    if (!unresolvedScan || isProcessing) return;
+    const startedAt = Date.now();
+    let stopped = false;
+    let pollTimer;
+    setStatusDelayed(false);
+    const warningTimer = window.setTimeout(() => setStatusDelayed(true), UNRESOLVED_WARNING_AFTER_MS);
+    const poll = async () => {
+      await checkScanStatus();
+      if (stopped || pendingScanRef.current !== unresolvedScan) return;
+      const interval = Date.now() - startedAt >= UNRESOLVED_WARNING_AFTER_MS
+        ? SLOW_STATUS_CHECK_INTERVAL_MS : STATUS_CHECK_INTERVAL_MS;
+      pollTimer = window.setTimeout(poll, interval);
     };
-  }, [flushScanQueue]);
+    pollTimer = window.setTimeout(poll, 0);
+    return () => {
+      stopped = true;
+      window.clearTimeout(pollTimer);
+      window.clearTimeout(warningTimer);
+    };
+  }, [unresolvedScan, checkScanStatus, isProcessing]);
 
   const handleDoubleScanConfirm = useCallback(async () => {
-    if (!doubleScanData) return;
-
+    if (!doubleScanData || isProcessing) return;
+    const scan = { ...pendingScanRef.current, confirmDoubleScan: true };
+    try { rememberPendingScan(scan); } catch {
+      setMessage('Vorgang konnte nicht gesichert werden. Bitte erneut versuchen.');
+      setMessageType('error');
+      return;
+    }
     doubleScanDialogRef.current?.close();
-    setIsProcessing(true);
-    setMessage('Verarbeite...');
-    setMessageType('info');
-
-    await performScan(doubleScanData.cleanedId, true, doubleScanData.scanId); // confirmDoubleScan = true
-    // performScan handled setIsProcessing(false)
-
-    setTimeout(() => inputRef.current?.focus(), 100);
-  }, [doubleScanData, performScan]);
+    setDoubleScanData(null);
+    await performScan(scan);
+  }, [doubleScanData, isProcessing, rememberPendingScan, performScan]);
 
   const handleDoubleScanCancel = useCallback(() => {
     doubleScanDialogRef.current?.close();
-    setDoubleScanData(null);
-    persistQueue(scanQueueRef.current.filter((entry) => entry.scanId !== doubleScanData?.scanId));
     clearPendingScan();
-    idRef.current = '';
-    setID('');
-    setMessage('Scan abgebrochen - möglicher Doppel-Scan erkannt');
+    setMessage('Scan abgebrochen – keine weitere Runde gezählt');
     setMessageType('warning');
-    setTimeout(() => inputRef.current?.focus(), 100);
-  }, [clearPendingScan, doubleScanData, persistQueue]);
+    inputRef.current?.focus();
+  }, [clearPendingScan]);
 
   const handleSubmit = useCallback(async (event) => {
     event.preventDefault();
-
-    if (isProcessing) return; // Verhindere mehrfache Submissions
-
-    // Initializing audio during the scanner's key event keeps sound available
-    // in browsers that require a user gesture before playing audio.
     getAudioContext();
-
+    if (lockedRef.current) {
+      playErrorSound();
+      return;
+    }
     const cleanedId = cleanId(idRef.current);
     if (!cleanedId.trim()) {
       setMessage('Bitte geben Sie eine gültige ID ein');
       setMessageType('error');
       playErrorSound();
-      // Fokus behalten bei Validierungsfehlern
-      inputRef.current?.focus();
       return;
     }
-
-    if (scanQueueRef.current.length >= MAX_QUEUED_SCANS) {
-      setMessage('Zu viele unbestätigte Scans. Bitte Verbindung und vorgemerkte Scans prüfen.');
+    const scan = { cleanedId, scanId: createClientId('scan') };
+    try { rememberPendingScan(scan); } catch {
+      setMessage('Vorgang konnte auf diesem Gerät nicht gesichert werden. Bitte Browserspeicher prüfen und erneut scannen.');
       setMessageType('error');
       playErrorSound();
       return;
     }
-
-    setIsProcessing(true);
+    idRef.current = '';
+    setID('');
     setMessage('Verarbeite...');
     setMessageType('info');
-
-    const scanId = createClientId('scan');
-    rememberPendingScan({ cleanedId, scanId, createdAt: new Date().toISOString() });
-
-    await performScan(cleanedId, false, scanId); // confirmDoubleScan = false
-    
-    // Fokus nach Verarbeitung wiederherstellen (performScan handled setIsProcessing)
-    setTimeout(() => inputRef.current?.focus(), 100);
-  }, [cleanId, getAudioContext, isProcessing, performScan, playErrorSound, rememberPendingScan]);
+    await performScan(scan);
+  }, [cleanId, getAudioContext, performScan, playErrorSound, rememberPendingScan]);
 
   const handleDeleteTimestamp = useCallback(async (roundId) => {
     if (!roundId || !studentInfo) {
@@ -531,6 +438,7 @@ export default function Scan() {
       });
 
       const updatedRounds = rounds.filter((round) => round.id !== roundId);
+      latestRoundsRequestRef.current += 1;
       setRounds(updatedRounds);
 
       // Aktualisiere auch die Rundenzahl im studentInfo
@@ -574,12 +482,9 @@ export default function Scan() {
         <h1 className="page-title scan-dashboard-title">Runden zählen</h1>
 
         <div className="scan-status" aria-live="polite">
-          <span className={`status-pill ${isProcessing ? 'status-pill-warning' : 'status-pill-ready'}`}>
-            {isProcessing ? 'Scan wird verarbeitet' : 'Scanner bereit'}
+          <span className={`status-pill ${isProcessing || unresolvedScan || doubleScanData ? 'status-pill-warning' : 'status-pill-ready'}`}>
+            {isProcessing ? 'Scan wird verarbeitet' : unresolvedScan || doubleScanData ? 'Station gesperrt' : 'Scanner bereit'}
           </span>
-          {queuedScanCount > 0 && (
-            <span className="status-pill status-pill-warning">{queuedScanCount} Scan(s) vorgemerkt</span>
-          )}
         </div>
       </div>
 
@@ -594,6 +499,31 @@ export default function Scan() {
           aria-live={messageType === 'error' ? 'assertive' : 'polite'}
         >
           {message}
+        </div>
+      )}
+
+      {unresolvedScan && (
+        <div className="message message-warning" role="region" aria-label="Ungeklärter Scan">
+          <p>Scan für ID {unresolvedScan.cleanedId}: Speicherstatus wird automatisch geprüft.</p>
+          {statusDelayed && <p role="alert">Speicherung ungeklärt – Verbindung prüfen. Die automatische Statusprüfung läuft weiter.</p>}
+          <button type="button" className="btn" disabled={isProcessing || statusChecking} onClick={checkScanStatus}>{statusChecking ? 'Speicherstatus wird geprüft...' : 'Speicherstatus prüfen'}</button>{' '}
+          <button type="button" className="btn" disabled={isProcessing || statusChecking} onClick={() => performScan(pendingScanRef.current)}>Denselben Scan erneut senden</button>{' '}
+          <details>
+            <summary>Weitere Optionen</summary>
+            <button type="button" className="btn btn-secondary" disabled={isProcessing} onClick={() => setReleaseRequested(true)}>Station freigeben</button>
+          {releaseRequested && (
+            <div>
+              <p>Die Runde könnte bereits gespeichert sein oder noch gespeichert werden. Vor einem erneuten Scan dieser Person den Rundenstand prüfen.</p>
+              <button type="button" className="btn btn-danger" disabled={isProcessing} onClick={() => {
+                clearPendingScan();
+                setMessage('Station bewusst freigegeben. Speicherstatus des letzten Scans bleibt ungeklärt.');
+                setMessageType('warning');
+                inputRef.current?.focus();
+              }}>Ungeklärten Status quittieren und freigeben</button>{' '}
+              <button type="button" className="btn" onClick={() => setReleaseRequested(false)}>Gesperrt lassen</button>
+            </div>
+          )}
+          </details>
         </div>
       )}
 
@@ -613,14 +543,14 @@ export default function Scan() {
                 onChange={handleInputChange}
                 placeholder="Barcode scannen"
                 required
-                disabled={isProcessing}
+                disabled={isProcessing || !!unresolvedScan || !!doubleScanData}
                 className="input scan-input-compact"
                 autoComplete="off"
               />
               <button
                 type="submit"
                 className="btn"
-                disabled={isProcessing}
+                disabled={isProcessing || !!unresolvedScan || !!doubleScanData}
               >
                 {isProcessing ? 'Verarbeite...' : 'Runde zählen'}
               </button>

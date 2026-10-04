@@ -39,6 +39,7 @@ const BaseDialog = ({
     title,
     children,
     onClose,
+    onRequestClose,
     className = '',
     size = 'medium',
     actions = null,
@@ -48,8 +49,9 @@ const BaseDialog = ({
     const lastFocusedElementRef = useRef(null);
 
     const handleClose = useCallback(() => {
-        dialogRef.current?.close();
-    }, [dialogRef]);
+        if (onRequestClose) onRequestClose();
+        else dialogRef.current?.close();
+    }, [dialogRef, onRequestClose]);
 
     const enabledActions = getEnabledActions(actions, showDefaultClose, handleClose);
     const cancelAction = getCancelAction(enabledActions);

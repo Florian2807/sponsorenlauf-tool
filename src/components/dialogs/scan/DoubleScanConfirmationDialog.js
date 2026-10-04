@@ -42,6 +42,7 @@ const DoubleScanConfirmationDialog = ({
       size="large"
       actions={actions}
       showDefaultClose={false}
+      onRequestClose={onCancel}
     >
       <div className="double-scan-content">
         {/* Hauptwarnung */}

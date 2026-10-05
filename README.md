@@ -193,6 +193,8 @@ Danach sind Setup, Schüler- und Lehrerverwaltung, Spenden, E-Mail-Versand, Expo
 
 Die Anmeldung gilt 12 Stunden. Über **Sperren** in der Navigation kann die Verwaltung sofort wieder gesperrt werden. Die PIN lässt sich unter **Setup → Bereitschaft & Sicherheit** ändern.
 
+Bei neuen oder fehlenden Moduleinstellungen ist nur der **Doppel-Scan-Schutz** aktiv. Spenden, E-Mails, Lehrerverwaltung und Scanner-Stationen lassen sich unter **Admin → Module verwalten** einschalten. Bereits gespeicherte Einstellungen bleiben erhalten.
+
 ### Scanner-Stationen (optional)
 
 Das Modul **Scanner-Stationen** ist standardmäßig deaktiviert. Aktivieren Sie es unter **Admin → Module verwalten** und wählen Sie **Speichern & Stationen einrichten**. Danach erscheint auch **Scanner-Stationen** in den Einstellungen. Die Übersicht zeigt alle Stationen mit ihrer Klassenzuordnung und ihrem Scan-Verhalten. Name und Regeln werden gemeinsam gespeichert.

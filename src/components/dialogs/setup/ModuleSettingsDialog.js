@@ -8,9 +8,9 @@ import { useDonationDisplayMode } from '../../../contexts/DonationDisplayModeCon
 const ModuleSettingsDialog = ({ dialogRef }) => {
     const router = useRouter();
     const [localConfig, setLocalConfig] = useState({
-        donations: true,
-        emails: true,
-        teachers: true,
+        donations: false,
+        emails: false,
+        teachers: false,
         scannerStations: false,
         doubleScanPrevention: {
             enabled: true,
@@ -98,335 +98,99 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
         }));
     };
 
+    const resetDraft = () => {
+        setLocalConfig({ ...globalConfig, doubleScanPrevention: globalConfig.doubleScanPrevention || {
+            enabled: true, timeThresholdMinutes: 5, mode: 'confirm',
+        } });
+        setLocalDonationMode(globalDonationMode);
+    };
+    const modules = [
+        { id: 'doubleScanPrevention', title: 'Doppel-Scan-Schutz', icon: 'fa-shield-halved', subtitle: 'Erkennt zu schnell wiederholte Scans und schützt vor versehentlich doppelt gezählten Runden.', features: [
+            'Mindestabstand zwischen zwei Scans derselben Person festlegen',
+            'Bei einem erneuten Scan eine Bestätigung verlangen oder die Runde blockieren',
+        ], example: 'Ein Barcode wird zweimal direkt hintereinander gescannt: Die zweite Runde braucht eine Bestätigung oder wird abgewiesen.' },
+        { id: 'scannerStations', title: 'Scanner-Stationen', icon: 'fa-laptop', subtitle: 'Für mehrere Scan-Laptops: Klassen auf Stationen verteilen und sehen, wo gescannt wurde.', features: [
+            'Station am Laptop auswählen; mehrere Laptops können dieselbe Station nutzen',
+            'Andere Klassen mit Hinweis zählen oder blockieren; jeder Helfer kann die Regeln einstellen',
+            'Stationsnamen in Scan-Zeitstempeln und Doppel-Scan-Meldungen sehen',
+        ], exampleTitle: 'Zum Beispiel am Ziel', example: '„Ziel links“ betreut Jahrgang 5, „Ziel rechts“ Jahrgang 6. Ein Scan an der falschen Station kann mit einem Hinweis trotzdem zählen.' },
+        { id: 'donations', title: 'Spenden', icon: 'fa-coins', subtitle: 'Zeigt, welche Spenden zugesagt wurden und welche bereits eingegangen sind.', features: [
+            'Zugesagte und eingegangene Beträge erfassen',
+            'Spendenwerte in Auswertungen anzeigen und exportieren',
+        ] },
+        { id: 'emails', title: 'E-Mails', icon: 'fa-envelope', subtitle: 'Versendet die Klassenergebnisse nach dem Lauf direkt an die zuständigen Lehrer.', features: [
+            'Klassen und Empfänger auswählen und Ergebnisse versenden',
+            'Versand über Microsoft 365 oder einen SMTP-Mailserver einrichten',
+        ] },
+        { id: 'teachers', title: 'Lehrerverwaltung', icon: 'fa-chalkboard-user', subtitle: 'Speichert Lehrer und ihre Klassen, damit die passenden Kontakte schnell zur Hand sind.', features: [
+            'Namen, E-Mail-Adressen und Klassenzuordnungen pflegen',
+            'Gespeicherte Lehrer beim E-Mail-Versand als Empfänger auswählen',
+        ] },
+    ];
+    const disabled = isLoading || configLoading;
+    const threshold = localConfig.doubleScanPrevention?.timeThresholdMinutes;
+    const invalidThreshold = localConfig.doubleScanPrevention?.enabled && (!Number.isInteger(threshold) || threshold < 1 || threshold > 60);
     const actions = [
-        {
-            label: 'Abbrechen',
-            position: 'left',
-            onClick: handleClose,
-            disabled: isLoading || configLoading
-        },
-        {
-            label: isLoading ? 'Speichere...' : 'Speichern',
-            variant: 'success',
-            position: 'right',
-            onClick: handleSave,
-            disabled: isLoading || configLoading
-        }
+        { label: 'Abbrechen', variant: 'secondary', position: 'left', onClick: handleClose, disabled },
+        { label: isLoading ? 'Speichere …' : 'Speichern', position: 'right', onClick: () => handleSave(), disabled: disabled || invalidThreshold },
     ];
 
-    return (
-        <BaseDialog
-            dialogRef={dialogRef}
-            title="🔧 Modul-Einstellungen"
-            actions={actions}
-            size="xl"
-            showDefaultClose={false}
-            className="module-settings-dialog"
-        >
-            <div className="dialog-content">
-                <div className="module-settings-header">
-                    <h3 className="section-title">Module verwalten</h3>
-                    <p className="dialog-description">
-                        Aktivieren oder deaktivieren Sie einzelne Features der Anwendung.
-                        Änderungen wirken sich sofort auf die gesamte Anwendung aus.
-                    </p>
-                </div>
-
-                <div className="module-settings-grid">
-                    <div className="module-card">
-                        <div className="module-card-header">
-                            <div className="module-icon">💻</div>
-                            <div className="module-header-content">
-                                <h4 className="module-title">Scanner-Stationen</h4>
-                                <p className="module-subtitle">Benannte Stationen mit Klassen- und Jahrgangsregeln</p>
-                            </div>
-                            <label className="module-toggle">
-                                <input type="checkbox" aria-label="Scanner-Stationen aktivieren" checked={localConfig.scannerStations === true}
-                                    onChange={(event) => handleModuleChange('scannerStations', event.target.checked)} disabled={isLoading || configLoading} />
-                                <span className="toggle-slider"></span>
-                            </label>
-                        </div>
-                        <div className="module-card-content">
-                            <p>Standardmäßig deaktiviert. Mehrere Laptops können dieselbe Station verwenden. Jeder Helfer kann die Stationsregeln einstellen.</p>
-                            <button type="button" className="btn btn-secondary" disabled={isLoading || configLoading}
-                                onClick={() => handleSave('/stations')}>Speichern & Stationen einrichten</button>
-                        </div>
+    return <BaseDialog dialogRef={dialogRef} title="Module verwalten" actions={actions} size="xl"
+        showDefaultClose={false} className="module-settings-dialog module-manager" onClose={resetDraft}>
+        <p className="module-manager-description">Wähle die Funktionen für deinen Sponsorenlauf. Änderungen gelten nach dem Speichern.</p>
+        <div className="module-manager-list">
+            {modules.map((module) => {
+                const active = module.id === 'doubleScanPrevention' ? localConfig.doubleScanPrevention?.enabled === true : localConfig[module.id] === true;
+                return <section key={module.id} className="module-manager-item" aria-label={module.title}>
+                    <div className="module-manager-row">
+                        <span className="module-manager-icon"><i className={`fa-solid ${module.icon}`} aria-hidden="true" /></span>
+                        <div className="module-manager-copy"><h3>{module.title}</h3><p>{module.subtitle}</p></div>
+                        <span className={`module-manager-state ${active ? 'is-active' : ''}`}>{active ? 'Aktiv' : 'Aus'}</span>
+                        <label className="module-toggle">
+                            <input type="checkbox" aria-label={`${module.title} aktivieren`} checked={active} disabled={disabled}
+                                onChange={(event) => handleModuleChange(module.id, event.target.checked)} />
+                            <span className="toggle-slider" />
+                        </label>
                     </div>
-
-                    <div className="module-card">
-                        <div className="module-card-header">
-                            <div className="module-icon">💰</div>
-                            <div className="module-header-content">
-                                <h4 className="module-title">Spenden-Modul</h4>
-                                <p className="module-subtitle">Verwaltung von Spendengeldern</p>
+                    <div className="module-manager-content">
+                        <details className="module-manager-details">
+                            <summary>Enthaltene Features:</summary>
+                            <ul>{module.features.map((feature) => <li key={feature}>{feature}</li>)}</ul>
+                            {module.example && <div className="module-manager-example">
+                                <strong><i className="fa-regular fa-lightbulb" aria-hidden="true" /> {module.exampleTitle || 'Zum Beispiel'}</strong>
+                                <p>{module.example}</p>
+                            </div>}
+                        </details>
+                        {module.id === 'scannerStations' && active && <button type="button" className="module-manager-setup" disabled={disabled || invalidThreshold}
+                            onClick={() => handleSave('/stations')}>Speichern & Stationen einrichten <i className="fa-solid fa-arrow-right" aria-hidden="true" /></button>}
+                        {module.id === 'donations' && active && <fieldset className="module-manager-options" disabled={disabled}>
+                            <legend>Spendenwerte in Auswertungen</legend>
+                            <div className="module-manager-radios">
+                                {[['expected', 'Erwartete Spenden'], ['received', 'Erhaltene Spenden']].map(([value, label]) => <label key={value}>
+                                    <input type="radio" name="donationDisplayMode" value={value} checked={localDonationMode === value} onChange={() => setLocalDonationMode(value)} />{label}
+                                </label>)}
                             </div>
-                            <label className="module-toggle">
-                                <input
-                                    type="checkbox"
-                                    checked={localConfig.donations}
-                                    onChange={(e) => handleModuleChange('donations', e.target.checked)}
-                                    disabled={isLoading || configLoading}
-                                />
-                                <span className="toggle-slider"></span>
-                            </label>
-                        </div>
-
-                        <div className="module-card-content">
-                            <div className="module-features">
-                                <h5>Enthaltene Features:</h5>
-                                <ul>
-                                    <li>📊 Spenden-Statistiken in allen Auswertungen</li>
-                                    <li>💰 Spenden-Verwaltungsseite</li>
-                                    <li>📈 Spenden-Export Funktionen</li>
-                                    <li>⚙️ Spenden-Anzeigemodus (Erwartet/Erhalten)</li>
-                                    <li>📋 Spenden-Spalten in Tabellen</li>
-                                </ul>
+                        </fieldset>}
+                        {module.id === 'doubleScanPrevention' && active && <fieldset className="module-manager-options" disabled={disabled}>
+                            <legend>Verhalten beim Scannen</legend>
+                            <div className="module-manager-threshold"><label htmlFor="timeThreshold">Mindestabstand</label>
+                                <input id="timeThreshold" type="number" min="1" max="60" aria-invalid={invalidThreshold || undefined} aria-describedby={invalidThreshold ? 'module-threshold-error' : undefined} value={localConfig.doubleScanPrevention?.timeThresholdMinutes ?? ''}
+                                    onChange={(event) => handleDoubleScanConfigChange('timeThresholdMinutes', event.target.value === '' ? '' : Number(event.target.value))} />
+                                <span>Minuten</span>
                             </div>
-
-                            {!localConfig.donations && (
-                                <div className="module-warning">
-                                    <div className="warning-icon">⚠️</div>
-                                    <div className="warning-content">
-                                        <strong>Achtung bei Deaktivierung:</strong>
-                                        <p>Alle spendenbezogenen Features werden komplett aus der Anwendung entfernt. Dies betrifft Statistiken, Export-Funktionen und die gesamte Spenden-Verwaltung.</p>
-                                    </div>
-                                </div>
-                            )}
-
-                            {localConfig.donations && (
-                                <div className="module-sub-settings">
-                                    <h6 className="sub-settings-title">Spenden-Anzeigemodus:</h6>
-                                    <div className="radio-group-compact">
-                                        <label className="radio-option-compact">
-                                            <input
-                                                type="radio"
-                                                name="donationDisplayMode"
-                                                value="expected"
-                                                checked={localDonationMode === 'expected'}
-                                                onChange={(e) => setLocalDonationMode(e.target.value)}
-                                                disabled={isLoading || configLoading}
-                                            />
-                                            <span className="radio-dot"></span>
-                                            <span className="radio-text">Erwartete Spenden anzeigen</span>
-                                        </label>
-                                        <label className="radio-option-compact">
-                                            <input
-                                                type="radio"
-                                                name="donationDisplayMode"
-                                                value="received"
-                                                checked={localDonationMode === 'received'}
-                                                onChange={(e) => setLocalDonationMode(e.target.value)}
-                                                disabled={isLoading || configLoading}
-                                            />
-                                            <span className="radio-dot"></span>
-                                            <span className="radio-text">Erhaltene Spenden anzeigen</span>
-                                        </label>
-                                    </div>
-                                    <p className="sub-settings-description">
-                                        Bestimmt, welche Spendenwerte in allen Statistiken und Exporten angezeigt werden.
-                                    </p>
-                                </div>
-                            )}
-                        </div>
+                            {invalidThreshold && <p id="module-threshold-error" className="module-manager-error" role="alert">Bitte eine ganze Zahl zwischen 1 und 60 eingeben.</p>}
+                            <div className="module-manager-radios">
+                                {[['confirm', 'Bestätigung verlangen'], ['block', 'Runde blockieren']].map(([value, label]) => <label key={value}>
+                                    <input type="radio" name="doubleScanMode" value={value} checked={localConfig.doubleScanPrevention?.mode === value} onChange={() => handleDoubleScanConfigChange('mode', value)} />{label}
+                                </label>)}
+                            </div>
+                        </fieldset>}
+                        {module.id === 'doubleScanPrevention' && !active && <p className="module-manager-note">Ohne Schutz können direkt aufeinanderfolgende Scans mehrere Runden zählen.</p>}
                     </div>
-
-                    <div className="module-card">
-                        <div className="module-card-header">
-                            <div className="module-icon">📧</div>
-                            <div className="module-header-content">
-                                <h4 className="module-title">E-Mail-Modul</h4>
-                                <p className="module-subtitle">Automatischer E-Mail-Versand</p>
-                            </div>
-                            <label className="module-toggle">
-                                <input
-                                    type="checkbox"
-                                    checked={localConfig.emails}
-                                    onChange={(e) => handleModuleChange('emails', e.target.checked)}
-                                    disabled={isLoading || configLoading}
-                                />
-                                <span className="toggle-slider"></span>
-                            </label>
-                        </div>
-
-                        <div className="module-card-content">
-                            <div className="module-features">
-                                <h5>Enthaltene Features:</h5>
-                                <ul>
-                                    <li>📧 Automatischer E-Mail-Versand an Lehrer</li>
-                                    <li>📋 Rundenergebnisse per E-Mail</li>
-                                    <li> E-Mail-Reports und Statistiken</li>
-                                    <li>⚙️ E-Mail-Konfiguration im Setup</li>
-                                </ul>
-                            </div>
-
-                            {!localConfig.emails && (
-                                <div className="module-warning">
-                                    <div className="warning-icon">⚠️</div>
-                                    <div className="warning-content">
-                                        <strong>Achtung bei Deaktivierung:</strong>
-                                        <p>Alle E-Mail-Funktionen werden deaktiviert. Lehrer erhalten keine automatischen Benachrichtigungen mehr über Rundenergebnisse.</p>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="module-card">
-                        <div className="module-card-header">
-                            <div className="module-icon">👨‍🏫</div>
-                            <div className="module-header-content">
-                                <h4 className="module-title">Lehrer-Modul</h4>
-                                <p className="module-subtitle">Lehrerverwaltung und -zuordnung</p>
-                            </div>
-                            <label className="module-toggle">
-                                <input
-                                    type="checkbox"
-                                    checked={localConfig.teachers}
-                                    onChange={(e) => handleModuleChange('teachers', e.target.checked)}
-                                    disabled={isLoading || configLoading}
-                                />
-                                <span className="toggle-slider"></span>
-                            </label>
-                        </div>
-
-                        <div className="module-card-content">
-                            <div className="module-features">
-                                <h5>Enthaltene Features:</h5>
-                                <ul>
-                                    <li>👨‍🏫 Lehrer-Verwaltungsseite</li>
-                                    <li>📧 E-Mail-Adressen der Lehrer verwalten</li>
-                                    <li>🏫 Klassenzuordnung zu Lehrern</li>
-                                    <li>⚙️ Lehrer-Setup im Setup-Bereich</li>
-                                    <li>📊 Lehrer-bezogene Funktionen</li>
-                                </ul>
-                            </div>
-
-                            {!localConfig.teachers && (
-                                <div className="module-warning">
-                                    <div className="warning-icon">⚠️</div>
-                                    <div className="warning-content">
-                                        <strong>Achtung bei Deaktivierung:</strong>
-                                        <p>Die komplette Lehrerverwaltung wird deaktiviert. E-Mail-Zuordnungen und Klassenzuweisungen werden ausgeblendet.</p>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="module-card">
-                        <div className="module-card-header">
-                            <div className="module-icon">🔒</div>
-                            <div className="module-header-content">
-                                <h4 className="module-title">Doppel-Scan-Schutz</h4>
-                                <p className="module-subtitle">Verhindert versehentliche Doppel-Scans</p>
-                            </div>
-                            <label className="module-toggle">
-                                <input
-                                    type="checkbox"
-                                    checked={localConfig.doubleScanPrevention?.enabled || false}
-                                    onChange={(e) => handleModuleChange('doubleScanPrevention', e.target.checked)}
-                                    disabled={isLoading || configLoading}
-                                />
-                                <span className="toggle-slider"></span>
-                            </label>
-                        </div>
-
-                        <div className="module-card-content">
-                            <div className="module-features">
-                                <h5>Enthaltene Features:</h5>
-                                <ul>
-                                    <li>⏱️ Konfigurierbarer Zeitabstand zwischen Scans</li>
-                                    <li>⚠️ Bestätigungsdialog oder komplette Blockierung</li>
-                                    <li>✅ Flexible Einstellungen pro Einsatz</li>
-                                    <li>🚫 Verhindert versehentliche Mehrfachscans</li>
-                                    <li>🎯 Präzise Rundenzählung</li>
-                                </ul>
-                            </div>
-
-                            {localConfig.doubleScanPrevention?.enabled && (
-                                <div className="module-sub-settings">
-                                    <h6 className="sub-settings-title">Doppel-Scan-Konfiguration:</h6>
-                                    
-                                    <div className="setting-row">
-                                        <label htmlFor="timeThreshold">Mindestabstand (Minuten):</label>
-                                        <input
-                                            id="timeThreshold"
-                                            type="number"
-                                            min="1"
-                                            max="60"
-                                            value={localConfig.doubleScanPrevention?.timeThresholdMinutes || 5}
-                                            onChange={(e) => handleDoubleScanConfigChange('timeThresholdMinutes', parseInt(e.target.value))}
-                                            disabled={isLoading || configLoading}
-                                            className="number-input"
-                                        />
-                                    </div>
-
-                                    <div className="setting-row">
-                                        <label>Verhalten bei Doppel-Scan:</label>
-                                        <div className="radio-group-compact">
-                                            <label className="radio-option-compact">
-                                                <input
-                                                    type="radio"
-                                                    name="doubleScanMode"
-                                                    value="confirm"
-                                                    checked={(localConfig.doubleScanPrevention?.mode || 'confirm') === 'confirm'}
-                                                    onChange={(e) => handleDoubleScanConfigChange('mode', e.target.value)}
-                                                    disabled={isLoading || configLoading}
-                                                />
-                                                <span className="radio-dot"></span>
-                                                <span className="radio-text">Nach Bestätigung wird Runde gezählt</span>
-                                            </label>
-                                            <label className="radio-option-compact">
-                                                <input
-                                                    type="radio"
-                                                    name="doubleScanMode"
-                                                    value="block"
-                                                    checked={(localConfig.doubleScanPrevention?.mode || 'confirm') === 'block'}
-                                                    onChange={(e) => handleDoubleScanConfigChange('mode', e.target.value)}
-                                                    disabled={isLoading || configLoading}
-                                                />
-                                                <span className="radio-dot"></span>
-                                                <span className="radio-text">Blockiert das Zählen der Runde</span>
-                                            </label>
-                                        </div>
-                                    </div>
-                                    
-                                    <p className="sub-settings-description">
-                                        <strong>Bestätigungsdialog:</strong> Scanner kann entscheiden, ob die Runde trotzdem gezählt wird.<br/>
-                                        <strong>Blockierung:</strong> Kein Dialog, Scan wird abgelehnt bis Zeitlimit erreicht ist.
-                                    </p>
-                                </div>
-                            )}
-
-                            {!localConfig.doubleScanPrevention?.enabled && (
-                                <div className="module-warning">
-                                    <div className="warning-icon">⚠️</div>
-                                    <div className="warning-content">
-                                        <strong>Hinweis bei Deaktivierung:</strong>
-                                        <p>Ohne Doppel-Scan-Schutz können Runden versehentlich mehrfach gescannt werden. Dies kann zu ungenauer Rundenzählung führen.</p>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                <div className="module-settings-footer">
-                    <div className="info-box">
-                        <div className="info-icon">💡</div>
-                        <div className="info-content">
-                            <strong>Hinweis zur Modul-Verwaltung:</strong>
-                            <p>
-                                Diese Einstellungen steuern die Verfügbarkeit von Features in der gesamten Anwendung.
-                                Deaktivierte Module werden sofort ausgeblendet und deren Funktionen sind nicht mehr zugänglich.
-                                Sie können Module jederzeit wieder aktivieren.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </BaseDialog>
-    );
+                </section>;
+            })}
+        </div>
+    </BaseDialog>;
 };
 
 export default ModuleSettingsDialog;

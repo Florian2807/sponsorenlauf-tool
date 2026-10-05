@@ -153,6 +153,7 @@ export const getModuleConfig = async () => {
             donations: moduleConfig.donations ?? true,
             emails: moduleConfig.emails ?? true,
             teachers: moduleConfig.teachers ?? true,
+            scannerStations: moduleConfig.scannerStations === true,
             doubleScanPrevention: {
                 enabled: moduleConfig.doubleScanPrevention?.enabled ?? true,
                 timeThresholdMinutes: moduleConfig.doubleScanPrevention?.timeThresholdMinutes ?? 5,
@@ -169,6 +170,7 @@ export const getModuleConfig = async () => {
             donations: true,
             emails: true,
             teachers: true,
+            scannerStations: false,
             doubleScanPrevention: {
                 enabled: true,
                 timeThresholdMinutes: 5,

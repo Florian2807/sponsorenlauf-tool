@@ -28,7 +28,7 @@ export default function Setup() {
 
     const { request } = useApi();
     const { showError, showSuccess } = useGlobalError();
-    const { isDonationsEnabled, isEmailsEnabled, isTeachersEnabled } = useModuleConfig();
+    const { config, isDonationsEnabled, isEmailsEnabled, isTeachersEnabled } = useModuleConfig();
     const { loading, executeAsync } = useAsyncOperation({
         upload: false,
         labels: false,
@@ -395,6 +395,11 @@ export default function Setup() {
                                 <span className="setup-btn-icon">🔧</span>
                                 <span className="setup-btn-text">Module verwalten</span>
                             </button>
+
+                            {config.scannerStations && <button type="button" onClick={() => router.push('/stations')} className="setup-action-btn">
+                                <span className="setup-btn-icon"><i className="fa-solid fa-laptop" aria-hidden="true" /></span>
+                                <span className="setup-btn-text">Scanner-Stationen</span>
+                            </button>}
 
                             <button
                                 onClick={() => openDialog('smtpSettings')}

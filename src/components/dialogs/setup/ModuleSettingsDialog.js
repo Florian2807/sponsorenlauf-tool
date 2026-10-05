@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import BaseDialog from '../../BaseDialog';
 import { useGlobalError } from '../../../contexts/ErrorContext';
 import { useModuleConfig } from '../../../contexts/ModuleConfigContext';
 import { useDonationDisplayMode } from '../../../contexts/DonationDisplayModeContext';
 
 const ModuleSettingsDialog = ({ dialogRef }) => {
+    const router = useRouter();
     const [localConfig, setLocalConfig] = useState({
         donations: true,
         emails: true,
         teachers: true,
+        scannerStations: false,
         doubleScanPrevention: {
             enabled: true,
             timeThresholdMinutes: 5,
@@ -19,7 +22,7 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
     const [isLoading, setIsLoading] = useState(false);
 
     const { showError, showSuccess } = useGlobalError();
-    const { config: globalConfig, updateConfig } = useModuleConfig();
+    const { config: globalConfig, updateConfig, isLoading: configLoading } = useModuleConfig();
     const { mode: globalDonationMode, updateMode: updateDonationMode } = useDonationDisplayMode();
 
     // Load current settings when dialog opens
@@ -44,15 +47,16 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
         setLocalDonationMode(globalDonationMode);
     }, [globalConfig, globalDonationMode]);
 
-    const handleSave = async () => {
+    const handleSave = async (destination = null) => {
         try {
             setIsLoading(true);
             await updateConfig(localConfig);
             if (localConfig.donations) {
                 await updateDonationMode(localDonationMode);
             }
-            showSuccess('Modul-Einstellungen erfolgreich gespeichert', 'Einstellungen');
+            if (typeof destination !== 'string') showSuccess('Modul-Einstellungen erfolgreich gespeichert', 'Einstellungen');
             dialogRef.current.close();
+            if (typeof destination === 'string') await router.push(destination);
         } catch (error) {
             showError(error, 'Beim Speichern der Modul-Einstellungen');
         } finally {
@@ -99,14 +103,14 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
             label: 'Abbrechen',
             position: 'left',
             onClick: handleClose,
-            disabled: isLoading
+            disabled: isLoading || configLoading
         },
         {
             label: isLoading ? 'Speichere...' : 'Speichern',
             variant: 'success',
             position: 'right',
             onClick: handleSave,
-            disabled: isLoading
+            disabled: isLoading || configLoading
         }
     ];
 
@@ -131,6 +135,26 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
                 <div className="module-settings-grid">
                     <div className="module-card">
                         <div className="module-card-header">
+                            <div className="module-icon">💻</div>
+                            <div className="module-header-content">
+                                <h4 className="module-title">Scanner-Stationen</h4>
+                                <p className="module-subtitle">Benannte Stationen mit Klassen- und Jahrgangsregeln</p>
+                            </div>
+                            <label className="module-toggle">
+                                <input type="checkbox" aria-label="Scanner-Stationen aktivieren" checked={localConfig.scannerStations === true}
+                                    onChange={(event) => handleModuleChange('scannerStations', event.target.checked)} disabled={isLoading || configLoading} />
+                                <span className="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div className="module-card-content">
+                            <p>Standardmäßig deaktiviert. Mehrere Laptops können dieselbe Station verwenden. Jeder Helfer kann die Stationsregeln einstellen.</p>
+                            <button type="button" className="btn btn-secondary" disabled={isLoading || configLoading}
+                                onClick={() => handleSave('/stations')}>Speichern & Stationen einrichten</button>
+                        </div>
+                    </div>
+
+                    <div className="module-card">
+                        <div className="module-card-header">
                             <div className="module-icon">💰</div>
                             <div className="module-header-content">
                                 <h4 className="module-title">Spenden-Modul</h4>
@@ -141,7 +165,7 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
                                     type="checkbox"
                                     checked={localConfig.donations}
                                     onChange={(e) => handleModuleChange('donations', e.target.checked)}
-                                    disabled={isLoading}
+                                    disabled={isLoading || configLoading}
                                 />
                                 <span className="toggle-slider"></span>
                             </label>
@@ -180,7 +204,7 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
                                                 value="expected"
                                                 checked={localDonationMode === 'expected'}
                                                 onChange={(e) => setLocalDonationMode(e.target.value)}
-                                                disabled={isLoading}
+                                                disabled={isLoading || configLoading}
                                             />
                                             <span className="radio-dot"></span>
                                             <span className="radio-text">Erwartete Spenden anzeigen</span>
@@ -192,7 +216,7 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
                                                 value="received"
                                                 checked={localDonationMode === 'received'}
                                                 onChange={(e) => setLocalDonationMode(e.target.value)}
-                                                disabled={isLoading}
+                                                disabled={isLoading || configLoading}
                                             />
                                             <span className="radio-dot"></span>
                                             <span className="radio-text">Erhaltene Spenden anzeigen</span>
@@ -218,7 +242,7 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
                                     type="checkbox"
                                     checked={localConfig.emails}
                                     onChange={(e) => handleModuleChange('emails', e.target.checked)}
-                                    disabled={isLoading}
+                                    disabled={isLoading || configLoading}
                                 />
                                 <span className="toggle-slider"></span>
                             </label>
@@ -259,7 +283,7 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
                                     type="checkbox"
                                     checked={localConfig.teachers}
                                     onChange={(e) => handleModuleChange('teachers', e.target.checked)}
-                                    disabled={isLoading}
+                                    disabled={isLoading || configLoading}
                                 />
                                 <span className="toggle-slider"></span>
                             </label>
@@ -301,7 +325,7 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
                                     type="checkbox"
                                     checked={localConfig.doubleScanPrevention?.enabled || false}
                                     onChange={(e) => handleModuleChange('doubleScanPrevention', e.target.checked)}
-                                    disabled={isLoading}
+                                    disabled={isLoading || configLoading}
                                 />
                                 <span className="toggle-slider"></span>
                             </label>
@@ -332,7 +356,7 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
                                             max="60"
                                             value={localConfig.doubleScanPrevention?.timeThresholdMinutes || 5}
                                             onChange={(e) => handleDoubleScanConfigChange('timeThresholdMinutes', parseInt(e.target.value))}
-                                            disabled={isLoading}
+                                            disabled={isLoading || configLoading}
                                             className="number-input"
                                         />
                                     </div>
@@ -347,7 +371,7 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
                                                     value="confirm"
                                                     checked={(localConfig.doubleScanPrevention?.mode || 'confirm') === 'confirm'}
                                                     onChange={(e) => handleDoubleScanConfigChange('mode', e.target.value)}
-                                                    disabled={isLoading}
+                                                    disabled={isLoading || configLoading}
                                                 />
                                                 <span className="radio-dot"></span>
                                                 <span className="radio-text">Nach Bestätigung wird Runde gezählt</span>
@@ -359,7 +383,7 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
                                                     value="block"
                                                     checked={(localConfig.doubleScanPrevention?.mode || 'confirm') === 'block'}
                                                     onChange={(e) => handleDoubleScanConfigChange('mode', e.target.value)}
-                                                    disabled={isLoading}
+                                                    disabled={isLoading || configLoading}
                                                 />
                                                 <span className="radio-dot"></span>
                                                 <span className="radio-text">Blockiert das Zählen der Runde</span>

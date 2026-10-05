@@ -1,13 +1,16 @@
 /* eslint-disable @next/next/no-img-element */
+import ScannerStationMenu from './ScannerStationMenu';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useState, useEffect } from 'react';
 import styles from '../styles/Topbar.module.css';
+import { useModuleConfig } from '../contexts/ModuleConfigContext';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
 
 export default function Topbar() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const router = useRouter();
+  const { config } = useModuleConfig();
   const { authenticated, logout } = useAdminAuth();
 
   const applyTheme = (darkMode, persist = false) => {
@@ -78,6 +81,9 @@ export default function Topbar() {
         </div>
       </nav>
 
+      {router.pathname === '/scan' && config.scannerStations && (
+        <div className={styles.stationSlot}><ScannerStationMenu /></div>
+      )}
       <div className={styles.headerActions}>
         {authenticated && (
           <button

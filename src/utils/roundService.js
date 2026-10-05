@@ -1,4 +1,5 @@
-import { dbImmediateTransaction, dbTransaction } from './database.js';
+import { stationAllowsClass } from './stationRules.js';
+import { dbTransaction } from './database.js';
 
 const dbGet = (db, query, params = []) => new Promise((resolve, reject) => {
     db.get(query, params, (error, row) => {
@@ -42,6 +43,8 @@ export const recordRound = async ({
     doubleScanPrevention,
     scanId = null,
     sourceDeviceId = null,
+    scannerStations = false,
+    sourceStationId = null,
     now = new Date(),
 }) => dbTransaction(async (db) => {
     const timestamp = now.toISOString();
@@ -58,6 +61,9 @@ export const recordRound = async ({
             SELECT
                 r.id AS roundId,
                 r.timestamp AS roundTimestamp,
+                r.source_station_id AS sourceStationId,
+                r.source_station_name AS sourceStationName,
+                r.station_warning AS stationWarning,
                 s.id AS studentId,
                 s.vorname,
                 s.nachname,
@@ -83,12 +89,16 @@ export const recordRound = async ({
                 roundId,
                 roundTimestamp: existingTimestamp,
                 studentId: existingStudentId,
+                sourceStationId: existingStationId,
+                sourceStationName: existingStationName,
+                stationWarning: existingWarning,
                 ...studentData
             } = existingScan;
             return {
                 accepted: true,
                 idempotentReplay: true,
-                round: { id: roundId, timestamp: existingTimestamp },
+                round: { id: roundId, timestamp: existingTimestamp, sourceStationId: existingStationId, sourceStationName: existingStationName },
+                stationWarning: existingWarning,
                 student: { id: existingStudentId, ...studentData },
                 wasDoubleScan: false,
             };
@@ -110,10 +120,32 @@ export const recordRound = async ({
         });
     }
 
+    let station = null;
+    let stationWarning = null;
+    if (scannerStations) {
+        station = await dbGet(db, 'SELECT * FROM scanner_stations WHERE id = ? FOR SHARE', [sourceStationId || 'default']);
+        if (!station) throw new RoundServiceError('Scanner-Station nicht gefunden. Bitte Station erneut auswählen.', {
+            code: 'STATION_NOT_FOUND', status: 400,
+        });
+        station.classes = JSON.parse(station.classes);
+        station.grades = JSON.parse(station.grades);
+        const classRow = await dbGet(db, 'SELECT grade FROM classes WHERE class_name = ?', [student.klasse]);
+        const structureRow = await dbGet(db, "SELECT value FROM settings WHERE key = 'class_structure'");
+        const structure = structureRow ? JSON.parse(structureRow.value) : {};
+        const grade = Object.entries(structure).find(([, classes]) => Array.isArray(classes) && classes.includes(student.klasse))?.[0]
+            || classRow?.grade || student.klasse?.match(/^\d+/)?.[0] || 'Sonstige';
+        if (!stationAllowsClass(station, student.klasse, grade)) {
+            stationWarning = `Klasse ${student.klasse} ist der Scanner-Station „${station.name}“ nicht zugeordnet.`;
+            if (station.mode === 'block') throw new RoundServiceError(stationWarning + ' Keine Runde gezählt.', {
+                code: 'STATION_CLASS_BLOCKED', status: 400, details: { student },
+            });
+        }
+    }
+
     // ID order represents acceptance order and is robust against legacy client
     // clocks that may have stored timestamps in the past or future.
     const lastRound = await dbGet(db, `
-        SELECT id, timestamp
+        SELECT id, timestamp, source_station_name
         FROM rounds
         WHERE student_id = ?
         ORDER BY id DESC
@@ -138,20 +170,22 @@ export const recordRound = async ({
             blocked: prevention.mode === 'block',
             student,
             lastRoundTime: lastRound.timestamp,
+            lastStationName: scannerStations ? lastRound.source_station_name : null,
             timeDifferenceMs,
             thresholdMinutes: prevention.timeThresholdMinutes,
         };
     }
 
     const insert = await dbRun(db, `
-        INSERT INTO rounds (timestamp, student_id, scan_id, source_device_id, recorded_at)
-        VALUES (?, ?, ?, ?, ?)
-    `, [timestamp, studentId, scanId, sourceDeviceId, timestamp]);
+        INSERT INTO rounds (timestamp, student_id, scan_id, source_device_id, recorded_at, source_station_id, source_station_name, station_warning)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `, [timestamp, studentId, scanId, sourceDeviceId, timestamp, station?.id || null, station?.name || null, stationWarning]);
 
     return {
         accepted: true,
         idempotentReplay: false,
-        round: { id: insert.lastID, timestamp },
+        round: { id: insert.lastID, timestamp, sourceStationId: station?.id || null, sourceStationName: station?.name || null },
+        stationWarning,
         student: {
             ...student,
             roundCount: Number(student.roundCount) + 1,

@@ -383,7 +383,7 @@ const getReplacementsByStudentId = async (studentId) => {
 
 export const getRoundRecordsByStudentId = async (studentId) => (
     await dbAll(
-        'SELECT id, timestamp FROM rounds WHERE student_id = ? ORDER BY id DESC',
+        'SELECT id, timestamp, source_station_id AS "sourceStationId", source_station_name AS "sourceStationName" FROM rounds WHERE student_id = ? ORDER BY id DESC',
         [studentId]
     )
 );

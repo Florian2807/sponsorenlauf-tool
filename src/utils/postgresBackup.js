@@ -52,11 +52,14 @@ export const restorePostgresBackup = async (filename, { beforeReplace } = {}) =>
     const pg = await import('pg');
     const config = postgresConfig();
     const parsed = config.connectionString ? new URL(config.connectionString) : null;
-    const staging = new pg.default.Pool({ ...config, connectionString: parsed
+    // Client.end() waits for the connection to close. Pool.end() can resolve
+    // while idle connections are still closing, racing DROP DATABASE below.
+    const staging = new pg.default.Client({ ...config, connectionString: parsed
         ? (() => { parsed.pathname = '/' + name; return parsed.toString(); })() : undefined,
-        database: name, max: 1 });
+        database: name });
     let client;
     try {
+        await staging.connect();
         await tool('pg_restore', ['--exit-on-error', '--no-owner', '--no-privileges'], buffer, name);
         const version = await staging.query('SELECT MAX(version) AS version FROM schema_migrations');
         const current = await pool.query('SELECT MAX(version) AS version FROM schema_migrations');

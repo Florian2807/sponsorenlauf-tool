@@ -45,7 +45,7 @@ export default function Alert({
   ].filter(Boolean).join(' ');
 
   return (
-    <div className={classes} role="alert" {...props}>
+    <div className={classes} role={variant === 'error' ? 'alert' : 'status'} {...props}>
       <span className="alert-icon" aria-hidden="true">
         {icon || getDefaultIcon()}
       </span>
@@ -55,7 +55,7 @@ export default function Alert({
           type="button"
           className="alert-close"
           onClick={onDismiss}
-          aria-label="Close alert"
+          aria-label="Hinweis schließen"
         >
           ×
         </button>

@@ -30,6 +30,7 @@ const DoubleScanConfirmationDialog = ({
     },
     {
       label: 'Runde trotzdem zählen',
+      primary: true,
       onClick: onConfirm,
       variant: 'primary',
       position: 'right'

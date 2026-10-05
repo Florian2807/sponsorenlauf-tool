@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { API_ENDPOINTS, downloadFile } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
@@ -14,37 +14,102 @@ import CombinedImportDialog from '../components/dialogs/setup/CombinedImportDial
 import ModuleSettingsDialog from '../components/dialogs/setup/ModuleSettingsDialog';
 import OperationsDialog from '../components/dialogs/setup/OperationsDialog';
 import SmtpSettingsDialog from '../components/dialogs/setup/SmtpSettingsDialog';
+import { PanelNavigationContext } from '../contexts/PanelNavigationContext';
+import StationsPanel from '../components/admin/StationsPanel';
+import TeachersPanel from '../components/admin/TeachersPanel';
+import MailsPanel from '../components/admin/MailsPanel';
+import DonationsEntry from '../components/admin/DonationsEntry';
 
 export default function Setup() {
     const router = useRouter();
-    const [insertedCount, setInsertedCount] = useState(0);
     const [replacementAmount, setReplacementAmount] = useState(0);
     const [classes, setClasses] = useState([]);
     const [selectedClasses, setSelectedClasses] = useState([]);
     const [classStructure, setClassStructure] = useState({});
-    const [tempClassStructure, setTempClassStructure] = useState({});
-    const [exportDialogOpen, setExportDialogOpen] = useState(false);
-    const [stats, setStats] = useState(null);
+    const [classStructureLoaded, setClassStructureLoaded] = useState(false);
+    const [menuOpen, setMenuOpen] = useState(false);
+    const [panelBusy, setPanelBusy] = useState(false);
+    const [visitedViews, setVisitedViews] = useState(['moduleSettings']);
+    const [versions, setVersions] = useState({});
+    const [editorState, setEditorState] = useState({});
+    const [savingEditor, setSavingEditor] = useState(null);
+    const editors = useRef(new Map());
+    const savingRef = useRef(false);
+    const menuButtonRef = useRef(null);
+    const validViews = ['moduleSettings', 'classStructure', 'combinedImport', 'generateLabels', 'advancedExport', 'smtpSettings', 'operations', 'detailedDelete', 'stations', 'teachers', 'mails', 'donations'];
+    const activeView = validViews.includes(router.query.view) ? router.query.view : 'moduleSettings';
 
     const { request } = useApi();
     const { showError, showSuccess } = useGlobalError();
     const { config, isDonationsEnabled, isEmailsEnabled, isTeachersEnabled } = useModuleConfig();
     const { loading, executeAsync } = useAsyncOperation({
-        upload: false,
         labels: false,
-        replacement: false,
-        downloadResults: false
+        export: false
     });
 
-    // Dialog-Management
-    const { refs: dialogRefs, openDialog, closeDialog } = useDialogs([
+    // DOM references for the editors shared with modal screens.
+    const { refs: dialogRefs } = useDialogs([
         'generateLabels', 'detailedDelete',
         'classStructure', 'combinedImport', 'moduleSettings', 'smtpSettings', 'operations'
     ]);
 
+    const openDialog = useCallback((view) => {
+        setMenuOpen(false);
+        return router.push({ pathname: '/setup', query: { view } }, undefined, { shallow: true });
+    }, [router]);
+    const closeDialog = useCallback(() => {}, []);
+    const registerEditor = useCallback((id, editor) => {
+        editors.current.set(id, editor);
+        setEditorState(current => ({ ...current, [id]: { label: editor.label, view: editor.view, dirty: false, disabled: false } }));
+        return () => {
+            editors.current.delete(id);
+            setEditorState(current => {
+                const next = { ...current };
+                delete next[id];
+                return next;
+            });
+        };
+    }, []);
+    const updateEditor = useCallback((id, patch) => {
+        setEditorState(current => {
+            if (!current[id] || Object.entries(patch).every(([key, value]) => current[id][key] === value)) return current;
+            return { ...current, [id]: { ...current[id], ...patch } };
+        });
+    }, []);
+    const dirtyEditors = Object.entries(editorState).filter(([, editor]) => editor.dirty);
+    const busy = panelBusy || Boolean(savingEditor);
+    const saveEditor = useCallback(async id => {
+        const editor = editorState[id];
+        if (savingRef.current || !editor?.dirty || editor.disabled) return;
+        savingRef.current = true;
+        setSavingEditor(id);
+        updateEditor(id, { message: '' });
+        try {
+            const success = await editors.current.get(id)?.save() === true;
+            updateEditor(id, success ? { dirty: false, message: 'Änderungen gespeichert.' } : { message: 'Nicht gespeichert. Deine Änderungen bleiben erhalten.' });
+        } catch {
+            updateEditor(id, { message: 'Nicht gespeichert. Deine Änderungen bleiben erhalten.' });
+        } finally { savingRef.current = false; setSavingEditor(null); }
+    }, [editorState, updateEditor]);
+    const discardEditor = useCallback(id => {
+        const view = editorState[id]?.view;
+        if (view) setVersions(current => ({ ...current, [view]: (current[view] || 0) + 1 }));
+    }, [editorState]);
+    const panelNavigation = useMemo(() => ({ persistDrafts: true, hideBack: true, onExit: closeDialog, onBusyChange: setPanelBusy, registerEditor, updateEditor, editorState, saveEditor, discardEditor, openView: openDialog }), [closeDialog, registerEditor, updateEditor, editorState, saveEditor, discardEditor, openDialog]);
+    useEffect(() => {
+        setVisitedViews(current => current.includes(activeView) ? current : [...current, activeView]);
+        if (['stations', 'teachers', 'mails', 'donations'].includes(activeView)) {
+            const frame = requestAnimationFrame(() => {
+                const heading = document.querySelector('.setup-view:not([hidden]) .page-title, .setup-view:not([hidden]) .mail-header-title, .setup-view:not([hidden]) .stations-page-header h1');
+                if (heading && !heading.closest('.setup-view').contains(document.activeElement)) { heading.tabIndex = -1; heading.focus(); }
+            });
+            return () => cancelAnimationFrame(frame);
+        }
+    }, [activeView]);
     useEffect(() => {
         if (router.isReady && router.query.smtp === '1') openDialog('smtpSettings');
     }, [openDialog, router.isReady, router.query.smtp]);
+    useEffect(() => { if (router.query.tour === '1') setMenuOpen(true); }, [router.query.tour]);
 
     // Fetch-Funktionen mit useCallback für stabile Referenzen
     const fetchClasses = useCallback(async () => {
@@ -62,6 +127,7 @@ export default function Setup() {
         try {
             const data = await request(API_ENDPOINTS.CLASS_STRUCTURE);
             setClassStructure(data);
+            setClassStructureLoaded(true);
             setSelectedClasses(Object.values(data).flat());
         } catch (error) {
             showError(error, 'Beim Abrufen der Klassenstruktur');
@@ -74,8 +140,6 @@ export default function Setup() {
     }, [fetchClasses, fetchClassStructure]);
 
     const handleImportSuccess = (count, type) => {
-        setInsertedCount(count);
-        closeDialog('combinedImport');
         fetchClasses(); // Refresh classes in case new ones were added
         showSuccess(`${count} ${type === 'students' ? 'Schüler' : 'Lehrer'} erfolgreich importiert`, 'Daten-Import');
     };
@@ -103,12 +167,9 @@ export default function Setup() {
     }, [replacementAmount, selectedClasses, request, executeAsync, showSuccess]);
 
     const handleDeleteSuccess = useCallback(() => {
-        closeDialog('detailedDelete');
         fetchClasses();
         fetchClassStructure();
-        setInsertedCount(0);
-        showSuccess('Löschvorgang erfolgreich abgeschlossen.', 'Daten gelöscht');
-    }, [closeDialog, fetchClasses, fetchClassStructure, showSuccess]);
+    }, [fetchClasses, fetchClassStructure]);
 
     const handleExport = useCallback(async (exportData) => {
         try {
@@ -161,15 +222,15 @@ export default function Setup() {
                 showSuccess('Export erfolgreich erstellt');
             }
 
-            setExportDialogOpen(false);
+            closeDialog();
         } catch (error) {
             showError(error, 'Beim Export der Auswertung');
         }
-    }, [request, showError, showSuccess]);
+    }, [request, showError, showSuccess, closeDialog]);
 
     const handleExportButtonClick = useCallback(() => {
-        setExportDialogOpen(true);
-    }, []);
+        openDialog('advancedExport');
+    }, [openDialog]);
 
     const handleClassSelection = (e) => {
         const value = e.target.value;
@@ -187,308 +248,124 @@ export default function Setup() {
     };
 
     const openClassStructurePopup = () => {
-        setTempClassStructure(JSON.parse(JSON.stringify(classStructure)));
         openDialog('classStructure');
     };
 
-    const handleGradeNameChange = (oldGrade, newGrade) => {
-        if (oldGrade === newGrade || !newGrade.trim()) return;
-
-        // Erstelle neue Struktur und ersetze den Grade-Namen
-        const newStructure = {};
-        Object.keys(tempClassStructure).forEach(grade => {
-            if (grade === oldGrade) {
-                newStructure[newGrade] = tempClassStructure[oldGrade];
-            } else {
-                newStructure[grade] = tempClassStructure[grade];
-            }
-        });
-
-        setTempClassStructure(newStructure);
-    };
-
-    const addGrade = () => {
-        const newGrade = `Jahrgang ${Object.keys(tempClassStructure).length + 1}`;
-        setTempClassStructure({
-            ...tempClassStructure,
-            [newGrade]: []
-        });
-    };
-
-    const removeGrade = (grade) => {
-        const newStructure = { ...tempClassStructure };
-        delete newStructure[grade];
-        setTempClassStructure(newStructure);
-    };
-
-    const addClassToGrade = (grade) => {
-        setTempClassStructure({
-            ...tempClassStructure,
-            [grade]: [...(tempClassStructure[grade] || []), `${grade}${String.fromCharCode(97 + tempClassStructure[grade].length)}`]
-        });
-    };
-
-    const removeClassFromGrade = (grade, classIndex) => {
-        const newClasses = tempClassStructure[grade].filter((_, index) => index !== classIndex);
-        setTempClassStructure({
-            ...tempClassStructure,
-            [grade]: newClasses
-        });
-    };
-
-    const handleClassNameChange = (grade, classIndex, newName) => {
-        const newClasses = [...tempClassStructure[grade]];
-        newClasses[classIndex] = newName;
-        setTempClassStructure({
-            ...tempClassStructure,
-            [grade]: newClasses
-        });
-    };
-
-    const saveClassStructure = useCallback(async () => {
+    const saveClassStructure = useCallback(async (structure) => {
         try {
             const data = await request(API_ENDPOINTS.CLASS_STRUCTURE, {
                 method: 'PUT',
-                data: { availableClasses: tempClassStructure },
+                data: { availableClasses: structure },
                 errorContext: 'Beim Speichern der Klassenstruktur'
             });
 
             if (data.success) {
-                setClassStructure(tempClassStructure);
-                setSelectedClasses(Object.values(tempClassStructure).flat());
+                setClassStructure(structure);
+                setClasses(Object.values(structure).flat());
+                setSelectedClasses(Object.values(structure).flat());
                 showSuccess('Klassenstruktur erfolgreich gespeichert.', 'Klassenstruktur');
-                closeDialog('classStructure');
+                return true;
             }
         } catch (error) {
             // Fehler wird automatisch über useApi gehandelt
         }
-    }, [closeDialog, request, tempClassStructure, showSuccess]);
+    }, [request, showSuccess]);
 
-    return (
-        <div className="page-container-extra-wide">
-            <div className="setup-header">
-                <h1 className="setup-title">Setup & Verwaltung</h1>
-                <p className="setup-subtitle">Verwalten Sie Ihre Sponsorenlauf-Daten und -Einstellungen</p>
+    const sections = [
+        {
+            id: 'configuration', title: 'Lauf einrichten',
+            description: 'Funktionen auswählen und den Scanbetrieb vorbereiten.',
+            actions: [
+                { view: 'moduleSettings', title: 'Module verwalten', description: 'Funktionen und Doppel-Scan-Schutz festlegen.', icon: 'puzzle-piece', tour: 'modules', onClick: () => openDialog('moduleSettings') },
+                { view: 'classStructure', title: 'Klassenstruktur', description: 'Jahrgänge und Klassen anlegen.', icon: 'school', tour: 'classes', onClick: openClassStructurePopup, disabled: !classStructureLoaded },
+                ...(config.scannerStations ? [{ view: 'stations', title: 'Scanner-Stationen', icon: 'laptop', onClick: () => openDialog('stations') }] : []),
+            ],
+        },
+        {
+            id: 'participants', title: 'Teilnehmer & Etiketten',
+            description: 'Daten hinzufügen und Barcodes für den Lauf erstellen.',
+            actions: [
+                { view: 'combinedImport', title: 'Daten importieren', description: 'Schüler- und Lehrerdaten eingeben oder aus einer Datei laden.', icon: 'file-import', onClick: () => openDialog('combinedImport') },
+                ...(isTeachersEnabled ? [{ view: 'teachers', title: 'Lehrer verwalten', icon: 'chalkboard-user', onClick: () => openDialog('teachers') }] : []),
+                { view: 'generateLabels', title: 'Etiketten generieren', description: 'Barcode-Etiketten für Schüler und Ersatz-IDs drucken.', icon: 'tags', onClick: () => openDialog('generateLabels'), disabled: loading.labels },
+            ],
+        },
+        {
+            id: 'results', title: 'Ergebnisse',
+            description: 'Ergebnisse exportieren und weitergeben.',
+            actions: [
+                { view: 'advancedExport', title: 'Auswertungen exportieren', description: 'Ergebnisse als Datei herunterladen.', icon: 'chart-column', onClick: handleExportButtonClick },
+                ...(isDonationsEnabled ? [{ view: 'donations', title: 'Spenden eintragen', icon: 'coins', onClick: () => openDialog('donations') }] : []),
+                ...(isEmailsEnabled ? [{ view: 'mails', title: 'Ergebnisse versenden', icon: 'envelope', onClick: () => openDialog('mails') }] : []),
+            ],
+        },
+        {
+            id: 'system', title: 'System & Versand',
+            description: 'Versand einrichten und den zuverlässigen Betrieb prüfen.',
+            actions: [
+                { view: 'smtpSettings', title: 'Versand einrichten', description: 'Microsoft 365 oder SMTP einrichten und testen.', icon: 'envelope-open-text', tour: 'smtp', onClick: () => openDialog('smtpSettings') },
+                { view: 'operations', title: 'System Check, Backups & Wartung', description: 'System prüfen, Daten sichern und Updates verwalten.', icon: 'shield-halved', tour: 'operations', onClick: () => openDialog('operations') },
+            ],
+        },
+    ];
+
+    const contentFor = view => {
+        switch (view) {
+            case 'moduleSettings': return <ModuleSettingsDialog dialogRef={dialogRefs.moduleSettingsRef} />;
+            case 'classStructure': return classStructureLoaded ? <ClassStructureDialog dialogRef={dialogRefs.classStructureRef} tempClassStructure={classStructure} saveClassStructure={saveClassStructure} /> : <p role="status">Klassenstruktur wird geladen…</p>;
+            case 'smtpSettings': return <SmtpSettingsDialog dialogRef={dialogRefs.smtpSettingsRef} />;
+            case 'operations': return <OperationsDialog dialogRef={dialogRefs.operationsRef} />;
+            case 'stations': return <StationsPanel embedded />;
+            case 'teachers': return <PanelNavigationContext.Provider value={null}><TeachersPanel embedded active={activeView === view} /></PanelNavigationContext.Provider>;
+            case 'mails': return <PanelNavigationContext.Provider value={null}><MailsPanel embedded active={activeView === view} /></PanelNavigationContext.Provider>;
+            case 'donations': return <DonationsEntry />;
+            case 'combinedImport': return <CombinedImportDialog dialogRef={dialogRefs.combinedImportRef} onImportSuccess={handleImportSuccess} onClose={closeDialog} />;
+            case 'detailedDelete': return <DetailedDeleteDialog dialogRef={dialogRefs.detailedDeleteRef} onDeleteSuccess={handleDeleteSuccess} />;
+            case 'advancedExport': return <AdvancedExportDialog onClose={closeDialog} onExport={data => executeAsync(() => handleExport(data), 'export')} showSpendenExport={isDonationsEnabled} loading={loading.export} />;
+            case 'generateLabels': return <GenerateLabelsDialog dialogRef={dialogRefs.generateLabelsRef} replacementAmount={replacementAmount} setReplacementAmount={setReplacementAmount} handleSelectAll={handleSelectAll} handleDeselectAll={handleDeselectAll} classes={classes} selectedClasses={selectedClasses} handleClassSelection={handleClassSelection} loading={loading} handleGenerateLabels={handleGenerateLabels} />;
+            default: return null;
+        }
+    };
+    const unavailable = view => (view === 'teachers' && !isTeachersEnabled) || (view === 'mails' && !isEmailsEnabled) || (view === 'donations' && !isDonationsEnabled);
+    const mountedViews = [...new Set([...visitedViews, activeView])];
+
+    return <div className="app-page page-container-extra-wide setup-dashboard setup-workspace">
+        <div className="setup-header">
+            <div><h1 className="setup-title">Setup & Verwaltung</h1><p className="setup-subtitle">Einstellungen und Verwaltung an einem Ort.</p></div>
+            <div className="setup-workspace-tools">
+                <button ref={menuButtonRef} type="button" className="btn btn-secondary setup-menu-toggle" aria-expanded={menuOpen} aria-controls="setup-navigation" disabled={busy} onClick={() => {
+                    setMenuOpen(value => !value);
+                    if (!menuOpen) requestAnimationFrame(() => document.querySelector('#setup-navigation button:not(:disabled)')?.focus());
+                }}><i className="fa-solid fa-bars" aria-hidden="true" /> Bereiche</button>
+                <button type="button" className="btn btn-secondary" disabled={busy || dirtyEditors.length > 0} onClick={() => router.push('/setup?tour=1')}><i className="fa-solid fa-compass" aria-hidden="true" /> Einführung starten</button>
             </div>
-
-            <div className="setup-grid">
-                <div className="setup-card">
-                    <div className="setup-card-header">
-                        <h2 className="setup-card-title">📊 Datenbank</h2>
-                        <p className="setup-card-description">Verwalten Sie Schüler, Lehrer und Klassenstrukturen</p>
-                    </div>
-                    <div className="setup-card-content">
-                        <div className="setup-actions">
-                            {isTeachersEnabled && (
-                                <button
-                                    onClick={() => window.open('/teachers', '_self')}
-                                    className="setup-action-btn"
-                                    title="Konfiguriere die E-Mail-Adressen und Klassen der Lehrer."
-                                >
-                                    <span className="setup-btn-icon">👨‍🏫</span>
-                                    <span className="setup-btn-text">Lehrer Verwaltung</span>
-                                </button>
-                            )}
-
-                            <button
-                                onClick={openClassStructurePopup}
-                                className="setup-action-btn"
-                                data-tour="classes"
-                                title="Konfiguriere die Struktur der Jahrgänge und Klassen."
-                            >
-                                <span className="setup-btn-icon">🏫</span>
-                                <span className="setup-btn-text">Klassenstruktur</span>
-                            </button>
-
-                            <button
-                                onClick={() => openDialog('combinedImport')}
-                                className="setup-action-btn"
-                                disabled={loading.upload}
-                            >
-                                <span className="setup-btn-icon">📥</span>
-                                <span className="setup-btn-text">Daten importieren</span>
-                            </button>
-
-                            <button
-                                onClick={() => openDialog('detailedDelete')}
-                                className="setup-action-btn setup-action-btn-danger"
-                                title="Erweiterte Löschoptionen - wählen Sie detailliert aus, welche Daten gelöscht werden sollen."
-                            >
-                                <span className="setup-btn-icon">🗑️</span>
-                                <span className="setup-btn-text">Daten löschen</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="setup-card">
-                    <div className="setup-card-header">
-                        <h2 className="setup-card-title">🏷️ Etiketten</h2>
-                        <p className="setup-card-description">Generieren Sie Barcode-Etiketten für den Sponsorenlauf</p>
-                    </div>
-                    <div className="setup-card-content">
-                        <div className="setup-actions">
-                            <button
-                                onClick={() => openDialog('generateLabels')}
-                                className="setup-action-btn"
-                                disabled={loading.replacement}
-                            >
-                                <span className="setup-btn-icon">📄</span>
-                                <span className="setup-btn-text">Etiketten generieren</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="setup-card">
-                    <div className="setup-card-header">
-                        <h2 className="setup-card-title">📈 Auswertungen</h2>
-                        <p className="setup-card-description">Exportieren und versenden Sie Ergebnisse</p>
-                    </div>
-                    <div className="setup-card-content">
-                        <div className="setup-actions">
-                            {isEmailsEnabled && (
-                                <button
-                                    onClick={() => window.open('/mails', '_self')}
-                                    className="setup-action-btn"
-                                    title="Versendet eine E-Mail mit den gelaufenen Runden aller Schüler an die jeweiligen Klassenlehrer."
-                                >
-                                    <span className="setup-btn-icon">📧</span>
-                                    <span className="setup-btn-text">E-Mails versenden</span>
-                                </button>
-                            )}
-
-                            {isDonationsEnabled && (
-                                <button
-                                    onClick={() => window.open('/donations', '_self')}
-                                    className="setup-action-btn"
-                                >
-                                    <span className="setup-btn-icon">💰</span>
-                                    <span className="setup-btn-text">Spenden eintragen</span>
-                                </button>
-                            )}
-
-                            <button
-                                onClick={handleExportButtonClick}
-                                className="setup-action-btn"
-                            >
-                                <span className="setup-btn-icon">📊</span>
-                                <span className="setup-btn-text">Auswertungen exportieren</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="setup-card">
-                    <div className="setup-card-header">
-                        <h2 className="setup-card-title">⚙️ Einstellungen</h2>
-                        <p className="setup-card-description">Konfigurieren Sie Anzeige- und Berechnungsoptionen</p>
-                    </div>
-                    <div className="setup-card-content">
-                        <div className="setup-actions">
-                            <button
-                                onClick={() => openDialog('moduleSettings')}
-                                className="setup-action-btn"
-                                data-tour="modules"
-                                title="Aktivieren oder deaktivieren Sie einzelne Module der Anwendung."
-                            >
-                                <span className="setup-btn-icon">🔧</span>
-                                <span className="setup-btn-text">Module verwalten</span>
-                            </button>
-
-                            {config.scannerStations && <button type="button" onClick={() => router.push('/stations')} className="setup-action-btn">
-                                <span className="setup-btn-icon"><i className="fa-solid fa-laptop" aria-hidden="true" /></span>
-                                <span className="setup-btn-text">Scanner-Stationen</span>
-                            </button>}
-
-                            <button
-                                onClick={() => openDialog('smtpSettings')}
-                                className="setup-action-btn"
-                                data-tour="smtp"
-                                title="E-Mail-Server einrichten, testen und die Anbieter-Anleitung öffnen."
-                            >
-                                <span className="setup-btn-icon">📨</span>
-                                <span className="setup-btn-content">
-                                    <span className="setup-btn-text">E-Mail-Versand</span>
-                                    <span className="setup-btn-subtitle">Microsoft 365 oder SMTP</span>
-                                </span>
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={() => window.location.assign('/setup?tour=1')}
-                                className="setup-action-btn"
-                                title="Startet die Einführung durch alle wichtigen Seiten erneut."
-                            >
-                                <span className="setup-btn-icon">🧭</span>
-                                <span className="setup-btn-text">Einführung starten</span>
-                            </button>
-
-                            <button
-                                onClick={() => openDialog('operations')}
-                                className="setup-action-btn setup-action-btn-info"
-                                data-tour="operations"
-                            >
-                                <span className="setup-btn-icon">🛡️</span>
-                                <span className="setup-btn-text">Bereitschaft, Backups & Wartung</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <GenerateLabelsDialog
-                dialogRef={dialogRefs.generateLabelsRef}
-                replacementAmount={replacementAmount}
-                setReplacementAmount={setReplacementAmount}
-                handleSelectAll={handleSelectAll}
-                handleDeselectAll={handleDeselectAll}
-                classes={classes}
-                selectedClasses={selectedClasses}
-                handleClassSelection={handleClassSelection}
-                loading={loading}
-                handleGenerateLabels={handleGenerateLabels}
-            />
-
-            <CombinedImportDialog
-                dialogRef={dialogRefs.combinedImportRef}
-                onImportSuccess={handleImportSuccess}
-                onClose={() => closeDialog('combinedImport')}
-            />
-
-            <AdvancedExportDialog
-                isOpen={exportDialogOpen}
-                onClose={() => setExportDialogOpen(false)}
-                onExport={handleExport}
-                showSpendenExport={isDonationsEnabled}
-                loading={loading.downloadResults}
-                statistics={stats}
-            />
-
-            <DetailedDeleteDialog
-                dialogRef={dialogRefs.detailedDeleteRef}
-                onDeleteSuccess={handleDeleteSuccess}
-            />
-
-            <ClassStructureDialog
-                dialogRef={dialogRefs.classStructureRef}
-                tempClassStructure={tempClassStructure}
-                handleGradeNameChange={handleGradeNameChange}
-                removeGrade={removeGrade}
-                handleClassNameChange={handleClassNameChange}
-                removeClassFromGrade={removeClassFromGrade}
-                addClassToGrade={addClassToGrade}
-                addGrade={addGrade}
-                saveClassStructure={saveClassStructure}
-            />
-
-            <ModuleSettingsDialog
-                dialogRef={dialogRefs.moduleSettingsRef}
-            />
-
-            <SmtpSettingsDialog dialogRef={dialogRefs.smtpSettingsRef} />
-
-            <OperationsDialog dialogRef={dialogRefs.operationsRef} />
         </div>
-    );
+        <span id="setup-unsaved-description" className="sr-only">Ungespeicherte Änderungen</span>
+        <div className="setup-workspace-layout">
+            <nav id="setup-navigation" className={`setup-workspace-nav ${menuOpen ? 'is-open' : ''}`} aria-label="Setup-Bereiche" onKeyDown={event => {
+                if (event.key === 'Escape' && menuOpen) { event.preventDefault(); setMenuOpen(false); menuButtonRef.current?.focus(); }
+            }}>
+                {sections.map(section => <div className="setup-nav-group" key={section.id}>
+                    <h2>{section.title}</h2>
+                    {section.actions.map(action => <button type="button" key={action.title} disabled={busy || action.disabled} aria-current={activeView === action.view ? 'page' : undefined} aria-describedby={Object.values(editorState).some(editor => editor.view === action.view && editor.dirty) ? 'setup-unsaved-description' : undefined} onClick={action.onClick} data-tour={action.tour}>
+                        <i className={`fa-solid fa-${action.icon}`} aria-hidden="true" /><span>{action.title}</span>{Object.values(editorState).some(editor => editor.view === action.view && editor.dirty) && <span className="setup-nav-dirty" aria-hidden="true" />}
+                    </button>)}
+                </div>)}
+                <div className="setup-nav-group setup-nav-cleanup"><h2>Daten bereinigen</h2><button type="button" disabled={busy} aria-current={activeView === 'detailedDelete' ? 'page' : undefined} onClick={() => openDialog('detailedDelete')}><i className="fa-solid fa-trash-can" aria-hidden="true" /> Daten löschen</button></div>
+            </nav>
+            <div className="setup-workspace-content" inert={Boolean(savingEditor)} aria-busy={busy} onChangeCapture={() => {
+                if (['moduleSettings', 'classStructure', 'smtpSettings'].includes(activeView)) updateEditor(activeView, { dirty: true, message: '' });
+            }} onClickCapture={event => {
+                const changesClasses = activeView === 'classStructure' && event.target.closest('.structure-grade-list button, .class-structure-dialog .settings-section-heading button');
+                const changesProvider = activeView === 'smtpSettings' && event.target.closest('.smtp-provider-clean');
+                if (changesClasses || changesProvider) { updateEditor(activeView, { dirty: true, message: '' }); }
+            }}>
+                {mountedViews.map(view => <div key={`${view}-${versions[view] || 0}`} hidden={activeView !== view} className="setup-view" data-setup-panel={view}>
+                    <PanelNavigationContext.Provider value={{ ...panelNavigation, active: activeView === view, viewId: view }}>
+                        {unavailable(view) ? <p className="message message-info">Dieses Modul ist deaktiviert. Aktiviere es unter „Module verwalten“.</p> : contentFor(view)}
+                    </PanelNavigationContext.Provider>
+                </div>)}
+            </div>
+        </div>
+    </div>;
 }

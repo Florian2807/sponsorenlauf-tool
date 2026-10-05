@@ -1,5 +1,6 @@
 import React from 'react';
 import BaseDialog from '../../BaseDialog';
+import { usePanelPresentation } from '../../../contexts/PanelNavigationContext';
 
 const GenerateLabelsDialog = ({
     dialogRef,
@@ -13,11 +14,13 @@ const GenerateLabelsDialog = ({
     loading,
     handleGenerateLabels
 }) => {
+    const { closePanel } = usePanelPresentation(dialogRef);
     const actions = [
         {
             label: 'Abbrechen',
             position: 'left',
-            onClick: () => dialogRef.current.close()
+            disabled: loading.labels,
+            onClick: () => closePanel()
         },
         {
             label: loading.labels ? 'Generiere...' : 'Generieren',
@@ -38,13 +41,13 @@ const GenerateLabelsDialog = ({
         >
             <p>Füge Ersatz-IDs hinzu, welche später Schülern zugeordnet werden, welche ihren Zettel verloren haben</p>
 
-            <div className="form-group">
-                <label className="form-label">Ersatz-IDs hinzufügen:</label>
-                <input
+            <div className="form-group label-replacement-group">
+                <label className="form-label" htmlFor="generatelabelsdialog-field-1">Ersatz-IDs hinzufügen:</label>
+                <input id="generatelabelsdialog-field-1"
                     type="number"
                     value={replacementAmount}
                     onChange={(e) => setReplacementAmount(e.target.value)}
-                    className="form-input"
+                    className="form-input label-replacement-count"
                     min="0"
                     placeholder="Anzahl Ersatz-Etiketten"
                 />

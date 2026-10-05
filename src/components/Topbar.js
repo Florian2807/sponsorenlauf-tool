@@ -50,16 +50,6 @@ export default function Topbar() {
 
   const isActive = (href) => router.pathname === href;
 
-  const getLinkClassName = (href) => {
-    const classes = [styles.navLink];
-
-    if (isActive(href)) {
-      classes.push(styles.navLinkActive);
-    }
-
-    return classes.join(' ');
-  };
-
   return (
     <header className={styles.topbar}>
       <Link href="/scan" className={styles.brand} aria-label="Zur Scan-Ansicht wechseln">
@@ -72,10 +62,15 @@ export default function Topbar() {
             <Link
               key={item.href}
               href={item.href}
-              className={getLinkClassName(item.href)}
+              className={styles.navLink}
               aria-current={isActive(item.href) ? 'page' : undefined}
             >
-              {item.label}
+              <span
+                key={router.pathname}
+                className={`${styles.navLinkLabel} ${isActive(item.href) ? styles.navLinkActive : ''}`}
+              >
+                {item.label}
+              </span>
             </Link>
           ))}
         </div>

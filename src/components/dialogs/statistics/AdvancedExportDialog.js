@@ -1,9 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import BaseDialog from '../../BaseDialog';
+import { usePanelPresentation } from '../../../contexts/PanelNavigationContext';
 
-const AdvancedExportDialog = ({ isOpen, onClose, onExport, loading, statistics, showSpendenExport = false, inline = false }) => {
+const AdvancedExportDialog = ({ isOpen, onClose, onExport, loading, showSpendenExport = false }) => {
     const dialogRef = useRef(null);
+    const { inline: embedded } = usePanelPresentation(dialogRef);
     const [selectedFormat, setSelectedFormat] = useState(showSpendenExport ? 'excel-spenden-klassen' : 'excel-complete');
+    useEffect(() => {
+        if (!showSpendenExport && selectedFormat === 'excel-spenden-klassen') setSelectedFormat('excel-complete');
+    }, [showSpendenExport, selectedFormat]);
 
     const baseExportFormats = [
         {
@@ -74,7 +79,7 @@ const AdvancedExportDialog = ({ isOpen, onClose, onExport, loading, statistics, 
         : baseExportFormats;
 
     useEffect(() => {
-        if (inline) {
+        if (embedded) {
             return undefined;
         }
 
@@ -83,7 +88,7 @@ const AdvancedExportDialog = ({ isOpen, onClose, onExport, loading, statistics, 
         } else if (!isOpen && dialogRef.current) {
             dialogRef.current.close();
         }
-    }, [inline, isOpen]);
+    }, [embedded, isOpen]);
 
     const handleFormatChange = (formatId) => {
         setSelectedFormat(formatId);
@@ -102,8 +107,9 @@ const AdvancedExportDialog = ({ isOpen, onClose, onExport, loading, statistics, 
         {
             label: 'Abbrechen',
             position: 'left',
+            disabled: loading,
             onClick: () => {
-                if (inline) {
+                if (embedded) {
                     onClose?.();
                     return;
                 }
@@ -134,13 +140,13 @@ const AdvancedExportDialog = ({ isOpen, onClose, onExport, loading, statistics, 
 
                 {/* Format-Auswahl */}
                 <div className="format-selection">
-                    <div className="format-grid">
+                    <div className="format-grid" role="group" aria-label="Exportformat">
                         {exportFormats.map((format) => (
-                            <div
+                            <label
                                 key={format.id}
                                 className={`format-card ${selectedFormat === format.id ? 'selected' : ''} ${format.comingSoon ? 'coming-soon' : ''}`}
-                                onClick={() => !format.comingSoon && handleFormatChange(format.id)}
                             >
+                                <input className="sr-only" type="radio" name="export-format" aria-label={format.title} checked={selectedFormat === format.id} onChange={() => handleFormatChange(format.id)} disabled={loading || format.comingSoon} />
                                 {format.recommended && (
                                     <div className="recommended-badge">⭐ Empfohlen</div>
                                 )}
@@ -158,7 +164,7 @@ const AdvancedExportDialog = ({ isOpen, onClose, onExport, loading, statistics, 
                                         ))}
                                     </ul>
                                 </div>
-                            </div>
+                            </label>
                         ))}
                     </div>
                 </div>
@@ -182,37 +188,10 @@ const AdvancedExportDialog = ({ isOpen, onClose, onExport, loading, statistics, 
             </div>
     );
 
-    if (inline) {
-        return (
-            <div className="setup-inline-panel-shell advanced-export-panel">
-                <div className="setup-inline-panel-header">
-                    <div>
-                        <h2>Auswertungen exportieren</h2>
-                        <p>Erzeugen Sie Dateien direkt im rechten Arbeitsbereich ohne zusätzliches Pop-up.</p>
-                    </div>
-                </div>
-                <div className="setup-inline-panel-content">{content}</div>
-                <div className="setup-inline-panel-actions">
-                    {actions.map((action) => (
-                        <button
-                            key={typeof action.label === 'string' ? action.label : 'export'}
-                            type="button"
-                            className={`btn ${action.variant === 'success' ? 'btn-success' : 'btn-secondary'}`}
-                            onClick={action.onClick}
-                            disabled={action.disabled}
-                        >
-                            {action.label}
-                        </button>
-                    ))}
-                </div>
-            </div>
-        );
-    }
-
     return (
         <BaseDialog
             dialogRef={dialogRef}
-            title="🎯 Auswertungen exportieren"
+            title="Auswertungen exportieren"
             onClose={onClose}
             actions={actions}
             size="large"

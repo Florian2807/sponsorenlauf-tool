@@ -22,6 +22,8 @@ export default function ScannerStationMenu() {
         };
         const handleEscape = (event) => {
             if (event.key === 'Escape') {
+                if (dialogRef.current?.open) return;
+                event.preventDefault();
                 setOpen(false);
                 triggerRef.current?.focus();
             }
@@ -34,7 +36,9 @@ export default function ScannerStationMenu() {
         };
     }, [open]);
     if (!enabled) return null;
-    return <div ref={menuRef} className="station-menu" data-scanner-controls>
+    return <div ref={menuRef} className="station-menu" data-scanner-controls onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+    }}>
         <button ref={triggerRef} type="button" className="station-menu-trigger" aria-label="Scanner-Station auswählen"
             aria-describedby={!open ? tooltipId : undefined}
             aria-expanded={open} aria-controls={menuId}
@@ -57,7 +61,7 @@ export default function ScannerStationMenu() {
             <div>
                 <label htmlFor="scanner-station-menu" className="sr-only">Scanner-Station</label>
                 <select id="scanner-station-menu" aria-label="Scanner-Station" value={stationId} onFocus={refresh}
-                    onChange={(event) => { selectStation(event.target.value); setSaved(false); event.target.blur(); }}>
+                    onChange={(event) => { selectStation(event.target.value); setSaved(false); }}>
                     {!stations.length && <option value="default">Standard-Scanner</option>}
                     {stations.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
                 </select>

@@ -1,15 +1,19 @@
-import { useState } from 'react';
+import { useState, useContext } from 'react';
 import { useScannerStation } from '../contexts/ScannerStationContext';
 import { useApi } from '../hooks/useApi';
 import { stationScopeLabel, stationModeLabel } from '../utils/stationDisplay';
 import ScannerStationSettings from './ScannerStationSettings';
+import { PanelNavigationContext } from '../contexts/PanelNavigationContext';
 
 export default function ScannerStationAdmin() {
+    const navigation = useContext(PanelNavigationContext);
+    const persistDrafts = Boolean(navigation?.persistDrafts);
     const { stations, refresh, error } = useScannerStation();
     const { request } = useApi();
     const [dirty, setDirty] = useState(false);
     const [pendingId, setPendingId] = useState(null);
     const [selectedId, setSelectedId] = useState('default');
+    const [visitedIds, setVisitedIds] = useState(['default']);
     const [creating, setCreating] = useState(false);
     const [newName, setNewName] = useState('');
     const [busy, setBusy] = useState(false);
@@ -17,7 +21,8 @@ export default function ScannerStationAdmin() {
     const station = stations.find((item) => item.id === selectedId);
     const select = (id) => {
         if (id === selectedId) return;
-        if (dirty) { setPendingId(id); return; }
+        if (dirty && !persistDrafts) { setPendingId(id); return; }
+        setVisitedIds(current => current.includes(id) ? current : [...current, id]);
         setSelectedId(id);
         setPendingId(null);
     };
@@ -72,8 +77,10 @@ export default function ScannerStationAdmin() {
                 <div><button type="button" onClick={() => setPendingId(null)}>Weiter bearbeiten</button>
                     <button type="button" onClick={() => { setDirty(false); setSelectedId(pendingId); setPendingId(null); }}>Verwerfen & wechseln</button></div>
             </div>}
-            <ScannerStationSettings key={selectedId} stationId={selectedId} admin onDirtyChange={setDirty}
-                onSaved={() => { if (pendingId) { setSelectedId(pendingId); setPendingId(null); } }} />
+            {(persistDrafts ? visitedIds : [selectedId]).map(id => <div key={id} hidden={id !== selectedId}>
+                <ScannerStationSettings stationId={id} admin onDirtyChange={setDirty}
+                    onSaved={() => { if (pendingId) { setSelectedId(pendingId); setPendingId(null); } }} />
+            </div>)}
         </section>
     </div>;
 }

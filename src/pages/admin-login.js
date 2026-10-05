@@ -42,9 +42,9 @@ export default function AdminLogin() {
     if (loading || configured === null) return <div className="page-container"><p>Status wird geladen…</p></div>;
 
     return (
-        <div className="page-container admin-login-page">
+        <div className="app-page page-container admin-login-page">
             <form className="admin-login-card" onSubmit={handleSubmit}>
-                <div className="admin-login-icon">🔐</div>
+                <div className="admin-login-icon"><i className="fa-solid fa-lock" aria-hidden="true" /></div>
                 <h1>{configured ? 'Administrator entsperren' : 'Administrator-PIN einrichten'}</h1>
                 <p>{configured
                     ? 'Die Verwaltung und alle verändernden Funktionen sind geschützt.'

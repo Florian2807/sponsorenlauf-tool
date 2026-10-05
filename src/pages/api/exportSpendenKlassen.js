@@ -97,7 +97,7 @@ const createClassSpendenWorkbook = (classData) => {
     worksheet.getRow(2).height = 30;
 
     // Header-Zeile (Zeile 3)
-    const headerRow = worksheet.addRow(['Vorname', 'Nachname', 'Runden', 'erwartet', 'erhalten', 'Differenz', 'Notizen']);
+    worksheet.addRow(['Vorname', 'Nachname', 'Runden', 'erwartet', 'erhalten', 'Differenz', 'Notizen']);
 
     // Spalten-Definitionen
     worksheet.columns = [

@@ -33,7 +33,6 @@ export default function Manage() {
   const [availableClasses, setAvailableClasses] = useState([]);
   const [classFilter, setClassFilter] = useState('all');
   const [roundFilter, setRoundFilter] = useState('all');
-  const [showFilters, setShowFilters] = useState(false);
   const [visibleCount, setVisibleCount] = useState(40);
 
   const { request, loading } = useApi();
@@ -423,86 +422,64 @@ export default function Manage() {
   }, []);
 
   return (
-    <div className="page-container-extra-wide manage-page">
-      <div className="manage-header" data-tour="manage">
-        <div className="manage-header-main">
-          <div className="manage-header-intro">
-            <h1 className="page-title">Schüler verwalten</h1>
-          </div>
-
-          <div className="manage-header-actions">
-            <button className="btn" onClick={addStudentClick}>Schüler hinzufügen</button>
-            <button
-              type="button"
-              className={`btn btn-secondary ${showFilters ? 'manage-filter-toggle-active' : ''}`}
-              onClick={() => setShowFilters((currentValue) => !currentValue)}
-              aria-expanded={showFilters}
-              aria-controls="manage-filters-panel"
-            >
-              Filter{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
-            </button>
-          </div>
+    <div className="app-page page-container-extra-wide manage-page">
+      <div className="student-page-heading" data-tour="manage">
+        <div>
+          <h1 className="page-title">Schüler verwalten</h1>
+          <p className="student-page-description">Schüler suchen, Daten bearbeiten und Laufkarten verwalten.</p>
         </div>
+        <button type="button" className="btn" onClick={addStudentClick}>
+          <i className="fa-solid fa-plus" aria-hidden="true" /> Schüler hinzufügen
+        </button>
+      </div>
 
-        <div className="manage-header-search-row">
-          <div className="manage-results-summary">
-            <strong>{filteredStudents.length}</strong> Ergebnisse
-            {searchTerm.trim() ? ` fuer "${searchTerm}"` : ''}
-          </div>
-
-          <div className="manage-search-box manage-search-box-edge">
-            <label className="sr-only" htmlFor="manage-search">Schüler suchen</label>
-            <input
-              id="manage-search"
-              type="text"
-              placeholder="Name, Klasse oder ID suchen"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="search-input"
-            />
-          </div>
+      <div className="student-list-toolbar ui-surface">
+        <label className="student-search-field" htmlFor="manage-search">
+          <span>Suchen</span>
+          <input id="manage-search" type="search" placeholder="Name, Klasse oder ID"
+            value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="form-control" />
+        </label>
+        <label className="manage-filter-field">
+          <span>Klasse</span>
+          <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)} className="form-select">
+            <option value="all">Alle Klassen</option>
+            {availableClasses.map((className) => <option key={className} value={className}>{className}</option>)}
+          </select>
+        </label>
+        <label className="manage-filter-field">
+          <span>Status</span>
+          <select value={roundFilter} onChange={(e) => setRoundFilter(e.target.value)} className="form-select">
+            <option value="all">Alle Schüler</option>
+            <option value="with-rounds">Mit Runden</option>
+            <option value="no-rounds">Ohne Runden</option>
+            <option value="with-replacements">Mit Ersatz-ID</option>
+          </select>
+        </label>
+        {(activeFilterCount > 0 || searchTerm) && (
+          <button type="button" className="btn btn-secondary student-filter-reset" onClick={() => { clearFilters(); setSearchTerm(''); }}>Zurücksetzen</button>
+        )}
+        <label className="manage-filter-field student-mobile-sort">
+          <span>Sortieren</span>
+          <select className="form-select" value={sortField} onChange={(e) => sortData(e.target.value)}>
+            <option value="id">ID</option><option value="klasse">Klasse</option>
+            <option value="vorname">Vorname</option><option value="nachname">Nachname</option>
+            <option value="geschlecht">Geschlecht</option><option value="timestamps">Runden</option>
+          </select>
+        </label>
+        <button type="button" className="btn btn-secondary student-mobile-sort-direction" onClick={() => sortData(sortField)}>
+          <i className={`fa-solid fa-arrow-${sortDirection === 'asc' ? 'up' : 'down'}`} aria-hidden="true" />
+          {sortDirection === 'asc' ? 'Aufsteigend' : 'Absteigend'}
+        </button>
+        <div className="student-list-count" role="status">
+          <strong>{filteredStudents.length}</strong> von {students.length} Schülern
         </div>
       </div>
 
-      {showFilters ? (
-        <div id="manage-filters-panel" className="manage-filters-panel">
-          <div className="manage-filter-row">
-          <label className="manage-filter-field">
-            <span>Klasse</span>
-            <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)} className="form-select">
-              <option value="all">Alle Klassen</option>
-              {availableClasses.map((className) => (
-                <option key={className} value={className}>{className}</option>
-              ))}
-            </select>
-          </label>
-
-          <label className="manage-filter-field">
-            <span>Status</span>
-            <select value={roundFilter} onChange={(e) => setRoundFilter(e.target.value)} className="form-select">
-              <option value="all">Alle Schüler</option>
-              <option value="with-rounds">Mit Runden</option>
-              <option value="no-rounds">Ohne Runden</option>
-              <option value="with-replacements">Mit Ersatz-ID</option>
-            </select>
-          </label>
-
-          <div className="manage-results-summary">
-            <strong>{filteredStudents.length}</strong> Ergebnisse
-            {activeFilterCount > 0 ? ` · ${activeFilterCount} Filter aktiv` : ' · Keine Filter aktiv'}
-          </div>
-
-          {activeFilterCount > 0 ? (
-            <button type="button" className="btn btn-secondary" onClick={clearFilters}>Filter zurücksetzen</button>
-          ) : null}
-          </div>
-        </div>
-      ) : null}
-
       {loading && students.length === 0 ? <div className="message message-info">Schülerdaten werden geladen...</div> : null}
 
-      <div className="table-responsive">
+      <div className="table-responsive student-directory">
         <table className="table">
+          <caption className="sr-only">Schülerliste – über die Spaltenüberschriften sortieren</caption>
           <thead>
             <tr>
               <th aria-sort={sortField === 'id' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
@@ -529,14 +506,14 @@ export default function Manage() {
           <tbody>
             {visibleStudents.map((student) => (
               <tr key={student.id}>
-                <td>{student.id}</td>
-                <td>{student.klasse}</td>
-                <td>{student.vorname}</td>
-                <td>{student.nachname}</td>
+                <td className="student-id-cell"><strong className="student-mobile-name">{student.vorname} {student.nachname}</strong><span className="student-mobile-id-label">ID </span>{student.id}</td>
+                <td><span className="student-class-badge">{student.klasse || '–'}</span></td>
+                <td className="student-name-cell">{student.vorname}</td>
+                <td className="student-name-cell">{student.nachname}</td>
                 <td>{student.geschlecht || 'Nicht angegeben'}</td>
-                <td>{student.timestamps.length}</td>
+                <td><span className="student-round-count">{student.timestamps.length}</span><span className="student-mobile-round-label"> Runden</span></td>
                 <td>
-                  <button className="btn btn-sm" onClick={() => editStudentClick(student)}>Bearbeiten</button>
+                  <button type="button" className="btn btn-secondary btn-sm" aria-label={`${student.vorname} ${student.nachname} bearbeiten`} onClick={() => editStudentClick(student)}><i className="fa-solid fa-pen" aria-hidden="true" /> Bearbeiten</button>
                 </td>
               </tr>
             ))}
@@ -549,7 +526,7 @@ export default function Manage() {
       {filteredStudents.length > 0 ? (
         <div className="manage-infinite-status" ref={loadMoreRef}>
           {hasMoreStudents ? (
-            <span>Weitere Schüler werden beim Scrollen automatisch geladen...</span>
+            <button type="button" className="btn btn-secondary" onClick={() => setVisibleCount((count) => count + 40)}>Weitere Schüler anzeigen</button>
           ) : (
             <span>Alle {filteredStudents.length} Schüler sind geladen.</span>
           )}

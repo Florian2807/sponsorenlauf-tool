@@ -63,7 +63,7 @@ export const ErrorProvider = ({ children }) => {
         <ErrorContext.Provider value={{ showError, showSuccess, dismiss }}>
             {children}
             {notification && createPortal(
-                <div ref={notificationRef} popover="manual" className={`notification ${isVisible ? 'show' : ''} ${notification.type}`}>
+                <div ref={notificationRef} popover="manual" role={notification.type === 'error' ? 'alert' : 'status'} className={`notification ${isVisible ? 'show' : ''} ${notification.type}`}>
                     <div className="notification-content">
                         <div className="notification-icon">
                             {notification.type === 'success' ? (
@@ -119,8 +119,8 @@ export const ErrorProvider = ({ children }) => {
                     top: 20px;
                     right: 20px;
                     max-width: 400px;
-                    border-radius: 8px;
-                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                    border-radius: 12px;
+                    box-shadow: var(--ui-dialog-shadow);
                     z-index: 10000;
                     margin: 0;
                     padding: 0;
@@ -134,17 +134,17 @@ export const ErrorProvider = ({ children }) => {
                 }
 
                 .notification.error {
-                    background-color: #f8d7da;
-                    border: 1px solid #f5c6cb;
-                    border-left: 4px solid #dc3545;
-                    color: #721c24;
+                    background-color: var(--ui-danger-bg);
+                    border: 1px solid var(--ui-danger);
+                    border-left: 4px solid var(--ui-danger);
+                    color: var(--ui-danger);
                 }
 
                 .notification.success {
-                    background-color: #d4edda;
-                    border: 1px solid #c3e6cb;
-                    border-left: 4px solid #28a745;
-                    color: #155724;
+                    background-color: var(--ui-success-bg);
+                    border: 1px solid var(--ui-success);
+                    border-left: 4px solid var(--ui-success);
+                    color: var(--ui-success);
                 }
 
                 .notification-content {

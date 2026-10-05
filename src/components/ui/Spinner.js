@@ -37,5 +37,5 @@ export default function Spinner({
     );
   }
 
-  return <span className={classes} role="status" aria-label="Loading" {...props} />;
+  return <span className={classes} role="status" aria-label="Wird geladen" {...props} />;
 }

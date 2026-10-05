@@ -11,7 +11,7 @@ export default function Show() {
   const [currentTimestamp, setCurrentTimestamp] = useState(null);
   const [studentInfo, setStudentInfo] = useState(null);
 
-  const { request } = useApi();
+  const { request, loading } = useApi();
   const { showError, showSuccess } = useGlobalError();
   const { authenticated } = useAdminAuth();
   const inputRef = useRef(null);
@@ -27,6 +27,7 @@ export default function Show() {
   const handleSubmit = useCallback(async (event) => {
     event.preventDefault();
     const cleanedId = cleanId(id);
+    if (!cleanedId || loading) return;
 
     try {
       const data = await request(`/api/students/${cleanedId}`, {
@@ -40,7 +41,7 @@ export default function Show() {
       setStudentInfo(null);
       showError('Schüler nicht gefunden', 'Schülersuche');
     }
-  }, [id, cleanId, request, showError]);
+  }, [id, cleanId, request, showError, loading]);
 
   const handleDeleteTimestamp = useCallback(async (roundId) => {
     if (!studentInfo) return;
@@ -64,87 +65,79 @@ export default function Show() {
     }
   }, [request, showSuccess, studentInfo]);
 
+  const rounds = (studentInfo?.rounds || []).slice().sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
   return (
-    <div className="page-container">
-      <h1 className="page-title">Schüler anzeigen</h1>
-      <p className="message message-warning">Achtung: Hier werden keine Runden hinzugefügt, nur die Schülerdaten angezeigt.</p>
-      <form onSubmit={handleSubmit} className="form" data-tour="show">
-        <label className="form-label" htmlFor="show-id">Barcode oder Schüler-ID</label>
-        <input
-          id="show-id"
-          type="text"
-          ref={inputRef}
-          value={id}
-          onChange={(e) => setID(e.target.value)}
-          placeholder="Barcode scannen"
-          required
-          className="form-control"
-          autoComplete="off"
-        />
-        <span className="field-hint">Hier werden nur Daten angezeigt. Es wird keine neue Runde gespeichert.</span>
-        <button type="submit" className="btn">Anzeigen</button>
+    <div className="app-page show-page">
+      <div className="student-page-heading">
+        <div>
+          <h1 className="page-title">Schüler anzeigen</h1>
+          <p className="student-page-description">Runden und Schülerdaten nachschlagen, ohne eine Runde zu zählen.</p>
+        </div>
+      </div>
+      <form onSubmit={handleSubmit} className="student-lookup ui-surface" data-tour="show">
+        <div className="student-lookup-field">
+          <label className="form-label" htmlFor="show-id">Barcode oder Schüler-ID</label>
+          <input id="show-id" type="text" ref={inputRef} value={id}
+            onChange={(e) => setID(e.target.value)} placeholder="Barcode scannen oder ID eingeben"
+            required className="form-control" autoComplete="off" readOnly={loading} />
+        </div>
+        <button type="submit" className="btn" disabled={loading}>{loading ? 'Lädt…' : 'Anzeigen'}</button>
       </form>
-      {studentInfo && (
-        <div className="student-info">
-          <div className="student-info-heading">
-            <h2>Schüler-Informationen</h2>
+
+      {studentInfo ? (
+        <div className="student-info student-profile" aria-live="polite">
+          <div className="student-profile-heading">
+            <span className="student-profile-avatar" aria-hidden="true">{studentInfo.vorname?.[0]}{studentInfo.nachname?.[0]}</span>
+            <div className="student-profile-name">
+              <h2>{studentInfo.vorname} {studentInfo.nachname}</h2>
+              <span>Klasse {studentInfo.klasse || '–'} · ID {studentInfo.id}</span>
+            </div>
             {authenticated && (
-              <Link
-                href={{ pathname: '/manage', query: { student: studentInfo.id } }}
-                className="student-edit-action"
-                aria-label={`${studentInfo.vorname} ${studentInfo.nachname} bearbeiten`}
-              >
-                <i className="fa-solid fa-pen-to-square" aria-hidden="true" />
-                <span>Schüler bearbeiten</span>
+              <Link href={{ pathname: '/manage', query: { student: studentInfo.id } }} className="btn btn-secondary"
+                aria-label={`${studentInfo.vorname} ${studentInfo.nachname} bearbeiten`}>
+                <i className="fa-solid fa-pen" aria-hidden="true" /> Schüler bearbeiten
               </Link>
             )}
           </div>
-          <p><strong>Klasse:</strong> {studentInfo.klasse}</p>
-          <p><strong>Name:</strong> {studentInfo.vorname} {studentInfo.nachname}</p>
-          <p><strong>Geschlecht:</strong> {studentInfo.geschlecht || 'Nicht angegeben'}</p>
-          <p><strong>Gelaufene Runden:</strong> {studentInfo.rounds.length}</p>
-
-          {studentInfo.rounds && studentInfo.rounds.length > 0 && (
-            <div className="mt-3">
-              <h3>Scan-Timestamps:</h3>
-              <ul className="timestamp-list">
-                {studentInfo.rounds
-                  .slice() // Kopie erstellen
-                  .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)) // Neueste zuerst
-                  .map((round, index, sortedArray) => {
-                    const timestamp = round.timestamp;
-                    // Finde vorherige Runde (chronologisch früher)
-                    const previousTimestamp = index < sortedArray.length - 1 ? sortedArray[index + 1].timestamp : null;
-                    const timeDifference = calculateTimeDifference(timestamp, previousTimestamp);
-                    
-                    return (
-                      <li key={round.id} className="timestamp-item">
-                        <span>
-                          {formatDate(new Date(timestamp)) + " Uhr => " + timeAgo(currentTimestamp, new Date(timestamp))}
-                          {timeDifference && (
-                            <span style={{ color: '#666', marginLeft: '8px', fontSize: '0.9em' }}>
-                              (+{timeDifference})
-                            </span>
-                          )}
-                        </span>
-                        {authenticated && (
-                          <button
-                            type="button"
-                            className="btn btn-danger btn-sm"
-                            onClick={() => handleDeleteTimestamp(round.id)}
-                          >
-                            Löschen
-                          </button>
-                        )}
-                      </li>
-                    );
-                  })}
-              </ul>
-            </div>
-          )}
+          <div className="student-profile-facts">
+            <div><span>Gelaufene Runden</span><strong>{rounds.length}</strong></div>
+            <div><span>Letzter Scan</span><strong>{rounds[0] ? new Date(rounds[0].timestamp).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + ' Uhr' : 'Noch kein Scan'}</strong></div>
+            <div><span>Geschlecht</span><strong>{studentInfo.geschlecht || 'Nicht angegeben'}</strong></div>
+          </div>
+          <section className="student-rounds-section">
+            <div className="student-section-heading"><h3>Rundenverlauf</h3><span>Neueste zuerst</span></div>
+            {rounds.length ? (
+              <ol className="timestamp-list student-rounds-list">
+                {rounds.map((round, index) => {
+                  const timestamp = round.timestamp;
+                  const previousTimestamp = rounds[index + 1]?.timestamp;
+                  const timeDifference = calculateTimeDifference(timestamp, previousTimestamp);
+                  return (
+                    <li key={round.id} className="timestamp-item">
+                      <span className="round-number">{rounds.length - index}</span>
+                      <div className="student-round-detail">
+                        <strong>{formatDate(new Date(timestamp))} Uhr</strong>
+                        <span>{timeAgo(currentTimestamp, new Date(timestamp))}{timeDifference ? ` · Abstand: ${timeDifference}` : ''}</span>
+                      </div>
+                      {authenticated && (
+                        <button type="button" className="btn btn-danger btn-sm" aria-label={`Runde ${rounds.length - index} löschen`}
+                          onClick={() => handleDeleteTimestamp(round.id)} disabled={loading}>Löschen</button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ol>
+            ) : <p className="student-empty-copy">Für diesen Schüler wurden noch keine Runden erfasst.</p>}
+          </section>
+        </div>
+      ) : (
+        <div className="student-lookup-empty ui-surface">
+          <span className="ui-icon" aria-hidden="true"><i className="fa-solid fa-address-card" /></span>
+          <h2>Wen möchtest du anzeigen?</h2>
+          <p>Scanne die Laufkarte oder gib die Schüler-ID ein.</p>
         </div>
       )}
-
     </div>
   );
 }

@@ -42,7 +42,7 @@ export default function UpdateNotice() {
 
     return createPortal(
         <div ref={popoverRef} popover="manual" className="update-notice" role="status">
-            <span>Ein Update ist verfügbar. Installation unter Admin → Bereitschaft, Backups & Wartung.</span>
+            <span>Ein Update ist verfügbar. Installation unter Admin → System Check, Backups & Wartung.</span>
             <button type="button" onClick={() => { sessionStorage.setItem('dismissed-update', latestVersion); setLatestVersion(null); }} aria-label="Update-Hinweis schließen">×</button>
             <style jsx>{`
                 .update-notice {
@@ -56,12 +56,12 @@ export default function UpdateNotice() {
                     max-width: 400px;
                     margin: 0;
                     padding: 12px 16px;
-                    border: 1px solid #b6d4fe;
-                    border-left: 4px solid #0d6efd;
+                    border: 1px solid var(--ui-accent-border);
+                    border-left: 4px solid var(--ui-accent);
                     border-radius: 8px;
-                    background: #e7f1ff;
-                    color: #084298;
-                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                    background: var(--ui-surface);
+                    color: var(--ui-text);
+                    box-shadow: var(--ui-dialog-shadow);
                     z-index: 9999;
                 }
                 .update-notice button {

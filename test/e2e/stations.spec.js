@@ -37,7 +37,9 @@ test('Scanner-Stationen: Standard, gemeinsame Auswahl, Regeln, Herkunft und Bere
             await page.getByPlaceholder('Barcode scannen').press('Enter');
             await expect(page.locator('.message-error')).toContainText('Stationsauswahl geprüft');
         } finally {
+            const stationsResponse = page.waitForResponse((response) => new URL(response.url()).pathname === '/api/stations');
             releaseStations();
+            await stationsResponse;
             await page.unroute('**/api/runden');
             await page.unroute('**/api/stations');
         }
@@ -131,28 +133,30 @@ test('Admin richtet Stationen ohne erneutes Öffnen des Modul-Dialogs ein', asyn
     await page.request.post('/api/admin-auth', { data: { action: 'login', pin: '246810' } });
     try {
         await page.goto('/setup');
-        await page.getByRole('button', { name: 'Module verwalten' }).click();
-        const modules = page.getByRole('dialog', { name: 'Module verwalten' });
+        await page.getByRole('navigation', { name: 'Setup-Bereiche' }).getByRole('button', { name: 'Module verwalten' }).click();
+        const modules = page.getByRole('region', { name: 'Module verwalten' });
         await expect(modules.getByLabel('Scanner-Stationen aktivieren')).toBeEnabled();
         await modules.locator('.module-toggle').filter({ has: page.getByLabel('E-Mails aktivieren') }).click();
-        await modules.getByRole('button', { name: 'Abbrechen', exact: true }).click();
-        await page.getByRole('button', { name: 'Module verwalten' }).click();
+        await page.getByRole('button', { name: 'Änderungen verwerfen', exact: true }).click();
+        await page.getByRole('navigation', { name: 'Setup-Bereiche' }).getByRole('button', { name: 'Module verwalten' }).click();
         await expect(modules.getByLabel('E-Mails aktivieren')).not.toBeChecked();
         await modules.getByLabel('Mindestabstand', { exact: true }).fill('');
-        await expect(modules.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled();
+        await expect(page.getByRole('button', { name: 'Änderungen speichern', exact: true })).toBeDisabled();
         await modules.getByLabel('Mindestabstand', { exact: true }).fill('5');
         const scannerModule = modules.getByRole('region', { name: 'Scanner-Stationen', exact: true });
         await scannerModule.locator('summary').click();
         await expect(scannerModule.getByText('Zum Beispiel am Ziel')).toBeVisible();
         await page.screenshot({ path: '/tmp/sponsorenlauf-module-manager.png', animations: 'disabled' });
         await page.setViewportSize({ width: 390, height: 844 });
-        await expect(modules.getByRole('button', { name: 'Speichern', exact: true })).toBeInViewport();
+        await expect(page.getByRole('button', { name: 'Änderungen speichern', exact: true })).toBeInViewport();
         expect(await modules.evaluate((dialog) => dialog.scrollWidth <= dialog.clientWidth)).toBe(true);
         await page.screenshot({ path: '/tmp/sponsorenlauf-module-manager-mobile.png', animations: 'disabled' });
         await page.setViewportSize({ width: 1280, height: 720 });
         await modules.locator('.module-toggle').filter({ has: page.getByLabel('Scanner-Stationen aktivieren') }).click();
-        await modules.getByRole('button', { name: 'Speichern & Stationen einrichten' }).click();
-        await expect(page).toHaveURL(/\/stations$/);
+        await page.getByRole('button', { name: 'Änderungen speichern', exact: true }).click();
+        await expect(page.locator('.setup-view:not([hidden]) .settings-save-actions')).toContainText('Änderungen gespeichert');
+        await modules.getByRole('button', { name: 'Stationen einrichten', exact: true }).click();
+        await expect(page).toHaveURL(/view=stations/);
         await page.setViewportSize({ width: 1280, height: 720 });
         await page.goto('/scan');
         await expect(page.getByRole('button', { name: 'Scanner-Station auswählen', exact: true })).toBeVisible();
@@ -242,7 +246,7 @@ test('Deaktivierte Stationen lassen sich direkt aus der Übersicht aktivieren', 
     await page.request.post('/api/admin-auth', { data: { action: 'login', pin: '246810' } });
     try {
         await page.goto('/setup');
-        await expect(page.getByRole('button', { name: 'Scanner-Stationen', exact: true })).toHaveCount(0);
+        await expect(page.getByRole('navigation', { name: 'Setup-Bereiche' }).getByRole('button', { name: 'Scanner-Stationen', exact: true })).toHaveCount(0);
         await page.goto('/stations');
         await expect(page.getByText('Modul deaktiviert', { exact: true })).toBeVisible();
         await page.getByRole('button', { name: 'Scanner-Stationen aktivieren', exact: true }).click();

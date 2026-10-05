@@ -38,7 +38,9 @@ const StatisticsWidget = ({
     return (
         <div className={`statistics-widget statistics-widget--${color} ${className}`}>
             <div className="statistics-widget__header">
-                <div className="statistics-widget__icon">{icon}</div>
+                <div className="statistics-widget__icon" aria-hidden="true">
+                    <i className={`fa-solid fa-${({ '🔄': 'person-running', '👥': 'users', '📊': 'chart-column', '💰': 'coins' })[icon] || 'chart-line'}`} />
+                </div>
                 <div className="statistics-widget__meta">
                     {badge ? <span className="statistics-widget__badge">{badge}</span> : null}
                     <div className="statistics-widget__trend">{getTrendIcon()}</div>

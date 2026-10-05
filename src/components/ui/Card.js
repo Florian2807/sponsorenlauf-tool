@@ -12,7 +12,7 @@ import React from 'react';
  */
 export function Card({ children, className = '', hover = false, ...props }) {
   const classes = [
-    'card',
+    'card ui-card',
     hover ? 'hover-lift' : '',
     className,
   ].filter(Boolean).join(' ');

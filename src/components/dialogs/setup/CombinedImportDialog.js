@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Workbook } from 'exceljs';
 import BaseDialog from '../../BaseDialog';
+import { usePanelPresentation } from '../../../contexts/PanelNavigationContext';
 import { useApi } from '../../../hooks/useApi';
 import { useGlobalError } from '../../../contexts/ErrorContext';
 import { parseCsv } from '../../../utils/fileImport';
@@ -12,6 +13,7 @@ const EMPTY_ROWS = {
 };
 
 const CombinedImportDialog = ({ dialogRef, onImportSuccess, onClose }) => {
+    const { closePanel } = usePanelPresentation(dialogRef);
     const [importType, setImportType] = useState('');
     const [importMethod, setImportMethod] = useState('manual');
     const [manualData, setManualData] = useState({ students: [{ ...EMPTY_ROWS.students }], teachers: [{ ...EMPTY_ROWS.teachers }] });
@@ -203,7 +205,7 @@ const CombinedImportDialog = ({ dialogRef, onImportSuccess, onClose }) => {
             const dataKey = importType === 'students' ? 'students' : 'teachers';
             const response = await request(endpoint, { method: 'POST', data: JSON.stringify({ [dataKey]: rows }), headers: { 'Content-Type': 'application/json' }, errorContext: `Import von ${importType === 'students' ? 'Schülern' : 'Lehrern'}` });
             const importedType = importType;
-            resetForm(); dialogRef.current.close();
+            resetForm(); closePanel();
             showSuccess(`${response.count} ${importedType === 'students' ? 'Schüler' : 'Lehrer'} erfolgreich hinzugefügt`, 'Daten-Import');
             onImportSuccess(response.count, importedType);
         } catch { /* useApi displays server validation errors */ } finally { setIsImporting(false); }
@@ -216,14 +218,14 @@ const CombinedImportDialog = ({ dialogRef, onImportSuccess, onClose }) => {
     };
     const actions = [
         importType
-            ? { label: 'Zurück', variant: 'secondary', position: 'left', onClick: goBack }
-            : { label: 'Abbrechen', variant: 'secondary', position: 'left', onClick: () => dialogRef.current.close() },
+            ? { label: 'Zurück', variant: 'secondary', position: 'left', disabled: isImporting, onClick: goBack }
+            : { label: 'Abbrechen', variant: 'secondary', position: 'left', onClick: () => closePanel() },
         ...(importType && importMethod === 'file' && fileStage === 'mapping' ? [{ label: 'Daten prüfen', variant: 'success', position: 'right', onClick: openPreview }] : []),
         ...(importType && (importMethod === 'manual' || fileStage === 'preview') ? [{ label: isImporting ? 'Importiere…' : 'Importieren', variant: 'success', position: 'right', onClick: submitImport, disabled: isImporting || (importMethod === 'file' && errorCount > 0) }] : []),
     ];
     const manualRows = importType ? manualData[importType] : [];
 
-    return <BaseDialog dialogRef={dialogRef} title={!importType ? 'Daten importieren' : `${importType === 'students' ? 'Schüler' : 'Lehrer'} importieren`} onClose={() => { resetForm(); onClose(); }} size="xl" actions={actions} showDefaultClose={false}>
+    return <BaseDialog dialogRef={dialogRef} className="data-import-dialog" title={!importType ? 'Daten importieren' : `${importType === 'students' ? 'Schüler' : 'Lehrer'} importieren`} onClose={() => { resetForm(); onClose(); }} onRequestClose={() => closePanel()} size="xl" actions={actions} showDefaultClose={false}>
         {!importType ? <div className="type-selection"><h3 className="import-centered-title">Was möchten Sie importieren?</h3><div className="method-selector">
             <button type="button" className="method-option" onClick={() => setImportType('students')}><span className="method-icon">👨‍🎓</span><span><strong>Schüler importieren</strong><small>Schülerdaten hinzufügen</small></span></button>
             <button type="button" className="method-option" onClick={() => setImportType('teachers')}><span className="method-icon">👩‍🏫</span><span><strong>Lehrer importieren</strong><small>Lehrerdaten hinzufügen</small></span></button>
@@ -232,14 +234,17 @@ const CombinedImportDialog = ({ dialogRef, onImportSuccess, onClose }) => {
                 <label className={`method-option ${importMethod === 'manual' ? 'active' : ''}`}><input type="radio" name="importMethod" checked={importMethod === 'manual'} onChange={() => setImportMethod('manual')} /><span className="method-icon">✏️</span><span><strong>Manuell eingeben</strong><small>Datensätze einzeln hinzufügen</small></span></label>
                 <label className={`method-option ${importMethod === 'file' ? 'active' : ''}`}><input type="radio" name="importMethod" checked={importMethod === 'file'} onChange={() => setImportMethod('file')} /><span className="method-icon">📊</span><span><strong>Datei importieren</strong><small>Excel- oder CSV-Datei verwenden</small></span></label>
             </div>
-            {importMethod === 'manual' ? <div className="manual-import"><div className="manual-header"><h3>Manuell hinzufügen</h3><button type="button" className="add-button" onClick={() => setManualData((data) => ({ ...data, [importType]: [...data[importType], { ...EMPTY_ROWS[importType] }] }))}>+ Zeile hinzufügen</button></div>
+            {importMethod === 'manual' ? <div className="manual-import"><div className="manual-header"><h3>Manuell hinzufügen</h3><button type="button" className="btn btn-primary btn-sm" onClick={() => setManualData((data) => ({ ...data, [importType]: [...data[importType], { ...EMPTY_ROWS[importType] }] }))}>+ Zeile hinzufügen</button></div>
                 <ImportTable rows={manualRows} importType={importType} availableClasses={availableClasses} onChange={updateManualRow} onRemove={(index) => setManualData((data) => ({ ...data, [importType]: data[importType].filter((_, rowIndex) => rowIndex !== index) }))} canRemove={manualRows.length > 1} /></div>
                 : fileStage === 'upload' ? <div className="excel-info">
-                    <h3>Excel- oder CSV-Datei auswählen</h3>
-                    <p>Die erste Zeile muss Spaltenüberschriften enthalten. Die Namen und Reihenfolge können im nächsten Schritt frei zugeordnet werden.</p>
+                    <section className="import-upload-panel" aria-labelledby="import-upload-heading">
+                        <h3 id="import-upload-heading">Datei auswählen</h3>
+                        <p id="import-upload-help">Excel (.xlsx) oder CSV · Erste Zeile: Spaltenüberschriften.</p>
+                        <label className="sr-only" htmlFor="import-upload-file">Importdatei</label>
+                        <input id="import-upload-file" aria-describedby="import-upload-help" ref={fileInputRef} type="file" accept=".xlsx,.csv,text/csv" onChange={handleFileSelect} className="file-input" />
+                        <p>Die Spalten ordnen Sie im nächsten Schritt zu.</p>
+                    </section>
                     <ExpectedFileFormat importType={importType} onDownload={downloadExampleFile} />
-                    <div className="import-file-divider">Eigene Datei auswählen</div>
-                    <input ref={fileInputRef} type="file" accept=".xlsx,.csv,text/csv" onChange={handleFileSelect} className="file-input" />
                 </div>
                 : fileStage === 'mapping' ? <ColumnMapping fileName={fileName} headers={sourceHeaders} rows={sourceRows} mappings={mappings} fields={fields} errors={mappingErrors} importType={importType} availableClasses={availableClasses} defaultClass={defaultClass} onDefaultClassChange={setDefaultClass} onChange={(index, value) => setMappings((current) => current.map((mapping, mapIndex) => mapIndex === index ? value : mapping))} />
                 : <ValidationPreview rows={validatedRows} importType={importType} availableClasses={availableClasses} validCount={validCount} warningCount={warningCount} errorCount={errorCount} onChange={updateMappedRow} onRemove={(index) => setMappedRows((rows) => rows.filter((_, rowIndex) => rowIndex !== index))} />}
@@ -261,18 +266,16 @@ const ExpectedFileFormat = ({ importType, onDownload }) => {
 
     return <section className="expected-import-format" aria-labelledby="expected-import-heading">
         <div className="expected-import-heading-row">
-            <div><h4 id="expected-import-heading">Benötigte Daten</h4><p>Mit * markierte Felder sind erforderlich.</p></div>
-            <button type="button" className="import-example-download" onClick={onDownload}>
-                <span className="import-download-icon" aria-hidden="true">↓</span>
-                <span className="import-download-copy"><strong>Beispieldatei herunterladen</strong><small>Excel-Arbeitsmappe (.xlsx)</small></span>
+            <div><h4 id="expected-import-heading">So kann Ihre Datei aussehen</h4><p>* Pflichtfeld · Alle anderen Felder sind optional.</p></div>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={onDownload}>
+                <i className="fas fa-download" aria-hidden="true" /> Beispieldatei (.xlsx)
             </button>
         </div>
-        <div className="expected-field-list">{fields.map((field) => <span key={field.key} className={field.required ? 'required' : ''}>{field.label}{field.required ? ' *' : ' (optional)'}</span>)}</div>
         <div className="import-table-scroll"><table className="table expected-import-table">
             <thead><tr>{fields.map((field) => <th key={field.key}>{field.label}{field.required ? ' *' : ''}</th>)}</tr></thead>
             <tbody>{examples.map((example, index) => <tr key={index}>{fields.map((field) => <td key={field.key}>{example[field.key] || '—'}</td>)}</tr>)}</tbody>
         </table></div>
-        <p className="expected-format-note">Weitere Spalten sind erlaubt und können später auf „Ignorieren“ gesetzt werden. Bitte ersetzen oder löschen Sie die zwei Beispieldatensätze vor dem Import.</p>
+        <p className="expected-format-note">Weitere Spalten können Sie ignorieren. Ersetzen oder löschen Sie die Beispieldaten vor dem Import.</p>
     </section>;
 };
 
@@ -299,7 +302,7 @@ const ColumnMapping = ({ fileName, headers, rows, mappings, fields, errors, impo
     </div>}
 </div>;
 
-const ImportTable = ({ rows, importType, availableClasses, onChange, onRemove, canRemove }) => <div className="import-table-scroll"><table className="table"><thead><tr><th>Vorname</th><th>Nachname</th>{importType === 'students' && <th>Geschlecht</th>}<th>Klasse</th>{importType === 'teachers' && <th>E-Mail</th>}<th /></tr></thead><tbody>{rows.map((row, index) => <tr key={index}><td><input type="text" className="form-input import-cell" value={row.vorname} onChange={(event) => onChange(index, 'vorname', event.target.value)} /></td><td><input type="text" className="form-input import-cell" value={row.nachname} onChange={(event) => onChange(index, 'nachname', event.target.value)} /></td>{importType === 'students' && <td><select className="form-select import-cell" value={row.geschlecht} onChange={(event) => onChange(index, 'geschlecht', event.target.value)}><option value="">—</option><option value="männlich">Männlich</option><option value="weiblich">Weiblich</option><option value="divers">Divers</option></select></td>}<td><select className="form-select import-cell" value={row.klasse} onChange={(event) => onChange(index, 'klasse', event.target.value)}><option value="">—</option>{availableClasses.map((className) => <option key={className}>{className}</option>)}</select></td>{importType === 'teachers' && <td><input type="email" className="form-input import-cell" value={row.email} onChange={(event) => onChange(index, 'email', event.target.value)} /></td>}<td><button type="button" className="btn btn-danger btn-sm" disabled={!canRemove} onClick={() => onRemove(index)}>🗑️</button></td></tr>)}</tbody></table></div>;
+const ImportTable = ({ rows, importType, availableClasses, onChange, onRemove, canRemove }) => <div className="import-table-scroll manual-import-table"><table className="table"><thead><tr><th>Vorname</th><th>Nachname</th>{importType === 'students' && <th>Geschlecht</th>}<th>Klasse</th>{importType === 'teachers' && <th>E-Mail</th>}<th /></tr></thead><tbody>{rows.map((row, index) => <tr key={index}><td><input type="text" className="form-input import-cell" aria-label={`Vorname Zeile ${index + 1}`} value={row.vorname} onChange={(event) => onChange(index, 'vorname', event.target.value)} /></td><td><input type="text" className="form-input import-cell" aria-label={`Nachname Zeile ${index + 1}`} value={row.nachname} onChange={(event) => onChange(index, 'nachname', event.target.value)} /></td>{importType === 'students' && <td><select className="form-select import-cell" aria-label={`Geschlecht Zeile ${index + 1}`} value={row.geschlecht} onChange={(event) => onChange(index, 'geschlecht', event.target.value)}><option value="">—</option><option value="männlich">Männlich</option><option value="weiblich">Weiblich</option><option value="divers">Divers</option></select></td>}<td><select className="form-select import-cell" aria-label={`Klasse Zeile ${index + 1}`} value={row.klasse} onChange={(event) => onChange(index, 'klasse', event.target.value)}><option value="">—</option>{availableClasses.map((className) => <option key={className}>{className}</option>)}</select></td>{importType === 'teachers' && <td><input type="email" className="form-input import-cell" aria-label={`E-Mail Zeile ${index + 1}`} value={row.email} onChange={(event) => onChange(index, 'email', event.target.value)} /></td>}<td><button type="button" className="btn btn-danger btn-sm" disabled={!canRemove} onClick={() => onRemove(index)} aria-label={`Zeile ${index + 1} löschen`} title="Zeile löschen"><i className="fa-solid fa-trash" aria-hidden="true" /></button></td></tr>)}</tbody></table></div>;
 
 const ValidationPreview = ({ rows, importType, availableClasses, validCount, warningCount, errorCount, onChange, onRemove }) => {
     const showStudentId = importType === 'students' && rows.some((row) => (
@@ -308,7 +311,7 @@ const ValidationPreview = ({ rows, importType, availableClasses, validCount, war
 
     return <div className="validation-preview">
     <div className="manual-header"><h3>Daten prüfen</h3><div className="import-counts"><span className="valid">✓ {validCount} gültig</span><span className="warning">⚠ {warningCount} Hinweise</span><span className="error">✕ {errorCount} Fehler</span></div></div><p>Automatisch erkannte Klassen werden mit dem Namen aus der Klassenstruktur gespeichert. Eine Klassen- oder Geschlechtskorrektur gilt automatisch für alle Zeilen mit demselben Ausgangswert.</p>
-    <div className="import-table-scroll"><table className="table validation-table"><thead><tr><th>Status</th>{showStudentId && <th>ID</th>}<th>Vorname</th><th>Nachname</th>{importType === 'students' && <th>Geschlecht</th>}<th>Klasse</th>{importType === 'teachers' && <th>E-Mail</th>}<th>Hinweis</th><th /></tr></thead><tbody>{rows.map((row, index) => <tr key={`${row._sourceIndex}-${index}`} className={row._errors.length ? 'import-row-error' : row._warnings.length ? 'import-row-warning' : ''}><td>{row._errors.length ? '✕' : row._warnings.length ? '⚠' : '✓'}</td>{showStudentId && <td><input type="text" className="form-input import-cell import-id-cell" value={row.id ?? ''} onChange={(event) => onChange(index, 'id', event.target.value)} /></td>}<td><input type="text" className="form-input import-cell" value={row.vorname || ''} onChange={(event) => onChange(index, 'vorname', event.target.value)} /></td><td><input type="text" className="form-input import-cell" value={row.nachname || ''} onChange={(event) => onChange(index, 'nachname', event.target.value)} /></td>{importType === 'students' && <td><select className="form-select import-cell" value={['männlich', 'weiblich', 'divers'].includes(row.geschlecht) ? row.geschlecht : ''} onChange={(event) => onChange(index, 'geschlecht', event.target.value)}><option value="">—</option><option value="männlich">Männlich</option><option value="weiblich">Weiblich</option><option value="divers">Divers</option></select></td>}<td><select className="form-select import-cell" value={availableClasses.includes(row.klasse) ? row.klasse : ''} onChange={(event) => onChange(index, 'klasse', event.target.value)}><option value="">Klasse wählen…</option>{availableClasses.map((className) => <option key={className} value={className}>{className}</option>)}</select></td>{importType === 'teachers' && <td><input type="email" className="form-input import-cell" value={row.email || ''} onChange={(event) => onChange(index, 'email', event.target.value)} /></td>}<td className="import-messages">{[...row._errors, ...row._warnings].join(' · ') || 'Gültig'}</td><td><button type="button" className="btn btn-danger btn-sm" onClick={() => onRemove(index)}>🗑️</button></td></tr>)}</tbody></table></div>
+    <div className="import-table-scroll"><table className="table validation-table"><thead><tr><th>Status</th>{showStudentId && <th>ID</th>}<th>Vorname</th><th>Nachname</th>{importType === 'students' && <th>Geschlecht</th>}<th>Klasse</th>{importType === 'teachers' && <th>E-Mail</th>}<th>Hinweis</th><th /></tr></thead><tbody>{rows.map((row, index) => <tr key={`${row._sourceIndex}-${index}`} className={row._errors.length ? 'import-row-error' : row._warnings.length ? 'import-row-warning' : ''}><td>{row._errors.length ? '✕' : row._warnings.length ? '⚠' : '✓'}</td>{showStudentId && <td><input type="text" className="form-input import-cell import-id-cell" value={row.id ?? ''} onChange={(event) => onChange(index, 'id', event.target.value)} /></td>}<td><input type="text" className="form-input import-cell" aria-label={`Vorname Zeile ${index + 1}`} value={row.vorname || ''} onChange={(event) => onChange(index, 'vorname', event.target.value)} /></td><td><input type="text" className="form-input import-cell" aria-label={`Nachname Zeile ${index + 1}`} value={row.nachname || ''} onChange={(event) => onChange(index, 'nachname', event.target.value)} /></td>{importType === 'students' && <td><select className="form-select import-cell" value={['männlich', 'weiblich', 'divers'].includes(row.geschlecht) ? row.geschlecht : ''} onChange={(event) => onChange(index, 'geschlecht', event.target.value)}><option value="">—</option><option value="männlich">Männlich</option><option value="weiblich">Weiblich</option><option value="divers">Divers</option></select></td>}<td><select className="form-select import-cell" value={availableClasses.includes(row.klasse) ? row.klasse : ''} onChange={(event) => onChange(index, 'klasse', event.target.value)}><option value="">Klasse wählen…</option>{availableClasses.map((className) => <option key={className} value={className}>{className}</option>)}</select></td>{importType === 'teachers' && <td><input type="email" className="form-input import-cell" aria-label={`E-Mail Zeile ${index + 1}`} value={row.email || ''} onChange={(event) => onChange(index, 'email', event.target.value)} /></td>}<td className="import-messages">{[...row._errors, ...row._warnings].join(' · ') || 'Gültig'}</td><td><button type="button" className="btn btn-danger btn-sm" onClick={() => onRemove(index)} aria-label={`Zeile ${index + 1} löschen`} title="Zeile löschen"><i className="fa-solid fa-trash" aria-hidden="true" /></button></td></tr>)}</tbody></table></div>
 </div>;
 };
 

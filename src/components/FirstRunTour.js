@@ -16,16 +16,16 @@ const TOUR_STEPS = [
     target: '[data-tour="classes"]',
     title: 'Klassenstruktur',
     description: 'Hier legen Sie zuerst Jahrgänge und Klassen fest. Diese Struktur wird für Importe, Lehrerzuordnungen und Auswertungen verwendet.',
-    location: ['Admin', 'Datenbank', 'Klassenstruktur'],
-    navigationHint: 'Oben in der Navigation Admin wählen und im Bereich Datenbank auf Klassenstruktur klicken.',
+    location: ['Admin', 'Lauf einrichten', 'Klassenstruktur'],
+    navigationHint: 'Oben in der Navigation Admin wählen und im Bereich Lauf einrichten auf Klassenstruktur klicken.',
   },
   {
     route: '/setup',
     target: '[data-tour="modules"]',
     title: 'Funktionen und Scan-Schutz',
     description: 'Aktivieren Sie nur die benötigten Module und bestimmen Sie, wie das Tool mit versehentlichen Doppel-Scans umgehen soll.',
-    location: ['Admin', 'Einstellungen', 'Module verwalten'],
-    navigationHint: 'Oben Admin wählen und unter Einstellungen auf Module verwalten klicken.',
+    location: ['Admin', 'Lauf einrichten', 'Module verwalten'],
+    navigationHint: 'Oben Admin wählen und unter Lauf einrichten auf Module verwalten klicken.',
   },
   {
     route: '/manage',
@@ -63,17 +63,17 @@ const TOUR_STEPS = [
     route: '/mails',
     target: '[data-tour="mail"]',
     title: 'E-Mail und SMTP',
-    description: 'Richten Sie den Versand unter Admin → Einstellungen → E-Mail-Versand ein. Dort finden Sie Microsoft-365-OAuth, SMTP-Anbieter, einen Verbindungstest und ausführliche Schritt-für-Schritt-Anleitungen. Anschließend versenden Sie hier die Klassenergebnisse.',
-    location: ['Admin', 'Auswertungen', 'E-Mails versenden'],
-    navigationHint: 'Oben Admin wählen und unter Auswertungen auf E-Mails versenden klicken.',
+    description: 'Richten Sie den Versand unter Admin → System & Versand → Versand einrichten ein. Dort finden Sie Microsoft-365-OAuth, SMTP-Anbieter, einen Verbindungstest und ausführliche Schritt-für-Schritt-Anleitungen. Anschließend versenden Sie hier die Klassenergebnisse.',
+    location: ['Admin', 'Ergebnisse', 'Ergebnisse versenden'],
+    navigationHint: 'Oben Admin wählen und unter Ergebnisse auf Ergebnisse versenden klicken.',
   },
   {
     route: '/setup',
     target: '[data-tour="operations"]',
-    title: 'Bereitschaft, Backups und Wartung',
+    title: 'System Check, Backups und Wartung',
     description: 'Vor dem Lauf prüfen Sie hier Datenbank, Speicher, Scanner und SMTP. Erstellen und laden Sie außerdem Backups direkt über die Weboberfläche herunter.',
-    location: ['Admin', 'Einstellungen', 'Bereitschaft, Backups & Wartung'],
-    navigationHint: 'Oben Admin wählen und unter Einstellungen das Kontrollzentrum öffnen.',
+    location: ['Admin', 'System & Versand', 'System Check, Backups & Wartung'],
+    navigationHint: 'Oben Admin wählen und unter System & Versand das Kontrollzentrum öffnen.',
   },
   {
     route: '/setup',
@@ -103,7 +103,7 @@ const getPopoverPosition = (element, popover) => {
   const margin = 16;
   const gap = 18;
   const width = Math.min(380, window.innerWidth - (margin * 2));
-  const height = Math.min(popover?.scrollHeight || 420, window.innerHeight - (margin * 2));
+  const height = Math.min(popover?.getBoundingClientRect().height || 320, window.innerHeight - (margin * 2));
   const clampLeft = (left) => Math.max(margin, Math.min(left, window.innerWidth - width - margin));
   const clampTop = (top) => Math.max(margin, Math.min(top, window.innerHeight - height - margin));
   const centeredTop = clampTop(rect.top + (rect.height / 2) - (height / 2));
@@ -181,7 +181,7 @@ export default function FirstRunTour() {
     const timer = window.setTimeout(() => {
       const highlightedElement = step.target ? document.querySelector(step.target) : null;
       if (highlightedElement) {
-        highlightedElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        highlightedElement.scrollIntoView({ behavior: 'instant', block: 'center' });
       }
       setTargetElement(highlightedElement);
       setSpotlightRect(getSpotlightRect(highlightedElement));
@@ -204,9 +204,12 @@ export default function FirstRunTour() {
       setSpotlightRect(getSpotlightRect(targetElement));
       setPosition(getPopoverPosition(targetElement, popoverRef.current));
     };
+    const observer = new ResizeObserver(updatePosition);
+    if (popoverRef.current) observer.observe(popoverRef.current);
     window.addEventListener('resize', updatePosition);
     window.addEventListener('scroll', updatePosition, true);
     return () => {
+      observer.disconnect();
       window.removeEventListener('resize', updatePosition);
       window.removeEventListener('scroll', updatePosition, true);
     };
@@ -229,12 +232,19 @@ export default function FirstRunTour() {
     setFinishing(true);
     try {
       await axios.post('/api/setupStatus');
-      setActive(false);
       await router.push('/setup');
+      setActive(false);
     } finally {
       setFinishing(false);
     }
   }, [router]);
+
+  useEffect(() => {
+    const dialog = popoverRef.current;
+    if (!active || router.pathname !== step.route || !dialog) return;
+    if (!dialog.open) dialog.showModal();
+    dialog.querySelector('.btn-primary')?.focus();
+  }, [active, router.pathname, step]);
 
   const popoverStyle = useMemo(() => (
     position.centered
@@ -260,13 +270,14 @@ export default function FirstRunTour() {
       ) : (
         <div className="first-run-tour-backdrop" />
       )}
-      <section
+      <dialog
         ref={popoverRef}
         className={`first-run-tour-popover ${position.centered ? 'first-run-tour-popover--centered' : ''}`}
         style={popoverStyle}
         role="dialog"
         aria-modal="true"
         aria-labelledby="first-run-tour-title"
+        onCancel={(event) => { event.preventDefault(); if (!finishing) finishTour(); }}
       >
         <div className="first-run-tour-progress">Schritt {currentStep + 1} von {TOUR_STEPS.length}</div>
         <div className="first-run-tour-location">
@@ -282,10 +293,10 @@ export default function FirstRunTour() {
         </div>
         <h2 id="first-run-tour-title">{step.title}</h2>
         <p>{step.description}</p>
-        <div className="first-run-tour-navigation-hint">
-          <strong>So kommen Sie später hierher:</strong>
+        <details className="first-run-tour-navigation-hint">
+          <summary>Später wiederfinden</summary>
           <span>{step.navigationHint}</span>
-        </div>
+        </details>
         <div className="first-run-tour-actions">
           <button type="button" className="btn btn-secondary" onClick={finishTour} disabled={finishing}>
             Überspringen
@@ -306,7 +317,7 @@ export default function FirstRunTour() {
             </button>
           </div>
         </div>
-      </section>
+      </dialog>
     </div>
   );
 }

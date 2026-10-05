@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import BaseDialog from '../../BaseDialog';
+import { usePanelPresentation } from '../../../contexts/PanelNavigationContext';
 import { useApi } from '../../../hooks/useApi';
 import { useGlobalError } from '../../../contexts/ErrorContext';
 
@@ -14,9 +15,8 @@ const EMPTY_CONFIGURATION = {
     fromAddress: '', fromName: 'Schülervertretung',
 };
 
-function SetupGuideDialog({ dialogRef, provider }) {
+function SetupGuideContent({ provider }) {
     return (
-        <BaseDialog dialogRef={dialogRef} title={provider === 'microsoft' ? 'Microsoft 365 einrichten' : 'SMTP-Mailserver einrichten'} size="large">
             <div className="smtp-guide-clean">
                 {provider === 'microsoft' ? <>
                     <p>Diese Verbindung nutzt Microsoft Graph und funktioniert mit Zwei-Faktor-Authentifizierung. Sie benötigen Administratorzugriff auf Microsoft Entra.</p>
@@ -49,12 +49,19 @@ function SetupGuideDialog({ dialogRef, provider }) {
                     <div className="smtp-guide-clean-note">Nutzen Sie eine unverschlüsselte Verbindung nur für einen vertrauenswürdigen Mailserver im lokalen Netzwerk.</div>
                 </>}
             </div>
-        </BaseDialog>
     );
 }
 
+function SetupGuideDialog({ dialogRef, provider }) {
+    return <BaseDialog dialogRef={dialogRef} title={provider === 'microsoft' ? 'Microsoft 365 einrichten' : 'SMTP-Mailserver einrichten'} size="large">
+        <SetupGuideContent provider={provider} />
+    </BaseDialog>;
+}
+
 export default function SmtpSettingsDialog({ dialogRef }) {
+    const { inline, closePanel } = usePanelPresentation(dialogRef);
     const guideRef = useRef(null);
+    const [guideOpen, setGuideOpen] = useState(false);
     const { request } = useApi();
     const { showSuccess } = useGlobalError();
     const [configuration, setConfiguration] = useState(EMPTY_CONFIGURATION);
@@ -114,25 +121,32 @@ export default function SmtpSettingsDialog({ dialogRef }) {
             const saved = await request('/api/smtp-settings', { method: 'PUT', data: configuration, errorContext: 'Beim Speichern der E-Mail-Einstellungen' });
             setConfiguration((current) => ({ ...current, ...saved.configuration, password: '', clientSecret: '' }));
             showSuccess('E-Mail-Versand erfolgreich eingerichtet.', 'E-Mail-Einstellungen');
-            dialogRef.current?.close();
+            closePanel();
+            return true;
         } catch {
             // useApi displays the contextual error message.
+            return false;
         } finally {
             setSaving(false);
         }
     };
 
     return <>
-        <BaseDialog dialogRef={dialogRef} title="Eigenen Mailserver einrichten" size="xl" showDefaultClose={false} actions={[
-            { label: 'Abbrechen', variant: 'secondary', position: 'left', cancel: true, onClick: () => dialogRef.current?.close() },
-            { label: saving ? 'Speichert…' : 'Speichern', variant: 'primary', position: 'right', primary: true, disabled: !tested || saving, onClick: save },
+        <BaseDialog dialogRef={dialogRef} title="E-Mail-Versand einrichten" className="smtp-settings-dialog" size="xl" showDefaultClose={false} actions={[
+            { label: 'Abbrechen', variant: 'secondary', position: 'left', cancel: true, disabled: saving || testing, onClick: () => closePanel() },
+            { label: saving ? 'Speichert…' : 'Speichern', variant: 'primary', position: 'right', primary: true, disabled: !tested || saving || testing, onClick: save },
         ]}>
-            <div className="smtp-sheet">
+            <fieldset className="smtp-sheet smtp-settings-fields" disabled={loading || testing || saving}>
                 <p className="smtp-sheet-intro">Tragen Sie die Zugangsdaten für Ihren Mailserver ein. Microsoft 365 wird sicher über die Graph API verbunden.</p>
                 <div className="smtp-provider-grid-clean">
                     {Object.entries(PROVIDERS).map(([key, provider]) => <button key={key} type="button" className={`smtp-provider-clean ${configuration.provider === key ? 'is-selected' : ''}`} onClick={() => selectProvider(key)} aria-pressed={configuration.provider === key}><strong>{provider.label}</strong><span>{provider.description}</span></button>)}
                 </div>
 
+                <div className="settings-section-heading"><h3>Zugangsdaten</h3><button type="button" className="btn btn-secondary btn-sm" aria-expanded={inline ? guideOpen : undefined} aria-controls={inline ? "smtp-inline-guide" : undefined} onClick={() => inline ? setGuideOpen(value => !value) : guideRef.current?.showModal()} disabled={saving || testing}><i className="fa-solid fa-book-open" aria-hidden="true" /> Anleitung</button></div>
+                {inline && guideOpen && <section id="smtp-inline-guide" className="smtp-inline-guide" aria-label="Versandanleitung">
+                    <h3>{configuration.provider === 'microsoft' ? 'Microsoft 365 einrichten' : 'SMTP-Mailserver einrichten'}</h3>
+                    <SetupGuideContent provider={configuration.provider} />
+                </section>}
                 {loading ? <p>Einstellungen werden geladen…</p> : <div className="smtp-sheet-form">
                     <label className="smtp-clean-field"><span>Absender-Adresse</span><input className="form-control" type="email" value={configuration.fromAddress} onChange={(event) => setField('fromAddress', event.target.value)} placeholder="sv@schule.de" /></label>
                     <label className="smtp-clean-field"><span>Absender-Name</span><input className="form-control" value={configuration.fromName} onChange={(event) => setField('fromName', event.target.value)} placeholder="Schülervertretung" maxLength="100" /></label>
@@ -140,20 +154,21 @@ export default function SmtpSettingsDialog({ dialogRef }) {
                     {configuration.provider === 'microsoft' ? <>
                         <label className="smtp-clean-field"><span>Client-ID</span><input className="form-control" value={configuration.clientId} onChange={(event) => setField('clientId', event.target.value.trim())} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autoComplete="off" /></label>
                         <label className="smtp-clean-field"><span>Tenant-ID</span><input className="form-control" value={configuration.tenantId} onChange={(event) => setField('tenantId', event.target.value.trim())} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autoComplete="off" /></label>
-                        <label className="smtp-clean-field smtp-clean-field--wide"><span>{configuration.clientSecretConfigured ? 'Neues Client-Secret (optional)' : 'Client-Secret'}</span><div className="smtp-secret-with-help"><input className="form-control" type="password" value={configuration.clientSecret} onChange={(event) => setField('clientSecret', event.target.value)} placeholder={configuration.clientSecretConfigured ? 'Gespeichertes Secret beibehalten' : 'Secret-Wert einfügen'} autoComplete="new-password" /><button type="button" className="smtp-guide-link" onClick={() => guideRef.current?.showModal()}>Anleitung ↗</button></div></label>
+                        <label className="smtp-clean-field smtp-clean-field--wide"><span>{configuration.clientSecretConfigured ? 'Neues Client-Secret (optional)' : 'Client-Secret'}</span><div className="smtp-secret-with-help"><input className="form-control" type="password" value={configuration.clientSecret} onChange={(event) => setField('clientSecret', event.target.value)} placeholder={configuration.clientSecretConfigured ? 'Gespeichertes Secret beibehalten' : 'Secret-Wert einfügen'} autoComplete="new-password" /></div></label>
                     </> : <>
                         <label className="smtp-clean-field"><span>SMTP-Server</span><input className="form-control" value={configuration.host} onChange={(event) => setField('host', event.target.value.trim())} placeholder="smtp.example.org" /></label>
-                        <label className="smtp-clean-field"><span>Port und Verschlüsselung</span><div className="smtp-port-security"><input className="form-control" type="number" min="1" max="65535" value={configuration.port} onChange={(event) => setField('port', event.target.value)} /><select className="form-control" value={configuration.security} onChange={(event) => setField('security', event.target.value)}><option value="starttls">STARTTLS</option><option value="tls">TLS/SSL</option><option value="none">Keine</option></select></div></label>
+                        <div className="smtp-clean-field"><span>Port und Verschlüsselung</span><div className="smtp-port-security"><input aria-label="SMTP-Port" className="form-control" type="number" min="1" max="65535" value={configuration.port} onChange={(event) => setField('port', event.target.value)} /><select aria-label="Verschlüsselung" className="form-control" value={configuration.security} onChange={(event) => setField('security', event.target.value)}><option value="starttls">STARTTLS</option><option value="tls">TLS/SSL</option><option value="none">Keine</option></select></div></div>
                         <label className="smtp-clean-field"><span>Benutzername</span><input className="form-control" value={configuration.username} onChange={(event) => setField('username', event.target.value)} placeholder="mail@schule.de" autoComplete="username" /></label>
                         <label className="smtp-clean-field"><span>{configuration.passwordConfigured ? 'Neues Passwort (optional)' : 'Passwort'}</span><input className="form-control" type="password" value={configuration.password} onChange={(event) => setField('password', event.target.value)} placeholder={configuration.passwordConfigured ? 'Gespeichertes Passwort beibehalten' : 'Passwort eingeben'} autoComplete="new-password" /></label>
-                        <button type="button" className="smtp-guide-link smtp-guide-link--standalone" onClick={() => guideRef.current?.showModal()}>SMTP-Anleitung öffnen ↗</button>
+
                     </>}
                 </div>}
 
-                <div className="smtp-test-panel"><div><strong>Versand testen</strong><span>{configuration.fromAddress ? `Wir senden eine Test-E-Mail an ${configuration.fromAddress}.` : 'Geben Sie zuerst die Absenderadresse und Zugangsdaten ein.'}</span></div><button className="btn btn-success" type="button" onClick={testConnection} disabled={!isComplete || testing}>{testing ? 'Wird gesendet…' : 'Test-E-Mail senden'}</button></div>
+                <div className="smtp-test-panel"><div><strong>Versand testen</strong><span>{configuration.fromAddress ? `Wir senden eine Test-E-Mail an ${configuration.fromAddress}.` : 'Geben Sie zuerst die Absenderadresse und Zugangsdaten ein.'}</span></div><button className="btn btn-primary" type="button" onClick={testConnection} disabled={!isComplete || testing || saving || loading}>{testing ? 'Wird gesendet…' : 'Test-E-Mail senden'}</button></div>
+                {!isComplete && !loading && <p className="field-hint">Der Versandtest wird verfügbar, sobald Absender und Zugangsdaten vollständig sind.</p>}
                 {result && <div className={`smtp-test-result smtp-test-result--${result.type}`} role="status">{result.message}</div>}
-            </div>
+            </fieldset>
         </BaseDialog>
-        <SetupGuideDialog dialogRef={guideRef} provider={configuration.provider} />
+        {!inline && <SetupGuideDialog dialogRef={guideRef} provider={configuration.provider} />}
     </>;
 }

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import BaseDialog from '../../BaseDialog';
+import { usePanelPresentation } from '../../../contexts/PanelNavigationContext';
 import { useGlobalError } from '../../../contexts/ErrorContext';
 import { useModuleConfig } from '../../../contexts/ModuleConfigContext';
 import { useDonationDisplayMode } from '../../../contexts/DonationDisplayModeContext';
 
 const ModuleSettingsDialog = ({ dialogRef }) => {
+    const { closePanel, navigation } = usePanelPresentation(dialogRef);
     const router = useRouter();
     const [localConfig, setLocalConfig] = useState({
         donations: false,
@@ -44,8 +46,8 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
         };
         
         setLocalConfig(normalizedConfig);
-        setLocalDonationMode(globalDonationMode);
-    }, [globalConfig, globalDonationMode]);
+    }, [globalConfig]);
+    useEffect(() => { setLocalDonationMode(globalDonationMode); }, [globalDonationMode]);
 
     const handleSave = async (destination = null) => {
         try {
@@ -55,17 +57,19 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
                 await updateDonationMode(localDonationMode);
             }
             if (typeof destination !== 'string') showSuccess('Modul-Einstellungen erfolgreich gespeichert', 'Einstellungen');
-            dialogRef.current.close();
+            closePanel();
             if (typeof destination === 'string') await router.push(destination);
+            return true;
         } catch (error) {
             showError(error, 'Beim Speichern der Modul-Einstellungen');
+            return false;
         } finally {
             setIsLoading(false);
         }
     };
 
     const handleClose = () => {
-        dialogRef.current?.close();
+        closePanel();
     };
 
     const handleModuleChange = (module, enabled) => {
@@ -161,8 +165,11 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
                                 <p>{module.example}</p>
                             </div>}
                         </details>
-                        {module.id === 'scannerStations' && active && <button type="button" className="module-manager-setup" disabled={disabled || invalidThreshold}
-                            onClick={() => handleSave('/stations')}>Speichern & Stationen einrichten <i className="fa-solid fa-arrow-right" aria-hidden="true" /></button>}
+                        {module.id === 'scannerStations' && active && <>
+                            <button type="button" className="module-manager-setup" disabled={disabled || invalidThreshold || (navigation?.persistDrafts && !globalConfig.scannerStations)}
+                                onClick={() => navigation?.openView ? navigation.openView('stations') : handleSave('/stations')}>{navigation?.persistDrafts ? 'Stationen einrichten' : 'Speichern & Stationen einrichten'} <i className="fa-solid fa-arrow-right" aria-hidden="true" /></button>
+                            {navigation?.persistDrafts && !globalConfig.scannerStations && <p className="module-manager-note">Speichere das Modul, bevor du Stationen einrichtest.</p>}
+                        </>}
                         {module.id === 'donations' && active && <fieldset className="module-manager-options" disabled={disabled}>
                             <legend>Spendenwerte in Auswertungen</legend>
                             <div className="module-manager-radios">

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const MailTemplateSelector = ({ templates, onSelect, currentText, onChange }) => {
+const MailTemplateSelector = ({ templates, onSelect }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [customTemplate, setCustomTemplate] = useState('');
     const [showCustom, setShowCustom] = useState(false);

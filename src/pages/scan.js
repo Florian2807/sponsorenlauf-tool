@@ -143,6 +143,7 @@ export default function Scan() {
   useEffect(() => {
     if (!isProcessing) {
       const timer = setTimeout(() => {
+        if (document.querySelector('dialog[open]') || document.activeElement?.closest('header, .skip-link')) return;
         inputRef.current?.focus();
       }, 100);
       return () => clearTimeout(timer);
@@ -183,6 +184,8 @@ export default function Scan() {
 
       if (document.querySelector('dialog[open]')) return;
       if (event.target?.closest?.('[data-scanner-controls]')) return;
+      // Navigation and controls keep their native keyboard actions.
+      if (event.target !== inputRef.current && event.target?.closest?.('a, button, input, select, textarea, summary, [contenteditable="true"]')) return;
 
       if (document.activeElement === inputRef.current) {
         return;
@@ -481,7 +484,7 @@ export default function Scan() {
   }, [latestTimestamp, previousTimestamp]);
 
   return (
-    <div className="page-container-wide scan-dashboard">
+    <div className="app-page page-container-wide scan-dashboard">
       <div className="scan-dashboard-header">
         <h1 className="page-title scan-dashboard-title">Runden zählen</h1>
 

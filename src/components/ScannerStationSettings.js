@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef, useId } from 'react';
+import { useState, useEffect, useRef, useId, useContext } from 'react';
 import { useApi } from '../hooks/useApi';
 import { useScannerStation } from '../contexts/ScannerStationContext';
+import { useWorkspaceEditor, PanelNavigationContext } from '../contexts/PanelNavigationContext';
 
 const modes = [
     { value: 'allow', title: 'Alle zulassen', description: 'Jede Klasse kann hier scannen.', icon: 'fa-check' },
@@ -9,6 +10,7 @@ const modes = [
 ];
 
 export default function ScannerStationSettings({ stationId, admin = false, onSaved, onCancel, onDirtyChange }) {
+    const navigation = useContext(PanelNavigationContext);
     const { stations, classes, grades, refresh } = useScannerStation();
     const station = stations.find((item) => item.id === stationId);
     const { request } = useApi();
@@ -37,7 +39,7 @@ export default function ScannerStationSettings({ stationId, admin = false, onSav
         [key]: checked ? [...draft[key], value] : draft[key].filter((item) => item !== value),
     });
     const save = async (event) => {
-        event.preventDefault();
+        event?.preventDefault();
         setBusy(true);
         setFeedback(null);
         try {
@@ -51,19 +53,26 @@ export default function ScannerStationSettings({ stationId, admin = false, onSav
             await refresh();
             setFeedback({ type: 'success', text: 'Änderungen gespeichert' });
             onSaved?.();
+            return true;
         } catch (error) {
             setFeedback({ type: 'error', text: error.message });
+            return false;
         } finally {
             setBusy(false);
         }
     };
+
+    const workspaceEditor = useWorkspaceEditor({ id: admin ? `station:${stationId}` : null, label: station?.name || 'Scanner-Station', save, disabled: busy || (admin && !draft.name.trim()), dirty: dirtyRef.current });
 
     if (!station) return <div className="station-loading" role="status">Station wird geladen …</div>;
     const chosen = draft.classes.length + draft.grades.length;
     const classOptions = [...new Set([...classes, ...draft.classes])]
         .filter((name) => name.toLocaleLowerCase('de').includes(search.toLocaleLowerCase('de')));
 
-    return <form className="station-editor" onSubmit={save}>
+    return <form className="station-editor" onSubmit={event => {
+        if (workspaceEditor) { event.preventDefault(); navigation.saveEditor?.(`station:${stationId}`); }
+        else save(event);
+    }}>
         <div className="station-editor-content">
             {admin && <div className="station-name-field">
                 <label htmlFor={groupId + '-name'}>Stationsname</label>
@@ -125,9 +134,10 @@ export default function ScannerStationSettings({ stationId, admin = false, onSav
             </div>
             <div className="station-editor-actions">
                 {onCancel && <button type="button" className="btn btn-secondary" disabled={busy} onClick={onCancel} data-dialog-cancel-action="true">Abbrechen</button>}
-                <button type="submit" className="btn" disabled={busy || (admin && !draft.name.trim())} data-dialog-primary-action="true">
+                {workspaceEditor && <button type="button" className="btn btn-secondary" disabled={busy || !dirtyRef.current} onClick={() => change({ name: station.name, mode: station.mode, classes: station.classes, grades: station.grades })}>Änderungen verwerfen</button>}
+                {<button type="submit" className="btn" disabled={busy || (admin && !draft.name.trim()) || (workspaceEditor && !dirtyRef.current)} data-dialog-primary-action="true">
                     {busy ? 'Wird gespeichert …' : 'Änderungen speichern'}
-                </button>
+                </button>}
             </div>
         </div>
     </form>;

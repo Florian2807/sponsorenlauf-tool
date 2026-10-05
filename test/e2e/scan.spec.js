@@ -34,7 +34,8 @@ test('der Scan-Arbeitsablauf behandelt Fehler, Speichern und Doppel-Scans', asyn
     await expect.poll(() => page.evaluate(() => window.__tones)).toBeGreaterThan(0);
     await expect(duplicateDialog).toBeVisible();
     expect(scannerRequests).toHaveLength(0);
-    await duplicateDialog.getByRole('button', { name: 'Runde trotzdem zählen' }).click();
+    await expect(duplicateDialog.getByRole('button', { name: 'Runde trotzdem zählen' })).toBeFocused();
+    await page.keyboard.press('Enter');
     await expect(page.getByRole('status')).toContainText('Doppel-Scan bestätigt und gezählt');
     await expect(page.locator('.scan-round-summary strong')).toHaveText('2');
     await expect(page.locator('.timestamp-item')).toHaveCount(2);
@@ -43,7 +44,7 @@ test('der Scan-Arbeitsablauf behandelt Fehler, Speichern und Doppel-Scans', asyn
     await page.getByLabel('Barcode oder Schüler-ID').fill('1001');
     await page.getByRole('button', { name: 'Anzeigen' }).click();
 
-    await expect(page.locator('.student-info p').filter({ hasText: 'Gelaufene Runden:' })).toHaveText(/2$/);
+    await expect(page.locator('.student-profile-facts > div').filter({ hasText: 'Gelaufene Runden' }).locator('strong')).toHaveText('2');
     await expect(page.locator('.timestamp-item')).toHaveCount(2);
 });
 

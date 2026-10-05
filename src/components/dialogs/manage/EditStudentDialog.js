@@ -36,13 +36,6 @@ const EditStudentDialog = ({
             disabled: loading
         },
         {
-            label: 'Schüler löschen',
-            position: 'left',
-            variant: 'danger',
-            onClick: () => confirmDeletePopup.current.showModal(),
-            disabled: loading
-        },
-        {
             label: loading ? 'Speichere...' : 'Speichern',
             variant: 'success',
             onClick: editStudent,
@@ -60,39 +53,39 @@ const EditStudentDialog = ({
             showDefaultClose={false}
         >
             <div className="manage-dialog-stack">
-                <div className="manage-dialog-summary-grid">
-                    <div className="manage-dialog-summary-card">
-                        <span>ID</span>
-                        <strong>{selectedStudent?.id || '-'}</strong>
-                    </div>
-                    <div className="manage-dialog-summary-card">
-                        <span>Klasse</span>
-                        <strong>{selectedStudent?.klasse || 'Nicht gesetzt'}</strong>
-                    </div>
-                    <div className="manage-dialog-summary-card">
-                        <span>Runden</span>
-                        <strong>{selectedStudent?.timestamps.length || 0}</strong>
-                    </div>
-                    <div className="manage-dialog-summary-card">
-                        <span>Ersatz-IDs</span>
-                        <strong>{selectedStudent?.replacements.length || 0}</strong>
-                    </div>
+                <div className="student-editor-identity">
+                    <span className="student-profile-avatar" aria-hidden="true">{selectedStudent?.vorname?.[0]}{selectedStudent?.nachname?.[0]}</span>
+                    <div><strong>{selectedStudent?.vorname} {selectedStudent?.nachname}</strong><span>ID {selectedStudent?.id} · {selectedStudent?.timestamps.length || 0} Runden</span></div>
                 </div>
 
                 <section className="manage-dialog-section">
                     <div className="manage-dialog-section-header">
                         <h3>Stammdaten</h3>
-                        <p>Bearbeiten Sie Name, Klasse und Geschlecht des Schülers.</p>
+                        <p>Name, Klasse und Geschlecht ändern.</p>
                     </div>
 
                     <div className="manage-dialog-form-grid">
                         <div>
-                            <label className="form-label">ID</label>
-                            <input type="text" value={selectedStudent?.id || ''} className="form-input" disabled />
+                            <label className="form-label" htmlFor="editstudentdialog-field-3">Vorname</label>
+                            <input id="editstudentdialog-field-3"
+                                type="text"
+                                value={editForm.vorname}
+                                onChange={(e) => handleInputChange('vorname', e.target.value)}
+                                className="form-input"
+                            />
                         </div>
                         <div>
-                            <label className="form-label">Klasse</label>
-                            <select
+                            <label className="form-label" htmlFor="editstudentdialog-field-4">Nachname</label>
+                            <input id="editstudentdialog-field-4"
+                                type="text"
+                                value={editForm.nachname}
+                                onChange={(e) => handleInputChange('nachname', e.target.value)}
+                                className="form-input"
+                            />
+                        </div>
+                        <div>
+                            <label className="form-label" htmlFor="editstudentdialog-field-2">Klasse</label>
+                            <select id="editstudentdialog-field-2"
                                 value={editForm.klasse}
                                 onChange={(e) => handleInputChange('klasse', e.target.value)}
                                 className="form-select"
@@ -104,26 +97,8 @@ const EditStudentDialog = ({
                             </select>
                         </div>
                         <div>
-                            <label className="form-label">Vorname</label>
-                            <input
-                                type="text"
-                                value={editForm.vorname}
-                                onChange={(e) => handleInputChange('vorname', e.target.value)}
-                                className="form-input"
-                            />
-                        </div>
-                        <div>
-                            <label className="form-label">Nachname</label>
-                            <input
-                                type="text"
-                                value={editForm.nachname}
-                                onChange={(e) => handleInputChange('nachname', e.target.value)}
-                                className="form-input"
-                            />
-                        </div>
-                        <div className="manage-dialog-form-span-2">
-                            <label className="form-label">Geschlecht</label>
-                            <select
+                            <label className="form-label" htmlFor="editstudentdialog-field-5">Geschlecht</label>
+                            <select id="editstudentdialog-field-5"
                                 value={editForm.geschlecht}
                                 onChange={(e) => handleInputChange('geschlecht', e.target.value)}
                                 className="form-select"
@@ -136,15 +111,16 @@ const EditStudentDialog = ({
                     </div>
                 </section>
 
-                <section className="manage-dialog-section">
+                <details className="manage-dialog-section student-editor-details">
+                    <summary>Ersatz-IDs <span>{selectedStudent?.replacements?.length || 0}</span></summary>
                     <div className="manage-dialog-section-header manage-dialog-section-header-inline">
                         <div>
-                            <h3>Ersatz-IDs</h3>
-                            <p>Verwalten Sie alternative Scan-Codes für beschädigte oder verlorene Karten.</p>
+                            <h3 className="sr-only">Ersatz-IDs</h3>
+                            <p>Alternative Barcodes für verlorene Laufkarten.</p>
                         </div>
                         <button
                             type="button"
-                            className="btn btn-sm"
+                            className="btn btn-secondary btn-sm"
                             onClick={() => {
                                 setMessage('');
                                 setNewReplacement('');
@@ -164,6 +140,7 @@ const EditStudentDialog = ({
                                         className="delete-replacement-btn"
                                         onClick={() => deleteReplacement(replacement)}
                                         title="Ersatz-ID löschen"
+                                        aria-label={`Ersatz-ID ${replacement} löschen`}
                                     >
                                         <span className="delete-icon">&times;</span>
                                     </button>
@@ -173,17 +150,18 @@ const EditStudentDialog = ({
                     ) : (
                         <div className="empty-state">Noch keine Ersatz-IDs vorhanden.</div>
                     )}
-                </section>
+                </details>
 
-                <section className="manage-dialog-section rounds-section">
+                <details className="manage-dialog-section rounds-section student-editor-details">
+                <summary>Rundenverlauf <span>{selectedStudent?.timestamps.length || 0}</span></summary>
                 <div className="rounds-header">
                     <div>
-                        <h3>Runden</h3>
+                        <h3 className="sr-only">Runden</h3>
                         <p className="text-muted">Gelaufene Runden: {selectedStudent?.timestamps.length || 0}</p>
                     </div>
                     <button
                         type="button"
-                        className="btn btn-sm"
+                        className="btn btn-secondary btn-sm"
                         onClick={handleAddRound}
                         disabled={loading}
                     >
@@ -217,6 +195,7 @@ const EditStudentDialog = ({
                                             onClick={() => deleteTimestamp(round.id)}
                                             disabled={loading}
                                             title="Runde löschen"
+                                            aria-label={`Runde ${sortedArray.length - index} löschen`}
                                         >
                                             Löschen
                                         </button>
@@ -229,7 +208,16 @@ const EditStudentDialog = ({
                         <p>Noch keine Runden gelaufen.</p>
                     </div>
                 )}
-                </section>
+                </details>
+                <details className="student-delete-section">
+                    <summary>Schüler löschen</summary>
+                    <div className="student-delete-content">
+                        <p>Entfernt den Schüler und seine Runden. Vor dem Löschen wird eine Sicherheitskopie erstellt.</p>
+                        <button type="button" className="btn btn-danger btn-sm" onClick={() => confirmDeletePopup.current.showModal()} disabled={loading}>
+                            Schüler löschen
+                        </button>
+                    </div>
+                </details>
             </div>
 
         </BaseDialog>

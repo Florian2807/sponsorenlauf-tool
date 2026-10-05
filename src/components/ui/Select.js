@@ -25,7 +25,7 @@ export default function Select({
   hint,
   disabled = false,
   required = false,
-  placeholder = 'Select an option...',
+  placeholder = 'Bitte auswählen …',
   className = '',
   ...props
 }) {

@@ -354,10 +354,10 @@ export default function Statistics() {
     }, []);
 
     return (
-        <div className="statistics-dashboard">
+        <div className="app-page statistics-dashboard">
             <div className="statistics-hero" data-tour="statistics">
                 <div className="statistics-hero__content statistics-hero__content--centered">
-                    <h1 className="page-title">📊 Statistiken Dashboard</h1>
+                    <h1 className="page-title">Statistiken</h1>
                     <p className="statistics-hero__subtitle">
                         Sehen Sie auf einen Blick, wie stark die Beteiligung ist, welche Klassen vorne liegen und wo noch Handlungsbedarf besteht.
                     </p>
@@ -370,7 +370,7 @@ export default function Statistics() {
                     )}
                     {authenticated && (
                         <button
-                            className="btn btn--secondary"
+                            className="btn btn-secondary"
                             onClick={handleExportButtonClick}
                             disabled={loading}
                             title="Exportiere detaillierte Excel-Dateien"
@@ -387,8 +387,7 @@ export default function Statistics() {
             {/* Haupt-Widgets */}
             <div className="statistics-section">
                 <h2>
-                    📋
-                    Überblick
+                    <span className="ui-icon"><i className="fa-solid fa-list-check" aria-hidden="true" /></span> Überblick
                 </h2>
                 <div className="statistics-widgets-grid">
                     {overviewWidgets.map((widget) => (
@@ -400,8 +399,7 @@ export default function Statistics() {
             {genderOverviewCards.length > 0 && (
                 <div className="statistics-section">
                     <h2>
-                        ⚖️
-                        Geschlechter-Überblick
+                        <span className="ui-icon"><i className="fa-solid fa-scale-balanced" aria-hidden="true" /></span> Geschlechter-Überblick
                     </h2>
                     <div className="statistics-gender-grid">
                         {genderOverviewCards.map((item) => (
@@ -476,8 +474,7 @@ export default function Statistics() {
             {classComparisonCards.length > 0 && (
                 <div className="statistics-section">
                     <h2>
-                        🏫
-                        Klassenvergleich
+                        <span className="ui-icon"><i className="fa-solid fa-school" aria-hidden="true" /></span> Klassenvergleich
                     </h2>
                     <p className="statistics-section__intro">
                         Die führenden Klassen im direkten Vergleich nach Runden, Teilnahme und durchschnittlicher Leistung.
@@ -521,8 +518,7 @@ export default function Statistics() {
             {/* Detailierte Statistiken */}
             <div className="statistics-section">
                 <h2>
-                    📈
-                    Detailierte Tabellen
+                    <span className="ui-icon"><i className="fa-solid fa-chart-line" aria-hidden="true" /></span> Detailierte Tabellen
                 </h2>
 
                 {genderFilterOptions.length > 1 && (
@@ -654,8 +650,7 @@ export default function Statistics() {
             {genderActivityCards.length > 0 && (
                 <div className="statistics-section">
                     <h2>
-                        🔍
-                        Aktivitätsgruppen nach Geschlecht
+                        <span className="ui-icon"><i className="fa-solid fa-magnifying-glass" aria-hidden="true" /></span> Aktivitätsgruppen nach Geschlecht
                     </h2>
                     <div className="statistics-activity-grid">
                         {genderActivityCards.map((item) => (
@@ -726,7 +721,6 @@ export default function Statistics() {
                     onClose={() => setExportDialogOpen(false)}
                     onExport={handleExport}
                     loading={loading}
-                    statistics={stats}
                 />
             )}
         </div>

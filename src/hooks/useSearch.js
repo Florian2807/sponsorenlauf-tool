@@ -4,14 +4,14 @@ export const useSearch = (data, searchFields = ['vorname', 'nachname', 'klasse']
     const [searchTerm, setSearchTerm] = useState('');
 
     const filteredData = useMemo(() => {
-        if (!searchTerm) return data;
+        const terms = searchTerm.trim().toLocaleLowerCase('de-DE').split(/\s+/).filter(Boolean);
+        if (!terms.length) return data;
 
-        const searchLower = searchTerm.toLowerCase();
-        return data.filter(item =>
+        return data.filter(item => terms.every(term =>
             searchFields.some(field =>
-                String(item?.[field] ?? '').toLowerCase().includes(searchLower)
+                String(item?.[field] ?? '').toLocaleLowerCase('de-DE').includes(term)
             )
-        );
+        ));
     }, [data, searchTerm, searchFields]);
 
     return {

@@ -257,84 +257,6 @@ body {
   color: var(--text-muted);
 }
 
-/* Gemeinsame Button-Styles */
-.btn {
-  background-color: var(--primary-color);
-  color: #fff;
-  border: none;
-  padding: 0.5rem 1rem;
-  font-size: var(--font-size-sm);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: var(--transition);
-  margin: 0.25rem;
-  font-family: inherit;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  text-align: center;
-  line-height: 1.4;
-  min-width: auto;
-  white-space: nowrap;
-}
-
-.btn svg {
-  flex-shrink: 0;
-}
-
-.btn:hover {
-  background-color: var(--primary-hover);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-hover);
-}
-
-.btn:active {
-  transform: translateY(0);
-}
-
-.btn:disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-}
-
-.btn-sm {
-  padding: 5px 10px;
-  font-size: var(--font-size-sm);
-}
-
-.btn-lg {
-  padding: 12px 24px;
-  font-size: var(--font-size-lg);
-}
-
-.btn-secondary {
-  background-color: var(--secondary-color);
-}
-
-.btn-secondary:hover {
-  background-color: var(--secondary-hover);
-}
-
-.btn-success {
-  background-color: var(--success-color);
-}
-
-.btn-success:hover {
-  background-color: var(--success-hover);
-}
-
-.btn-danger {
-  background-color: var(--danger-color);
-}
-
-.btn-danger:hover {
-  background-color: var(--danger-hover);
-}
-
 /* Button Layout Klassen */
 .btn-group {
   display: flex;
@@ -1780,9 +1702,6 @@ a:focus-visible {
 }
 
 /* Setup Progress Steps */
-.setup-progress {
-  margin-bottom: var(--spacing-lg);
-}
 
 .progress-steps {
   display: flex;

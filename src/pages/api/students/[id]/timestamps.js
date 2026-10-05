@@ -3,8 +3,7 @@ import {
   handleMethodNotAllowed,
   handleError,
   handleSuccess,
-  handleValidationError,
-  validateRequiredFields
+  handleValidationError
 } from '../../../../utils/apiHelpers.js';
 import { validateStudentId } from '../../../../utils/validation.js';
 

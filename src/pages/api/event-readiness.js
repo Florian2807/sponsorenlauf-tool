@@ -25,13 +25,10 @@ export default async function handler(req, res) {
         const checks = {
             database: integrity.ready,
             diskSpace: freeBytes >= 500 * 1024 * 1024,
-            recentBackup: backups[0]
-                ? Date.now() - new Date(backups[0].createdAt).getTime() < 24 * 60 * 60 * 1000
-                : false,
             smtp: Boolean(smtp),
         };
         return handleSuccess(res, {
-            ready: checks.database && checks.diskSpace && checks.recentBackup,
+            ready: checks.database && checks.diskSpace,
             checks,
             database: { backend: integrity.backend, ready: integrity.ready, schemaVersion: integrity.schemaVersion, expectedSchemaVersion: getLatestSchemaVersion() },
             storage: { freeBytes },
@@ -43,6 +40,6 @@ export default async function handler(req, res) {
             application: { version: process.env.SPONSORENLAUF_VERSION || 'development', uptimeSeconds: Math.round(process.uptime()) },
         }, 'Veranstaltungsbereitschaft geprüft');
     } catch (error) {
-        return handleError(res, error, 500, 'Bereitschaftsprüfung fehlgeschlagen');
+        return handleError(res, error, 500, 'System Check fehlgeschlagen');
     }
 }

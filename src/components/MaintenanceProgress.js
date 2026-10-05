@@ -121,25 +121,25 @@ export default function MaintenanceProgress() {
                     width: min(380px, calc(100vw - 32px));
                     margin: 0;
                     padding: 16px;
-                    border: 1px solid #60a5fa;
+                    border: 1px solid var(--ui-accent);
                     border-radius: 10px;
-                    background: #172033;
-                    color: #f8fafc;
-                    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+                    background: var(--ui-surface);
+                    color: var(--ui-text);
+                    box-shadow: var(--ui-dialog-shadow);
                     z-index: 10000;
                 }
-                .maintenance-progress.success { border-color: #4ade80; }
-                .maintenance-progress.failure { border-color: #f87171; }
+                .maintenance-progress.success { border-color: var(--ui-success); }
+                .maintenance-progress.failure { border-color: var(--ui-danger); }
                 .maintenance-progress-heading { display: flex; align-items: center; gap: 10px; }
                 .maintenance-progress-heading strong { flex: 1; }
                 .maintenance-progress-heading button { border: 0; background: none; color: inherit; font-size: 22px; cursor: pointer; }
-                .maintenance-progress-icon { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #2563eb; }
+                .maintenance-progress-icon { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--ui-accent); }
                 .maintenance-progress-icon.busy { animation: maintenance-spin 1.2s linear infinite; }
-                .success .maintenance-progress-icon { background: #15803d; }
-                .failure .maintenance-progress-icon { background: #b91c1c; }
+                .success .maintenance-progress-icon { background: var(--ui-success); }
+                .failure .maintenance-progress-icon { background: var(--ui-danger); }
                 .maintenance-progress p { margin: 10px 0 0; color: inherit; line-height: 1.4; }
-                .maintenance-progress-track { height: 4px; margin-top: 14px; overflow: hidden; border-radius: 4px; background: #334155; }
-                .maintenance-progress-track span { display: block; width: 35%; height: 100%; border-radius: inherit; background: #60a5fa; animation: maintenance-slide 1.5s ease-in-out infinite alternate; }
+                .maintenance-progress-track { height: 4px; margin-top: 14px; overflow: hidden; border-radius: 4px; background: var(--ui-border); }
+                .maintenance-progress-track span { display: block; width: 35%; height: 100%; border-radius: inherit; background: var(--ui-accent); animation: maintenance-slide 1.5s ease-in-out infinite alternate; }
                 @keyframes maintenance-spin { to { transform: rotate(360deg); } }
                 @keyframes maintenance-slide { to { transform: translateX(185%); } }
                 @media (max-width: 480px) { .maintenance-progress { left: 16px; right: 16px; bottom: 16px; width: auto; } }

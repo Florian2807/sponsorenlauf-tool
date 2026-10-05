@@ -150,9 +150,9 @@ export const getModuleConfig = async () => {
         
         // Standard-Werte für fehlende Module ergänzen
         return {
-            donations: moduleConfig.donations ?? true,
-            emails: moduleConfig.emails ?? true,
-            teachers: moduleConfig.teachers ?? true,
+            donations: moduleConfig.donations ?? false,
+            emails: moduleConfig.emails ?? false,
+            teachers: moduleConfig.teachers ?? false,
             scannerStations: moduleConfig.scannerStations === true,
             doubleScanPrevention: {
                 enabled: moduleConfig.doubleScanPrevention?.enabled ?? true,
@@ -167,9 +167,9 @@ export const getModuleConfig = async () => {
         console.error('Fehler beim Abrufen der Modul-Konfiguration:', error);
         // Fallback auf Standard-Werte
         return {
-            donations: true,
-            emails: true,
-            teachers: true,
+            donations: false,
+            emails: false,
+            teachers: false,
             scannerStations: false,
             doubleScanPrevention: {
                 enabled: true,
@@ -181,6 +181,5 @@ export const getModuleConfig = async () => {
         };
     }
 };
-
 
 

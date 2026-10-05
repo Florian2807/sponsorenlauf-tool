@@ -6,10 +6,11 @@ const ModuleConfigContext = createContext();
 export const ModuleConfigProvider = ({ children }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [config, setConfig] = useState({
-        donations: true,
-        emails: true,
-        teachers: true,
-        scannerStations: false
+        donations: false,
+        emails: false,
+        teachers: false,
+        scannerStations: false,
+        doubleScanPrevention: { enabled: true, timeThresholdMinutes: 5, mode: 'confirm' }
     });
 
     const { request } = useApi();
@@ -20,19 +21,20 @@ export const ModuleConfigProvider = ({ children }) => {
             try {
                 const data = await request('/api/moduleConfig');
                 setConfig({
-                    donations: data.donations !== false,
-                    emails: data.emails !== false,
-                    teachers: data.teachers !== false,
+                    donations: data.donations === true,
+                    emails: data.emails === true,
+                    teachers: data.teachers === true,
                     scannerStations: data.scannerStations === true,
                     doubleScanPrevention: data.doubleScanPrevention
                 });
             } catch {
                 // Fallback zu Standard-Konfiguration
                 setConfig({
-                    donations: true,
-                    emails: true,
-                    teachers: true,
-                    scannerStations: false
+                    donations: false,
+                    emails: false,
+                    teachers: false,
+                    scannerStations: false,
+                    doubleScanPrevention: { enabled: true, timeThresholdMinutes: 5, mode: 'confirm' }
                 });
             } finally {
                 setIsLoading(false);

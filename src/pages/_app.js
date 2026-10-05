@@ -1,6 +1,7 @@
 import '../styles/globals.css';
 import '../styles/components.css';
 import '../styles/stations.css';
+import '../styles/module-manager.css';
 import Layout from '../components/Layout';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { ErrorProvider } from '../contexts/ErrorContext';

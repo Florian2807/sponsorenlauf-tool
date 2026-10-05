@@ -4,10 +4,12 @@ import { useApi } from '../hooks/useApi';
 const ModuleConfigContext = createContext();
 
 export const ModuleConfigProvider = ({ children }) => {
+    const [isLoading, setIsLoading] = useState(true);
     const [config, setConfig] = useState({
         donations: true,
         emails: true,
-        teachers: true
+        teachers: true,
+        scannerStations: false
     });
 
     const { request } = useApi();
@@ -20,15 +22,20 @@ export const ModuleConfigProvider = ({ children }) => {
                 setConfig({
                     donations: data.donations !== false,
                     emails: data.emails !== false,
-                    teachers: data.teachers !== false
+                    teachers: data.teachers !== false,
+                    scannerStations: data.scannerStations === true,
+                    doubleScanPrevention: data.doubleScanPrevention
                 });
             } catch {
                 // Fallback zu Standard-Konfiguration
                 setConfig({
                     donations: true,
                     emails: true,
-                    teachers: true
+                    teachers: true,
+                    scannerStations: false
                 });
+            } finally {
+                setIsLoading(false);
             }
         };
         fetchConfig();
@@ -36,7 +43,6 @@ export const ModuleConfigProvider = ({ children }) => {
 
     // Konfiguration ändern und im Backend speichern
     const updateConfig = async (newConfig) => {
-        setConfig(newConfig);
         try {
             await request('/api/moduleConfig', {
                 method: 'POST',
@@ -45,8 +51,10 @@ export const ModuleConfigProvider = ({ children }) => {
                     'Content-Type': 'application/json'
                 }
             });
+            setConfig(newConfig);
         } catch (error) {
             console.error('Fehler beim Speichern der Modul-Konfiguration:', error);
+            throw error;
         }
     };
 
@@ -58,6 +66,7 @@ export const ModuleConfigProvider = ({ children }) => {
     return (
         <ModuleConfigContext.Provider value={{
             config,
+            isLoading,
             updateConfig,
             updateModule,
             isDonationsEnabled: config.donations,

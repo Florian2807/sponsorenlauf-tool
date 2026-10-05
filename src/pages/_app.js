@@ -1,9 +1,11 @@
 import '../styles/globals.css';
 import '../styles/components.css';
+import '../styles/stations.css';
 import Layout from '../components/Layout';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { ErrorProvider } from '../contexts/ErrorContext';
 import { DonationDisplayModeProvider } from '../contexts/DonationDisplayModeContext';
+import { ScannerStationProvider } from '../contexts/ScannerStationContext';
 import { ModuleConfigProvider } from '../contexts/ModuleConfigContext';
 import { AdminAuthProvider } from '../contexts/AdminAuthContext';
 import FirstRunGate from '../components/FirstRunGate';
@@ -20,6 +22,7 @@ function MyApp({ Component, pageProps }) {
         <MaintenanceProgress />
         <FirstRunGate>
           <ModuleConfigProvider>
+            <ScannerStationProvider>
             <DonationDisplayModeProvider>
               <ErrorBoundary>
                 <Layout>
@@ -28,6 +31,7 @@ function MyApp({ Component, pageProps }) {
                 <FirstRunTour />
               </ErrorBoundary>
             </DonationDisplayModeProvider>
+            </ScannerStationProvider>
           </ModuleConfigProvider>
         </FirstRunGate>
       </AdminAuthProvider>

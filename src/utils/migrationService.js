@@ -180,6 +180,26 @@ const migrations = [
             await addColumnIfMissing(db, 'smtp_configuration', 'client_secret_encrypted', 'TEXT');
         },
     },
+    {
+        version: 6,
+        name: 'add-scanner-stations',
+        up: async (db) => {
+            await dbExec(db, `
+                CREATE TABLE IF NOT EXISTS scanner_stations (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    mode TEXT NOT NULL DEFAULT 'allow' CHECK (mode IN ('allow', 'warn', 'block')),
+                    classes TEXT NOT NULL DEFAULT '[]',
+                    grades TEXT NOT NULL DEFAULT '[]'
+                );
+                INSERT INTO scanner_stations (id, name) VALUES ('default', 'Standard-Scanner')
+                    ON CONFLICT(id) DO NOTHING;
+            `);
+            await addColumnIfMissing(db, 'rounds', 'source_station_id', 'TEXT');
+            await addColumnIfMissing(db, 'rounds', 'source_station_name', 'TEXT');
+            await addColumnIfMissing(db, 'rounds', 'station_warning', 'TEXT');
+        },
+    },
 ];
 
 export const getLatestSchemaVersion = () => migrations.at(-1)?.version || 0;

@@ -193,6 +193,14 @@ Danach sind Setup, Schüler- und Lehrerverwaltung, Spenden, E-Mail-Versand, Expo
 
 Die Anmeldung gilt 12 Stunden. Über **Sperren** in der Navigation kann die Verwaltung sofort wieder gesperrt werden. Die PIN lässt sich unter **Setup → Bereitschaft & Sicherheit** ändern.
 
+### Scanner-Stationen (optional)
+
+Das Modul **Scanner-Stationen** ist standardmäßig deaktiviert. Aktivieren Sie es unter **Admin → Module verwalten** und wählen Sie **Speichern & Stationen einrichten**. Danach erscheint auch **Scanner-Stationen** in den Einstellungen. Die Übersicht zeigt alle Stationen mit ihrer Klassenzuordnung und ihrem Scan-Verhalten. Name und Regeln werden gemeinsam gespeichert.
+
+In der Menüleiste von **Runden zählen** wählt jeder Laptop seine Station aus. Die Auswahl bleibt im Browser gespeichert; ohne Auswahl gilt der Standard-Scanner. Mehrere Laptops dürfen dieselbe Station verwenden.
+
+Über die Einstellungen neben der Stationsauswahl kann jeder Helfer gemeinsame Regeln für diese Station einstellen: alle Klassen zulassen, bei anderen Klassen warnen und die Runde zählen oder den Scan ohne Rundenzählung blockieren. Klassen und Jahrgänge können kombiniert werden; ohne Auswahl sind alle zugelassen. Stationsnamen werden mit den Runden gespeichert und bei Doppel-Scans sowie in den Scan-Zeitstempeln angezeigt. Umbenennungen ändern die Herkunft früherer Runden nicht.
+
 ### 6. E-Mail-Server einrichten
 
 Unter **E-Mails → SMTP-Server einrichten** wird ein vorhandener SMTP-Server vollständig konfiguriert:

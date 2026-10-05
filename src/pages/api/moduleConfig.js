@@ -1,29 +1,24 @@
-import { handleMethodNotAllowed, handleError, handleSuccess } from '../../utils/apiHelpers.js';
-import { getSetting, setSetting } from '../../utils/settingsService.js';
+import { handleMethodNotAllowed, handleError } from '../../utils/apiHelpers.js';
+import { getModuleConfig, setSetting } from '../../utils/settingsService.js';
 
 export default async function handler(req, res) {
   try {
     if (req.method === 'GET') {
-      const moduleConfig = await getSetting('module_config', {
-        donations: true,
-        emails: true,
-        teachers: true,
-        doubleScanPrevention: {
-          enabled: true,
-          timeThresholdMinutes: 5,
-          mode: 'confirm' // 'confirm' oder 'block'
-        }
-      });
+      const moduleConfig = await getModuleConfig();
 
       res.status(200).json(moduleConfig);
     } else if (req.method === 'POST') {
-      const { donations, emails, teachers, doubleScanPrevention } = req.body;
+      const { donations, emails, teachers, doubleScanPrevention, scannerStations = false } = req.body;
 
       // Validiere die Basismodule
       if (typeof donations !== 'boolean' || typeof emails !== 'boolean' || typeof teachers !== 'boolean') {
         return res.status(400).json({
           error: 'donations, emails und teachers müssen boolean-Werte sein'
         });
+      }
+
+      if (typeof scannerStations !== 'boolean') {
+        return res.status(400).json({ error: 'scannerStations muss ein boolean-Wert sein' });
       }
 
       // Validiere doubleScanPrevention
@@ -47,7 +42,7 @@ export default async function handler(req, res) {
         }
       }
 
-      const moduleConfig = { donations, emails, teachers, doubleScanPrevention };
+      const moduleConfig = { donations, emails, teachers, doubleScanPrevention, scannerStations };
       await setSetting('module_config', moduleConfig);
 
       res.status(200).json({

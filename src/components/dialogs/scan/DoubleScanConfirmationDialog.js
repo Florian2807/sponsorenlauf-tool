@@ -5,6 +5,7 @@ const DoubleScanConfirmationDialog = ({
   dialogRef, 
   studentInfo, 
   lastRoundTime,
+  lastStationName,
   thresholdMinutes = 5,
   onConfirm, 
   onCancel 
@@ -58,7 +59,7 @@ const DoubleScanConfirmationDialog = ({
               <span className="student-highlight">{studentInfo?.vorname} {studentInfo?.nachname}</span>{' '}
               wurde bereits vor{' '}
               <span className="time-highlight">{formatTimeDiff(lastRoundTime)}</span>{' '}
-              gescannt.
+              gescannt{lastStationName ? ` bei Scanner-Station „${lastStationName}“` : ''}.
             </p>
           </div>
         </div>

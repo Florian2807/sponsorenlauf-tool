@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { stationScopeLabel, stationModeLabel } from '../utils/stationDisplay';
+import { useScannerStation } from '../contexts/ScannerStationContext';
 import Link from 'next/link';
 import { formatDate, timeAgo, calculateTimeDifference } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
@@ -33,6 +35,7 @@ export default function Scan() {
 
   const { request, loading } = useApi();
   const { showError } = useGlobalError();
+  const { enabled: stationsEnabled, stationId, stations } = useScannerStation();
   const { authenticated } = useAdminAuth();
   const formRef = useRef(null);
   const inputRef = useRef(null);
@@ -179,6 +182,7 @@ export default function Scan() {
       }
 
       if (document.querySelector('dialog[open]')) return;
+      if (event.target?.closest?.('[data-scanner-controls]')) return;
 
       if (document.activeElement === inputRef.current) {
         return;
@@ -269,8 +273,8 @@ export default function Scan() {
     setStudentInfo(response.student);
     setCurrentTimestamp(new Date());
     setRounds([response.round]);
-    setMessage(response.message || 'Runde erfolgreich gezählt');
-    setMessageType('success');
+    setMessage(response.stationWarning ? `${response.message || 'Runde erfolgreich gezählt'}. Hinweis: ${response.stationWarning}` : response.message || 'Runde erfolgreich gezählt');
+    setMessageType(response.stationWarning ? 'warning' : 'success');
     clearPendingScan();
     loadTimestamps(response.student.id, response.round);
     const context = getAudioContext();
@@ -304,7 +308,7 @@ export default function Scan() {
         method: 'POST', showErrorMessage: false, timeout: 8000,
         data: { id: scan.cleanedId, scanId: scan.scanId,
           confirmDoubleScan: scan.confirmDoubleScan === true,
-          sourceDeviceId: deviceIdRef.current },
+          sourceDeviceId: deviceIdRef.current, sourceStationId: scan.sourceStationId || null },
       });
       acceptStoredScan(response, scan);
     } catch (error) {
@@ -411,7 +415,7 @@ export default function Scan() {
       playErrorSound();
       return;
     }
-    const scan = { cleanedId, scanId: createClientId('scan') };
+    const scan = { cleanedId, scanId: createClientId('scan'), sourceStationId: stationsEnabled ? stationId : null };
     try { rememberPendingScan(scan); } catch {
       setMessage('Vorgang konnte auf diesem Gerät nicht gesichert werden. Bitte Browserspeicher prüfen und erneut scannen.');
       setMessageType('error');
@@ -423,7 +427,7 @@ export default function Scan() {
     setMessage('Verarbeite...');
     setMessageType('info');
     await performScan(scan);
-  }, [cleanId, getAudioContext, performScan, playErrorSound, rememberPendingScan]);
+  }, [cleanId, getAudioContext, performScan, playErrorSound, rememberPendingScan, stationsEnabled, stationId]);
 
   const handleDeleteTimestamp = useCallback(async (roundId) => {
     if (!roundId || !studentInfo) {
@@ -531,11 +535,12 @@ export default function Scan() {
         <aside className="scan-sidebar">
           <div className="scan-input-panel" data-tour="scan">
             <div className="scan-input-panel-header">
-              <h2>Scanner</h2>
+              <h2>Barcode erfassen</h2>
             </div>
 
             <form ref={formRef} onSubmit={handleSubmit} className="form">
               <input
+                aria-label="Barcode scannen"
                 id="scan-id"
                 type="text"
                 ref={inputRef}
@@ -555,6 +560,12 @@ export default function Scan() {
                 {isProcessing ? 'Verarbeite...' : 'Runde zählen'}
               </button>
             </form>
+            {stationsEnabled && stations.find((station) => station.id === stationId)?.mode !== 'allow'
+              && stationScopeLabel(stations.find((station) => station.id === stationId)) !== 'Alle Klassen'
+              && <p className="scan-station-rules">
+                {stationScopeLabel(stations.find((station) => station.id === stationId))}
+                <span>{stationModeLabel(stations.find((station) => station.id === stationId))}</span>
+              </p>}
           </div>
         </aside>
 
@@ -597,7 +608,7 @@ export default function Scan() {
                 </div>
                 <div className="scan-metric-card">
                   <span>Status</span>
-                  <strong>{messageType === 'error' ? 'Prüfen' : messageType === 'warning' ? 'Bestätigung nötig' : 'Erfasst'}</strong>
+                  <strong>{messageType === 'error' ? 'Prüfen' : messageType === 'warning' ? (doubleScanData ? 'Bestätigung nötig' : 'Hinweis') : 'Erfasst'}</strong>
                 </div>
               </div>
 
@@ -616,6 +627,7 @@ export default function Scan() {
                         <li key={round.id} className="timestamp-item">
                           <span>
                             {formatDate(new Date(timestamp))} Uhr {'->'} {timeAgo(currentTimestamp, new Date(timestamp))}
+                            {stationsEnabled && round.sourceStationName && <span> · {round.sourceStationName}</span>}
                             {timeDifference && (
                               <span style={{ color: '#666', marginLeft: '8px', fontSize: '0.9em' }}>
                                 (+{timeDifference})
@@ -642,7 +654,9 @@ export default function Scan() {
             </>
           ) : (
             <div className="scan-empty-hero">
-              <h2>Noch kein Schüler gescannt</h2>
+              <i className="fa-solid fa-barcode scan-empty-icon" aria-hidden="true" />
+              <h2>Bereit für den ersten Scan</h2>
+              <p>Scanne einen Barcode. Die zuletzt erfasste Person erscheint hier.</p>
             </div>
           )}
         </section>
@@ -653,6 +667,7 @@ export default function Scan() {
           dialogRef={doubleScanDialogRef}
           studentInfo={doubleScanData.student}
           lastRoundTime={doubleScanData.lastRoundTime}
+          lastStationName={doubleScanData.lastStationName}
           thresholdMinutes={doubleScanData.thresholdMinutes}
           onConfirm={handleDoubleScanConfirm}
           onCancel={handleDoubleScanCancel}

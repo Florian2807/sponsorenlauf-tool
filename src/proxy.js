@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { ADMIN_COOKIE_NAME, verifyAdminSessionToken } from './utils/adminAuthService.js';
 import { hasSafeRequestOrigin } from './utils/requestSecurity.js';
 
-const ADMIN_PAGES = ['/setup', '/manage', '/teachers', '/mails', '/donations'];
+const ADMIN_PAGES = ['/stations', '/setup', '/manage', '/teachers', '/mails', '/donations'];
 const PUBLIC_API_READS = new Set([
     '/api/admin-auth',
     '/api/check-connectivity',
@@ -16,6 +16,7 @@ const PUBLIC_API_READS = new Set([
 const isPublicApiRequest = (pathname, method) => {
     if (pathname === '/api/admin-auth') return true;
     if (pathname === '/api/runden' && ['POST', 'GET'].includes(method)) return true;
+    if (pathname === '/api/stations' && ['GET', 'PUT'].includes(method)) return true;
     if (pathname === '/api/stations/heartbeat' && method === 'POST') return true;
     if (/^\/api\/students\/[^/]+(?:\/timestamps)?$/.test(pathname) && method === 'GET') return true;
     return method === 'GET' && PUBLIC_API_READS.has(pathname);
@@ -23,7 +24,7 @@ const isPublicApiRequest = (pathname, method) => {
 
 export async function proxy(request) {
     const { pathname } = request.nextUrl;
-    if ((pathname === '/api/runden' || pathname === '/api/stations/heartbeat')
+    if ((pathname === '/api/runden' || pathname === '/api/stations/heartbeat' || pathname === '/api/stations')
         && !hasSafeRequestOrigin({
             method: request.method,
             headers: request.headers,
@@ -64,5 +65,5 @@ export async function proxy(request) {
 }
 
 export const config = {
-    matcher: ['/setup/:path*', '/manage/:path*', '/teachers/:path*', '/mails/:path*', '/donations/:path*', '/api/:path*'],
+    matcher: ['/stations/:path*', '/setup/:path*', '/manage/:path*', '/teachers/:path*', '/mails/:path*', '/donations/:path*', '/api/:path*'],
 };

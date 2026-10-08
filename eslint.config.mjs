@@ -2,7 +2,7 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 
 const eslintConfig = [
   {
-    ignores: [".next-e2e/**"],
+    ignores: [".next*/**", "test-results/**", "playwright-report/**", ".e2e-data/**", ".local-data/**"],
   },
   ...nextVitals,
   {

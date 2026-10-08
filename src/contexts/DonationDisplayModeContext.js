@@ -10,20 +10,11 @@ export const DonationDisplayModeProvider = ({ children }) => {
 
     // Modus ändern und im Backend speichern
     const updateMode = async (newMode) => {
+        await request('/api/donationSettings', {
+            method: 'POST',
+            data: { donationDisplayMode: newMode },
+        });
         setMode(newMode);
-        try {
-            await request('/api/donationSettings', {
-                method: 'POST',
-                data: { donationDisplayMode: newMode },
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
-        } catch (error) {
-            console.error('Fehler beim Speichern des Donation Display Mode:', error);
-            // Optional: Rollback bei Fehler
-            // setMode(previousMode);
-        }
     };
 
     return (

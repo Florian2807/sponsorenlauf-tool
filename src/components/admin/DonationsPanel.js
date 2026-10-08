@@ -76,6 +76,7 @@ export default function DonationsPanel() {
         try {
             const data = await request(`${API_ENDPOINTS.DONATIONS}?studentId=${studentId}`);
             if (requestId === studentInfoRequestRef.current) setSelectedStudentInfo(data);
+            return data;
         } catch (error) {
             showError(error, 'Beim Laden der Schülerdetails');
         }
@@ -267,9 +268,12 @@ export default function DonationsPanel() {
     }, [selectedStudentPayment]);
 
     const refreshData = useCallback(async () => {
-        await loadStudents();
-        await loadStudentInfo(selectedStudentId);
-    }, [loadStudentInfo, loadStudents, selectedStudentId]);
+        const details = await loadStudentInfo(selectedStudentId);
+        if (details) setStudents(current => current.map(student => student.id === selectedStudentId ? {
+            ...student, spenden: details.spenden,
+            receivedTotal: (details.spendenKonto || []).reduce((sum, amount) => sum + Number(amount), 0),
+        } : student));
+    }, [loadStudentInfo, selectedStudentId]);
 
     const handleSubmit = useCallback(async (event) => {
         event.preventDefault();

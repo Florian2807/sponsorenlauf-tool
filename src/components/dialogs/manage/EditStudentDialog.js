@@ -16,7 +16,8 @@ const EditStudentDialog = ({
     confirmDeletePopup,
     editStudent,
     addRound,
-    loading = false
+    loading = false,
+    historyOpen, setHistoryOpen, historyLoading, historyError, reloadHistory
 }) => {
     const handleInputChange = (field, value) => {
         setEditForm(prev => ({ ...prev, [field]: value }));
@@ -55,7 +56,7 @@ const EditStudentDialog = ({
             <div className="manage-dialog-stack">
                 <div className="student-editor-identity">
                     <span className="student-profile-avatar" aria-hidden="true">{selectedStudent?.vorname?.[0]}{selectedStudent?.nachname?.[0]}</span>
-                    <div><strong>{selectedStudent?.vorname} {selectedStudent?.nachname}</strong><span>ID {selectedStudent?.id} · {selectedStudent?.timestamps.length || 0} Runden</span></div>
+                    <div><strong>{selectedStudent?.vorname} {selectedStudent?.nachname}</strong><span>ID {selectedStudent?.id} · {selectedStudent?.roundCount || 0} Runden</span></div>
                 </div>
 
                 <section className="manage-dialog-section">
@@ -152,12 +153,12 @@ const EditStudentDialog = ({
                     )}
                 </details>
 
-                <details className="manage-dialog-section rounds-section student-editor-details">
-                <summary>Rundenverlauf <span>{selectedStudent?.timestamps.length || 0}</span></summary>
+                <details className="manage-dialog-section rounds-section student-editor-details" open={historyOpen} onToggle={event => setHistoryOpen(event.currentTarget.open)}>
+                <summary>Rundenverlauf <span>{selectedStudent?.roundCount || 0}</span></summary>
                 <div className="rounds-header">
                     <div>
                         <h3 className="sr-only">Runden</h3>
-                        <p className="text-muted">Gelaufene Runden: {selectedStudent?.timestamps.length || 0}</p>
+                        <p className="text-muted">Gelaufene Runden: {selectedStudent?.roundCount || 0}</p>
                     </div>
                     <button
                         type="button"
@@ -169,7 +170,7 @@ const EditStudentDialog = ({
                     </button>
                 </div>
 
-                {selectedStudent?.rounds && selectedStudent.rounds.length > 0 ? (
+                {historyLoading ? <p role="status">Rundenverlauf wird geladen…</p> : historyError ? <p role="alert">{historyError} <button type="button" className="btn btn-secondary btn-sm" onClick={reloadHistory}>Erneut versuchen</button></p> : selectedStudent?.rounds && selectedStudent.rounds.length > 0 ? (
                     <ul className="timestamp-list">
                         {selectedStudent.rounds
                             .slice() // Kopie erstellen um Original nicht zu mutieren

@@ -1,6 +1,4 @@
 import {
-  getStudentById,
-  getPublicStudentById,
   createStudent,
   updateStudent,
   deleteStudent,
@@ -17,6 +15,7 @@ import {
   handleValidationError
 } from '../../../utils/apiHelpers.js';
 import { dbGet } from '../../../utils/database.js';
+import { getStudentSummary } from '../../../utils/studentSummaryService.js';
 
 export default async function handler(req, res) {
   try {
@@ -47,7 +46,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'GET') {
-      const student = await getPublicStudentById(id);
+      const student = await getStudentSummary(id);
       if (!student) {
         return handleNotFound(res, 'Schüler');
       }
@@ -64,7 +63,7 @@ export default async function handler(req, res) {
         return handleValidationError(res, validationErrors);
       }
 
-      const existingStudent = await getStudentById(id);
+      const existingStudent = await getStudentSummary(id);
       if (existingStudent) {
         return handleError(res, new Error('Schüler mit dieser ID existiert bereits'), 409);
       }
@@ -92,7 +91,7 @@ export default async function handler(req, res) {
         ]);
       }
 
-      const student = await getStudentById(id);
+      const student = await getStudentSummary(id);
       if (!student) {
         return handleNotFound(res, 'Schüler');
       }
@@ -136,14 +135,13 @@ export default async function handler(req, res) {
     } else if (req.method === 'DELETE') {
       const { deleteRoundIndex } = req.body;
 
-      const student = await getStudentById(id);
+      const student = await getStudentSummary(id);
       if (!student) {
         return handleNotFound(res, 'Schüler');
       }
 
       if (deleteRoundIndex !== undefined) {
-        const timestamps = student.timestamps;
-        if (deleteRoundIndex < 0 || deleteRoundIndex >= timestamps.length) {
+        if (deleteRoundIndex < 0 || deleteRoundIndex >= student.roundCount) {
           return handleError(res, new Error('Ungültiger Index'), 400);
         }
         await deleteRoundByIndex(id, deleteRoundIndex);

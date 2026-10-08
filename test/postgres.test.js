@@ -16,6 +16,7 @@ import { createDatabaseBackup, restoreDatabaseBackup } from '../src/utils/backup
 import { setSetting, getSetting } from '../src/utils/settingsService.js';
 import { setExpectedDonation } from '../src/utils/donationService.js';
 import { loadStudentsForStatistics } from '../src/utils/statisticsService.js';
+import { getStudentDirectory, getStudentSummary } from '../src/utils/studentSummaryService.js';
 import { writeTransition } from '../src/utils/migrationGate.js';
 const execute = promisify(execFile);
 const enabled = Boolean(process.env.TEST_DATABASE_URL);
@@ -81,12 +82,28 @@ after(async () => {
     await rm(directory, { recursive: true, force: true });
 });
 const integration = (name, fn) => test(name, { skip: !enabled }, fn);
-integration('imports and verifies 1500 students and 30000 rounds without changing SQLite', async () => {
+integration('imports and verifies 1500 students and 30000 rounds without changing SQLite', async (t) => {
     const manifest = await importSqlite(source);
     assert.equal(manifest.tables.students.count, 1500);
     assert.equal(manifest.tables.rounds.count, 30000);
     assert.equal(createHash('sha256').update(await readFile(source)).digest('hex'), originalHash);
     assert.equal((await dbGet('SELECT SUM(amount) AS total FROM received_donations')).total, 12.345);
+    const first = await getStudentDirectory({ page: '0', sort: 'id' });
+    const second = await getStudentDirectory({ page: '1', sort: 'id' });
+    assert.equal(first.students.length, 200);
+    assert.equal(first.total, 1500);
+    assert.equal(first.filtered, 1500);
+    assert.equal(first.nextId, 1501);
+    assert.ok(first.students.every(student => student.roundCount === 20 && !('rounds' in student) && !('timestamps' in student)));
+    assert.ok(second.students.every(student => !first.students.some(before => before.id === student.id)));
+    const summary = await getStudentSummary(1);
+    assert.equal(summary.roundCount, 20);
+    assert.ok(summary.lastTimestamp);
+    const matched = await getStudentDirectory({ page: '0', search: String(summary.vorname), klasse: summary.klasse, filter: 'with-rounds' });
+    assert.ok(matched.students.some(student => student.id === summary.id));
+    assert.equal((await getStudentDirectory({ page: '0', filter: 'no-rounds' })).filtered, 0);
+    assert.equal((await getStudentDirectory({ view: 'ids' })).length, 1500);
+    t.diagnostic(`1500-student/30000-lap fixture: first 200-student page is ${Buffer.byteLength(JSON.stringify(first))} bytes; no lap histories transmitted.`);
 });
 integration('repeated import is idempotent and identities continue after imported IDs', async () => {
     assert.equal((await importSqlite(source)).alreadyImported, true);

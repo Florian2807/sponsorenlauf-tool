@@ -2,78 +2,9 @@
  * Service für Schüler-Operationen
  */
 
-import { dbAll, dbGet, dbRun, dbTransaction, dbImmediateTransaction, createPlaceholders } from './database.js';
+import { dbAll, dbRun, dbTransaction, dbImmediateTransaction } from './database.js';
 import { createDatabaseBackup } from './backupService.js';
 import { ensureClassExists } from './classService.js';
-
-/**
- * Holt einen Schüler anhand seiner ID
- * @param {number} id Schüler-ID
- * @returns {Promise<Object|null>} Schülerdaten oder null
- */
-export const getStudentById = async (id) => {
-    const student = await dbGet('SELECT * FROM students WHERE id = ?', [id]);
-
-    if (!student) return null;
-
-    // Lade zusätzliche Daten
-    const [replacements, rounds, expectedDonations, receivedDonations] = await Promise.all([
-        getReplacementsByStudentId(id),
-        getRoundRecordsByStudentId(id),
-        getExpectedDonationsByStudentId(id),
-        getReceivedDonationsByStudentId(id)
-    ]);
-
-    return {
-        ...student,
-        replacements,
-        rounds,
-        timestamps: rounds.map((round) => round.timestamp),
-        spenden: expectedDonations.reduce((sum, d) => sum + d.amount, 0),
-        spendenKonto: receivedDonations.map(d => d.amount),
-        expectedDonations: expectedDonations,
-        receivedDonations: receivedDonations
-    };
-};
-
-export const getPublicStudentById = async (id) => {
-    const student = await dbGet(
-        'SELECT id, vorname, nachname, geschlecht, klasse FROM students WHERE id = ?',
-        [id]
-    );
-    if (!student) return null;
-    const rounds = await getRoundRecordsByStudentId(id);
-    return { ...student, rounds, timestamps: rounds.map((round) => round.timestamp) };
-};
-
-/**
- * Holt einen Schüler anhand seiner ID mit optimierten Basisdaten (ohne Timestamps)
- * @param {number} id Schüler-ID
- * @returns {Promise<Object|null>} Schülerdaten oder null
- */
-export const getStudentByIdFast = async (id) => {
-    const student = await dbGet('SELECT * FROM students WHERE id = ?', [id]);
-
-    if (!student) return null;
-
-    // Lade nur die kritischen Daten ohne Timestamps für bessere Performance
-    const [replacements, roundCount, expectedDonations, receivedDonations] = await Promise.all([
-        getReplacementsByStudentId(id),
-        getRoundCountByStudentId(id), // Nur Anzahl, nicht alle Timestamps
-        getExpectedDonationsByStudentId(id),
-        getReceivedDonationsByStudentId(id)
-    ]);
-
-    return {
-        ...student,
-        replacements,
-        roundCount, // Nur die Anzahl der Runden
-        spenden: expectedDonations.reduce((sum, d) => sum + d.amount, 0),
-        spendenKonto: receivedDonations.map(d => d.amount),
-        expectedDonations: expectedDonations,
-        receivedDonations: receivedDonations
-    };
-};
 
 /**
  * Erstellt einen neuen Schüler
@@ -187,61 +118,6 @@ export const deleteStudent = async (id) => {
 };
 
 /**
- * Holt alle Schüler mit vollständigen Daten
- * @returns {Promise<Array>} Array von Schülerdaten
- */
-export const getAllStudents = async () => {
-    const students = await dbAll('SELECT * FROM students ORDER BY klasse, nachname');
-
-    if (students.length === 0) return [];
-
-    const studentIds = students.map(s => s.id);
-    const placeholders = createPlaceholders(studentIds);
-
-    // Lade alle zusätzlichen Daten parallel
-    const [replacements, rounds, expectedDonations, receivedDonations] = await Promise.all([
-        dbAll(`SELECT studentID, id FROM replacements WHERE studentID IN (${placeholders})`, studentIds),
-        dbAll(`SELECT id, student_id, timestamp FROM rounds WHERE student_id IN (${placeholders}) ORDER BY student_id, id DESC`, studentIds),
-        dbAll(`SELECT student_id, SUM(amount) as total FROM expected_donations WHERE student_id IN (${placeholders}) GROUP BY student_id`, studentIds),
-        dbAll(`SELECT student_id, amount FROM received_donations WHERE student_id IN (${placeholders}) ORDER BY student_id, created_at DESC`, studentIds)
-    ]);
-
-    // Erstelle Maps für effiziente Zuordnung
-    const replacementsMap = replacements.reduce((acc, { studentID, id }) => {
-        if (!acc[studentID]) acc[studentID] = [];
-        acc[studentID].push(id);
-        return acc;
-    }, {});
-
-    const roundsMap = rounds.reduce((acc, { id, student_id, timestamp }) => {
-        if (!acc[student_id]) acc[student_id] = [];
-        acc[student_id].push({ id, timestamp });
-        return acc;
-    }, {});
-
-    const expectedMap = expectedDonations.reduce((acc, { student_id, total }) => {
-        acc[student_id] = total;
-        return acc;
-    }, {});
-
-    const receivedMap = receivedDonations.reduce((acc, { student_id, amount }) => {
-        if (!acc[student_id]) acc[student_id] = [];
-        acc[student_id].push(amount);
-        return acc;
-    }, {});
-
-    // Kombiniere alle Daten
-    return students.map(student => ({
-        ...student,
-        replacements: replacementsMap[student.id] || [],
-        rounds: roundsMap[student.id] || [],
-        timestamps: (roundsMap[student.id] || []).map((round) => round.timestamp),
-        spenden: expectedMap[student.id] || 0,
-        spendenKonto: receivedMap[student.id] || []
-    }));
-};
-
-/**
  * Aktualisiert die Runden eines Schülers
  * @param {number} studentId Schüler-ID
  * @param {Array<string>} timestamps Array von Zeitstempeln
@@ -344,42 +220,10 @@ export const deleteRoundById = async (roundId, studentId = null) => {
     );
 };
 
-/**
- * Holt einen Schüler anhand seiner ID - ULTRA SCHNELL (nur Basisdaten für Scan)
- * @param {number} id Schüler-ID
- * @returns {Promise<Object|null>} Schülerdaten oder null
- */
-export const getStudentByIdMinimal = async (id) => {
-    const student = await dbGet('SELECT * FROM students WHERE id = ?', [id]);
-
-    if (!student) return null;
-
-    // Lade nur die absolut nötigen Daten für den Scan-Prozess
-    const roundCount = await getRoundCountByStudentId(id);
-
-    return {
-        ...student,
-        roundCount // Nur die Anzahl der Runden - keine anderen Daten
-    };
-};
-
-/**
- * Holt die höchste Schüler-ID
- * @returns {Promise<number>} Höchste ID
- */
-export const getMaxStudentId = async () => {
-    const result = await dbGet('SELECT MAX(id) as maxId FROM students');
-    return result?.maxId || 0;
-};
 
 /**
  * Hilfsfunktionen
  */
-
-const getReplacementsByStudentId = async (studentId) => {
-    const rows = await dbAll('SELECT id FROM replacements WHERE studentID = ?', [studentId]);
-    return rows.map(row => row.id);
-};
 
 export const getRoundRecordsByStudentId = async (studentId) => (
     await dbAll(
@@ -387,21 +231,3 @@ export const getRoundRecordsByStudentId = async (studentId) => (
         [studentId]
     )
 );
-
-export const getRoundsByStudentId = async (studentId) => {
-    const rounds = await getRoundRecordsByStudentId(studentId);
-    return rounds.map((round) => round.timestamp);
-};
-
-const getRoundCountByStudentId = async (studentId) => {
-    const result = await dbGet('SELECT COUNT(*) as count FROM rounds WHERE student_id = ?', [studentId]);
-    return result.count;
-};
-
-const getExpectedDonationsByStudentId = async (studentId) => {
-    return await dbAll('SELECT id, amount, created_at FROM expected_donations WHERE student_id = ? ORDER BY created_at DESC', [studentId]);
-};
-
-const getReceivedDonationsByStudentId = async (studentId) => {
-    return await dbAll('SELECT id, amount, created_at FROM received_donations WHERE student_id = ? ORDER BY created_at DESC', [studentId]);
-};

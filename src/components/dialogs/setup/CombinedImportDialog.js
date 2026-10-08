@@ -32,11 +32,11 @@ const CombinedImportDialog = ({ dialogRef, onImportSuccess, onClose }) => {
     const { showError, showSuccess } = useGlobalError();
 
     useEffect(() => {
-        request('/api/getAvailableClasses')
+        request('/api/getAvailableClasses', { cacheMs: 30000 })
             .then((classes) => setAvailableClasses(Array.isArray(classes) ? classes : []))
             .catch(() => setAvailableClasses([]));
-        request('/api/getAllStudents', { showErrorMessage: false })
-            .then((students) => setExistingStudentIds(Array.isArray(students) ? students.map((student) => student.id) : []))
+        request('/api/getAllStudents?view=ids', { showErrorMessage: false })
+            .then((ids) => setExistingStudentIds(Array.isArray(ids) ? ids : []))
             .catch(() => setExistingStudentIds([]));
     }, [request]);
 

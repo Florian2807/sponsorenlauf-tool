@@ -9,7 +9,7 @@ deployment/production.env
 backups/
 .update-rollback/
 .next/
-.next-e2e/
+.next-*/
 .idea/
 
 node_modules/

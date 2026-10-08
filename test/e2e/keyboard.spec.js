@@ -48,24 +48,25 @@ test('Dialoge: Formularfokus, Tab-Schleife, native Auswahl und Escape mit Fokusr
 test('Modul-Erklärungen und Schalter behalten ihre Tastaturbedienung', async ({ page }) => {
     await unlock(page);
     await page.goto('/setup');
-    await expect(page.getByRole('button', { name: 'Sperren', exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Module verwalten', exact: true })).toBeFocused();
-    await expect(page.getByLabel('Scanner-Stationen aktivieren')).toBeEnabled();
+    await page.getByRole('button', { name: 'Einstellungen öffnen', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Sperren', exact: true })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByLabel('E-Mails aktivieren')).toBeEnabled();
     const opener = page.getByRole('navigation', { name: 'Setup-Bereiche' }).getByRole('button', { name: 'Module verwalten' });
     await opener.press('Enter');
     await expect(page).toHaveURL(/view=moduleSettings/);
     const dialog = page.getByRole('region', { name: 'Module verwalten' });
-    const region = dialog.getByRole('region', { name: 'Scanner-Stationen', exact: true });
+    const region = dialog.getByRole('region', { name: 'E-Mails', exact: true });
     const summary = region.locator('summary');
     await summary.focus();
     await page.keyboard.press('Enter');
     await expect(region.locator('details')).toHaveAttribute('open', '');
     await expect(dialog).toBeVisible();
-    const toggle = region.getByLabel('Scanner-Stationen aktivieren');
+    const toggle = region.getByLabel('E-Mails aktivieren');
     await expect(toggle).toBeEnabled();
     await toggle.press('Space');
     await expect(toggle).toBeChecked();
-    await expect(region.getByRole('button', { name: 'Stationen einrichten', exact: true })).toBeDisabled();
     await page.keyboard.press('Escape');
     await expect(dialog).toBeVisible();
     await expect(toggle).toBeChecked();
@@ -75,7 +76,7 @@ test('Alle Hauptansichten passen in hell und dunkel auf Desktop und Handy', asyn
     test.setTimeout(90_000);
     await unlock(page);
     const original = await (await page.request.get('/api/moduleConfig')).json();
-    await page.request.post('/api/moduleConfig', { data: { ...original, scannerStations: true, donations: true, teachers: true, emails: true } });
+    await page.request.post('/api/moduleConfig', { data: { ...original, roundDisplay: true, donations: true, teachers: true, emails: true } });
     try {
         for (const theme of ['light', 'dark']) {
             await page.addInitScript(value => localStorage.setItem('theme', value), theme);
@@ -140,7 +141,7 @@ test('Speichern im Bereich sperrt Navigation und bewahrt den offenen Bereich', a
     });
     await page.goto('/setup');
     const panel = page.getByRole('region', { name: 'Module verwalten', exact: true });
-    await panel.locator('.module-toggle').filter({ has: page.getByLabel('Scanner-Stationen aktivieren') }).click();
+    await panel.locator('.module-toggle').filter({ has: page.getByLabel('E-Mails aktivieren') }).click();
     try {
         await page.getByRole('button', { name: 'Änderungen speichern', exact: true }).click();
         await expect(page.getByRole('navigation', { name: 'Setup-Bereiche' }).getByRole('button', { name: 'Klassenstruktur', exact: true })).toBeDisabled();

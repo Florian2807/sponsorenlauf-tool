@@ -1,5 +1,6 @@
 import { handleError, handleMethodNotAllowed, handleSuccess } from '../../../utils/apiHelpers.js';
 import { recordStationHeartbeat, STATION_ID_PATTERN } from '../../../utils/stationService.js';
+import { getScanDevice } from '../../../utils/scanDeviceService.js';
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') return handleMethodNotAllowed(res, ['POST']);
@@ -9,7 +10,7 @@ export default async function handler(req, res) {
     }
     try {
         await recordStationHeartbeat(deviceId);
-        return handleSuccess(res, { recordedAt: new Date().toISOString() }, 'Station aktiv');
+        return handleSuccess(res, { recordedAt: new Date().toISOString(), device: await getScanDevice(deviceId) }, 'Station aktiv');
     } catch (error) {
         return handleError(res, error, 500, 'Stationsstatus konnte nicht gespeichert werden');
     }

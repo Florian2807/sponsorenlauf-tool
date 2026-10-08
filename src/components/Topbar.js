@@ -1,42 +1,15 @@
 /* eslint-disable @next/next/no-img-element */
-import ScannerStationMenu from './ScannerStationMenu';
+import HeaderSettings from './HeaderSettings';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useState, useEffect } from 'react';
 import styles from '../styles/Topbar.module.css';
-import { useModuleConfig } from '../contexts/ModuleConfigContext';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
 
-export default function Topbar() {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+export default function Topbar({ hidden = false }) {
   const router = useRouter();
-  const { config } = useModuleConfig();
-  const { authenticated, logout } = useAdminAuth();
+  const { authenticated } = useAdminAuth();
 
-  const applyTheme = (darkMode, persist = false) => {
-    const theme = darkMode ? 'dark' : 'light';
-    document.documentElement.setAttribute('data-theme', theme);
-    document.body.setAttribute('data-theme', theme);
-
-    if (persist) {
-      localStorage.setItem('theme', theme);
-    }
-  };
-
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme');
-    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const darkMode = savedTheme === 'dark' || (!savedTheme && systemPrefersDark);
-
-    setIsDarkMode(darkMode);
-    applyTheme(darkMode);
-  }, []);
-
-  const toggleTheme = () => {
-    const newTheme = !isDarkMode;
-    setIsDarkMode(newTheme);
-    applyTheme(newTheme, true);
-  };
+  if (hidden) return null;
 
   const primaryNavItems = [
     { href: '/scan', label: 'Runden zählen' },
@@ -76,33 +49,7 @@ export default function Topbar() {
         </div>
       </nav>
 
-      {router.pathname === '/scan' && config.scannerStations && (
-        <div className={styles.stationSlot}><ScannerStationMenu /></div>
-      )}
-      <div className={styles.headerActions}>
-        {authenticated && (
-          <button
-            className={styles.logoutButton}
-            type="button"
-            onClick={async () => {
-              await logout();
-              router.push('/scan');
-            }}
-          >
-            Sperren
-          </button>
-        )}
-        <button
-          className={styles.themeToggle}
-          onClick={toggleTheme}
-          type="button"
-          aria-label={`Zu ${isDarkMode ? 'Hell' : 'Dunkel'}modus wechseln`}
-          aria-pressed={isDarkMode}
-          title={`Zu ${isDarkMode ? 'Hell' : 'Dunkel'}modus wechseln`}
-        >
-          {isDarkMode ? '☀️' : '🌙'}
-        </button>
-      </div>
+      <HeaderSettings />
     </header>
   );
 }

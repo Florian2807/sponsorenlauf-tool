@@ -5,6 +5,7 @@ import { dbRun, dbGet, dbAll } from '../src/utils/database.js';
 import { getPostgresPool, postgresConfig, pgQuery } from '../src/utils/postgres.js';
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import { getRecentScans } from '../src/utils/scanFeedService.js';
 import pg from 'pg';
 const enabled = Boolean(process.env.TEST_DATABASE_URL);
 const test = (name, fn) => nodeTest(name, { skip: !enabled }, fn);
@@ -417,6 +418,42 @@ test('versioned migrations upgrade an existing database exactly once', async () 
   assert.equal(roundColumns.some((column) => column.name === 'recorded_at'), true);
 });
 
+test('scanner migration copies legacy device rules without overwriting existing rules or historical rounds', async () => {
+  const setting = await get("SELECT value FROM settings WHERE key = 'module_config'");
+  const devices = ['migration_legacy_device', 'migration_own_device'];
+  try {
+    await run('DELETE FROM schema_migrations WHERE version = 11');
+    await run(`INSERT INTO scanner_stations (id, name, mode, classes, grades) VALUES
+      ('default', 'Standard-Scanner', 'allow', '[]', '[]'),
+      ('migration_legacy_station', 'Eingang', 'block', '["5a"]', '[]'),
+      ('rules_migration_own_device', 'Scanner-Regeln', 'warn', '[]', '["6"]')`);
+    for (const device of devices) {
+      await run('INSERT INTO scan_devices(device_id) VALUES (?)', [device]);
+      await run(`INSERT INTO station_activity(device_id, source_station_id, last_seen_at)
+        VALUES (?, 'migration_legacy_station', ?)`, [device, new Date().toISOString()]);
+    }
+    await run(`INSERT INTO settings(key, value) VALUES ('module_config', ?)
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value`, [JSON.stringify({ scannerStations: true, roundDisplay: false, donations: true })]);
+    const before = await dbAll('SELECT id, timestamp, source_station_id, source_station_name FROM rounds ORDER BY id');
+    assert.deepEqual((await runDatabaseMigrations()).applied, [11]);
+    assert.equal(await get("SELECT id FROM scanner_stations WHERE id = 'default'"), null);
+    assert.equal((await get("SELECT mode FROM scanner_stations WHERE id = 'rules_migration_legacy_device'")).mode, 'block');
+    assert.equal((await get("SELECT mode FROM scanner_stations WHERE id = 'rules_migration_own_device'")).mode, 'warn');
+    assert.deepEqual(JSON.parse((await get("SELECT value FROM settings WHERE key = 'module_config'")).value), { roundDisplay: false, donations: true });
+    assert.deepEqual(await dbAll('SELECT id, timestamp, source_station_id, source_station_name FROM rounds ORDER BY id'), before);
+    assert.deepEqual((await runDatabaseMigrations()).applied, []);
+  } finally {
+    for (const device of devices) {
+      await run('DELETE FROM station_activity WHERE device_id = ?', [device]);
+      await run('DELETE FROM scan_devices WHERE device_id = ?', [device]);
+      await run('DELETE FROM scanner_stations WHERE id = ?', ['rules_' + device]);
+    }
+    await run("DELETE FROM scanner_stations WHERE id IN ('default', 'migration_legacy_station')");
+    if (setting) await run("UPDATE settings SET value = ? WHERE key = 'module_config'", [setting.value]);
+    else await run("DELETE FROM settings WHERE key = 'module_config'");
+  }
+});
+
 test('Microsoft Graph credentials are encrypted and secrets are never returned to the browser', async () => {
   const clientSecret = 'microsoft-test-secret-value';
   const saved = await saveSmtpConfiguration({
@@ -546,4 +583,32 @@ test('a stored backup can be deleted without allowing path traversal', async () 
   assert.deepEqual(await deleteDatabaseBackup(backup.filename), { filename: backup.filename });
   await assert.rejects(stat(backup.backupPath), { code: 'ENOENT' });
   await assert.rejects(deleteDatabaseBackup('../database.db'), /Ungültiger Backup-Dateiname/);
+});
+
+test('scan feeds isolate devices, stay bounded, and reflect student edits and round deletion', async () => {
+  await createStudent(114);
+  for (let index = 0; index < 32; index += 1) {
+    await recordRound({ studentId: 114, scanId: `feed_scan_${index}`, sourceDeviceId: 'device_feed_one',
+      doubleScanPrevention: { ...prevention, enabled: false },
+      now: new Date(Date.UTC(2026, 9, 6, 10, index)) });
+  }
+  await recordRound({ studentId: 114, scanId: 'feed_other_device', sourceDeviceId: 'device_feed_two',
+    doubleScanPrevention: { ...prevention, enabled: false }, now: new Date('2026-10-06T11:00:00Z') });
+  const deviceFeed = await getRecentScans('device_feed_one');
+  assert.equal(deviceFeed.length, 30);
+  assert.equal(deviceFeed[0].timestamp, '2026-10-06T10:31:00.000Z');
+  assert.equal(deviceFeed[0].previousTimestamp, '2026-10-06T10:30:00.000Z');
+  assert.equal(deviceFeed[0].student.roundCount, 33);
+  assert.deepEqual(deviceFeed.map(scan => scan.roundNumber), Array.from({ length: 30 }, (_, index) => 32 - index));
+  assert.ok(deviceFeed.every(scan => scan.deviceId === 'device_feed_one'));
+  assert.equal((await getRecentScans())[0].deviceId, 'device_feed_two');
+  assert.equal((await getRecentScans())[0].roundNumber, 33);
+  await run('UPDATE students SET vorname = ? WHERE id = ?', ['Changed', 114]);
+  await deleteRoundById(deviceFeed[0].id, 114);
+  const updated = await getRecentScans('device_feed_one');
+  assert.equal(updated[0].student.vorname, 'Changed');
+  assert.equal(updated[0].student.roundCount, 32);
+  assert.equal(updated[0].roundNumber, 31);
+  assert.ok(updated.every(scan => scan.id !== deviceFeed[0].id));
+  assert.deepEqual(await getRecentScans('device_not_used'), []);
 });

@@ -4,7 +4,8 @@ import { useApi } from '../hooks/useApi';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
 
 const safeDestination = (value) => (
-    typeof value === 'string' && /^\/(setup|manage|teachers|mails|donations)(?:\/|$)/.test(value)
+    typeof value === 'string' && (value === '/statistics?export=1'
+        || /^\/(setup|manage|teachers|mails|donations|live)(?:\/|\?|$)/.test(value))
         ? value
         : '/setup'
 );
@@ -47,7 +48,7 @@ export default function AdminLogin() {
                 <div className="admin-login-icon"><i className="fa-solid fa-lock" aria-hidden="true" /></div>
                 <h1>{configured ? 'Administrator entsperren' : 'Administrator-PIN einrichten'}</h1>
                 <p>{configured
-                    ? 'Die Verwaltung und alle verändernden Funktionen sind geschützt.'
+                    ? 'Entsperre die Schülerverwaltung und die Einrichtung des Laufs.'
                     : 'Legen Sie einmalig eine PIN aus Ziffern fest.'}</p>
                 <label htmlFor="admin-pin">Administrator-PIN</label>
                 <input

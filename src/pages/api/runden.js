@@ -27,11 +27,13 @@ export default async function handler(req, res) {
       res.setHeader('Cache-Control', 'no-store');
       const row = await dbGet(`SELECT r.id, r.timestamp, r.source_station_id, r.source_station_name, r.station_warning, s.id AS studentId,
         s.vorname, s.nachname, s.klasse,
-        (SELECT COUNT(*) FROM rounds WHERE student_id = s.id) AS roundCount
+        (SELECT COUNT(*) FROM rounds WHERE student_id = s.id) AS roundCount,
+        (SELECT timestamp FROM rounds WHERE student_id = s.id AND id < r.id ORDER BY id DESC LIMIT 1) AS previousTimestamp
         FROM rounds r JOIN students s ON s.id = r.student_id WHERE r.scan_id = ?`, [scanId]);
       return res.status(200).json(row ? {
         success: true, stored: true, scanId,
         round: { id: row.id, timestamp: row.timestamp, sourceStationId: row.source_station_id, sourceStationName: row.source_station_name },
+        previousTimestamp: row.previousTimestamp,
         stationWarning: row.station_warning,
         student: { id: row.studentId, vorname: row.vorname, nachname: row.nachname,
           klasse: row.klasse, roundCount: row.roundCount },
@@ -47,8 +49,7 @@ export default async function handler(req, res) {
     const {
       confirmDoubleScan = false,
       scanId = null,
-      sourceDeviceId = null,
-      sourceStationId = null
+      sourceDeviceId = null
     } = req.body;
 
     if (!validateStudentId(id)) {
@@ -64,10 +65,6 @@ export default async function handler(req, res) {
       && (typeof sourceDeviceId !== 'string' || !DEVICE_ID_PATTERN.test(sourceDeviceId))
     ) {
       return handleValidationError(res, ['Ungültige Geräte-ID']);
-    }
-
-    if (sourceStationId !== null && (typeof sourceStationId !== 'string' || !DEVICE_ID_PATTERN.test(sourceStationId))) {
-      return handleValidationError(res, ['Ungültige Scanner-Station']);
     }
 
     if (typeof id === 'string' && id.startsWith('E')) {
@@ -87,8 +84,6 @@ export default async function handler(req, res) {
       doubleScanPrevention: moduleConfig.doubleScanPrevention,
       scanId,
       sourceDeviceId,
-      scannerStations: moduleConfig.scannerStations,
-      sourceStationId,
     });
 
     if (sourceDeviceId && result.accepted && !result.idempotentReplay) {
@@ -102,10 +97,9 @@ export default async function handler(req, res) {
       return res.status(400).json({
         success: false,
         error: 'DOUBLE_SCAN_BLOCKED',
-        message: `Doppel-Scan blockiert.${result.lastStationName ? ` Letzter Scan bei „${result.lastStationName}“.` : ''} Bitte warten Sie ${result.thresholdMinutes} Minuten zwischen den Scans.`,
+        message: `Doppel-Scan blockiert. Bitte warten Sie ${result.thresholdMinutes} Minuten zwischen den Scans.`,
         student: result.student,
         lastRoundTime: result.lastRoundTime,
-        lastStationName: result.lastStationName,
         timeDifferenceMs: result.timeDifferenceMs,
         thresholdMinutes: result.thresholdMinutes
       });
@@ -119,7 +113,6 @@ export default async function handler(req, res) {
         requiresConfirmation: true,
         student: result.student,
         lastRoundTime: result.lastRoundTime,
-        lastStationName: result.lastStationName,
         timeDifferenceMs: result.timeDifferenceMs,
         thresholdMinutes: result.thresholdMinutes,
         message: 'Doppel-Scan erkannt - Bestätigung erforderlich'
@@ -132,6 +125,7 @@ export default async function handler(req, res) {
       requiresConfirmation: false,
       student: result.student,
       round: result.round,
+      previousTimestamp: result.previousTimestamp,
       stationWarning: result.stationWarning,
       idempotentReplay: result.idempotentReplay,
       wasDoubleScan: result.wasDoubleScan,

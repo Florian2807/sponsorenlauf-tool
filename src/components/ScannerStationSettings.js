@@ -1,7 +1,6 @@
-import { useState, useEffect, useRef, useId, useContext } from 'react';
+import { useState, useEffect, useRef, useId } from 'react';
 import { useApi } from '../hooks/useApi';
 import { useScannerStation } from '../contexts/ScannerStationContext';
-import { useWorkspaceEditor, PanelNavigationContext } from '../contexts/PanelNavigationContext';
 
 const modes = [
     { value: 'allow', title: 'Alle zulassen', description: 'Jede Klasse kann hier scannen.', icon: 'fa-check' },
@@ -9,9 +8,8 @@ const modes = [
     { value: 'block', title: 'Blockieren', description: 'Andere Klassen erhalten keine Runde.', icon: 'fa-ban' },
 ];
 
-export default function ScannerStationSettings({ stationId, admin = false, onSaved, onCancel, onDirtyChange }) {
-    const navigation = useContext(PanelNavigationContext);
-    const { stations, classes, grades, refresh } = useScannerStation();
+export default function ScannerStationSettings({ stationId, onSaved, onCancel, onDirtyChange }) {
+    const { stations, classes, grades, refresh, deviceId, error } = useScannerStation();
     const station = stations.find((item) => item.id === stationId);
     const { request } = useApi();
     const groupId = useId();
@@ -43,9 +41,9 @@ export default function ScannerStationSettings({ stationId, admin = false, onSav
         setBusy(true);
         setFeedback(null);
         try {
-            await request('/api/stations', {
-                method: admin ? 'PATCH' : 'PUT',
-                data: { id: stationId, ...draft },
+            await request('/api/scanner-rules', {
+                method: 'PUT',
+                data: { id: stationId, deviceId, ...draft },
                 showErrorMessage: false,
             });
             dirtyRef.current = false;
@@ -62,25 +60,17 @@ export default function ScannerStationSettings({ stationId, admin = false, onSav
         }
     };
 
-    const workspaceEditor = useWorkspaceEditor({ id: admin ? `station:${stationId}` : null, label: station?.name || 'Scanner-Station', save, disabled: busy || (admin && !draft.name.trim()), dirty: dirtyRef.current });
-
-    if (!station) return <div className="station-loading" role="status">Station wird geladen …</div>;
+    if (!station) return error
+        ? <div className="station-error" role="alert">{error}<button type="button" onClick={refresh}>Erneut laden</button></div>
+        : <div className="station-loading" role="status">Scanner-Regeln werden geladen …</div>;
     const chosen = draft.classes.length + draft.grades.length;
     const classOptions = [...new Set([...classes, ...draft.classes])]
         .filter((name) => name.toLocaleLowerCase('de').includes(search.toLocaleLowerCase('de')));
 
-    return <form className="station-editor" onSubmit={event => {
-        if (workspaceEditor) { event.preventDefault(); navigation.saveEditor?.(`station:${stationId}`); }
-        else save(event);
-    }}>
+    return <form className="station-editor" onSubmit={save}>
         <div className="station-editor-content">
-            {admin && <div className="station-name-field">
-                <label htmlFor={groupId + '-name'}>Stationsname</label>
-                <input id={groupId + '-name'} className="input" value={draft.name} placeholder="z. B. Ziel links · Jahrgang 5"
-                    required maxLength={100} disabled={busy} onChange={(event) => change({ name: event.target.value })} />
-            </div>}
             <fieldset className="station-mode-fieldset" disabled={busy}>
-                <legend>Welche Scans nimmt diese Station an?</legend>
+                <legend>Wer darf hier gescannt werden?</legend>
                 <div className="station-mode-options">
                     {modes.map((mode) => <label key={mode.value} className={`station-mode-option ${draft.mode === mode.value ? 'is-selected' : ''}`}>
                         <input type="radio" name={groupId + '-mode'} value={mode.value} checked={draft.mode === mode.value}
@@ -92,7 +82,7 @@ export default function ScannerStationSettings({ stationId, admin = false, onSav
             </fieldset>
             {draft.mode !== 'allow' && <section className="station-class-selection" aria-label="Klassenzuordnung">
                 <div className="station-section-heading">
-                    <div><h3>Zuständige Klassen</h3><p>Wähle ganze Jahrgänge oder einzelne Klassen.</p></div>
+                    <div><h3>Erlaubte Klassen</h3><p>Wähle ganze Jahrgänge oder einzelne Klassen.</p></div>
                     <span className="station-selection-count">{chosen} ausgewählt</span>
                 </div>
                 <fieldset disabled={busy} className="station-chip-fieldset">
@@ -120,11 +110,11 @@ export default function ScannerStationSettings({ stationId, admin = false, onSav
                 <div className={`station-rule-preview ${chosen ? '' : 'is-empty'}`} role="note">
                     <i className={`fa-solid ${chosen ? 'fa-circle-info' : 'fa-triangle-exclamation'}`} aria-hidden="true" />
                     <p>{!chosen ? 'Noch keine Klasse ausgewählt. Aktuell dürfen weiterhin alle Klassen scannen.'
-                        : draft.mode === 'warn' ? 'Andere Klassen werden gezählt. Die Station zeigt dabei einen Hinweis.'
+                        : draft.mode === 'warn' ? 'Andere Klassen werden gezählt. Der Scanner zeigt dabei eine Warnung.'
                             : 'Andere Klassen werden abgewiesen. Es wird keine Runde gezählt.'}</p>
                 </div>
             </section>}
-            <p className="station-shared-note"><i className="fa-solid fa-laptop" aria-hidden="true" /> Gilt für alle Laptops mit dieser Station.</p>
+            <p className="station-shared-note"><i className="fa-solid fa-laptop" aria-hidden="true" /> Gilt nur für diesen Scanner.</p>
         </div>
         <div className="station-editor-footer">
             <div className="station-editor-feedback">
@@ -134,8 +124,7 @@ export default function ScannerStationSettings({ stationId, admin = false, onSav
             </div>
             <div className="station-editor-actions">
                 {onCancel && <button type="button" className="btn btn-secondary" disabled={busy} onClick={onCancel} data-dialog-cancel-action="true">Abbrechen</button>}
-                {workspaceEditor && <button type="button" className="btn btn-secondary" disabled={busy || !dirtyRef.current} onClick={() => change({ name: station.name, mode: station.mode, classes: station.classes, grades: station.grades })}>Änderungen verwerfen</button>}
-                {<button type="submit" className="btn" disabled={busy || (admin && !draft.name.trim()) || (workspaceEditor && !dirtyRef.current)} data-dialog-primary-action="true">
+                {<button type="submit" className="btn" disabled={busy} data-dialog-primary-action="true">
                     {busy ? 'Wird gespeichert …' : 'Änderungen speichern'}
                 </button>}
             </div>

@@ -77,7 +77,9 @@ test('Lehrerverwaltung: Liste, Formulare und Tastatur auf Desktop und Handy', as
     await expect(add).not.toBeVisible();
     expect(created).toMatchObject({ vorname: 'Anna', nachname: 'Beispiel', email: 'anna@example.org' });
     await page.setViewportSize({ width: 390, height: 844 });
+    await page.getByRole('button', { name: 'Einstellungen öffnen', exact: true }).click();
     await page.getByRole('button', { name: 'Zu Dunkelmodus wechseln', exact: true }).click();
+    await page.keyboard.press('Escape');
     await expect(page.getByRole('combobox', { name: 'Sortieren', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath('teacher-list-dark-mobile.png'), fullPage: true, animations: 'disabled' });

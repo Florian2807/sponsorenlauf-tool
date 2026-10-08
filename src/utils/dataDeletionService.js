@@ -66,11 +66,8 @@ export const deleteData = async ({ types, confirmation }) => {
             deletedCounts.settings = await runDelete(db, 'DELETE FROM settings');
             deletedCounts.smtpConfiguration = await runDelete(db, 'DELETE FROM smtp_configuration');
             deletedCounts.scannerStations = await runDelete(db, 'DELETE FROM scanner_stations');
-            await new Promise((resolve, reject) => db.run(
-                "INSERT INTO scanner_stations (id, name) VALUES ('default', 'Standard-Scanner')",
-                (error) => error ? reject(error) : resolve()
-            ));
             deletedCounts.stationActivity = await runDelete(db, 'DELETE FROM station_activity');
+            deletedCounts.scanDevices = await runDelete(db, 'DELETE FROM scan_devices');
             deletedCounts.loginAttempts = await runDelete(db, 'DELETE FROM admin_login_attempts');
 
             return {

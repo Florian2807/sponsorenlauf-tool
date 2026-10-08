@@ -7,6 +7,10 @@ const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 export const recordStationHeartbeat = async (deviceId, { scanned = false } = {}) => {
     if (!STATION_ID_PATTERN.test(String(deviceId || ''))) throw new Error('Ungültige Stations-ID');
     const now = new Date().toISOString();
+    // Keep device names independently of the expiring station telemetry.
+    await dbRun(`INSERT INTO scan_devices (device_id)
+        SELECT ? WHERE NOT EXISTS (SELECT 1 FROM scan_devices WHERE device_id = ?)
+        ON CONFLICT(device_id) DO NOTHING`, [deviceId, deviceId]);
     await dbRun(
         `INSERT INTO station_activity (device_id, last_seen_at, last_scan_at, scan_count)
          VALUES (?, ?, ?, ?)
@@ -14,7 +18,8 @@ export const recordStationHeartbeat = async (deviceId, { scanned = false } = {})
             last_seen_at = excluded.last_seen_at,
             last_scan_at = CASE WHEN ? THEN excluded.last_scan_at ELSE station_activity.last_scan_at END,
             scan_count = station_activity.scan_count + ?`,
-        [deviceId, now, scanned ? now : null, scanned ? 1 : 0, scanned ? 1 : 0, scanned ? 1 : 0]
+        [deviceId, now, scanned ? now : null, scanned ? 1 : 0,
+            scanned ? 1 : 0, scanned ? 1 : 0]
     );
     // Cleanup is operational housekeeping, not part of accepting a scan.
     if (!scanned && Date.now() - lastCleanupAt >= CLEANUP_INTERVAL_MS) {

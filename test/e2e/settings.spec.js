@@ -4,8 +4,10 @@ async function setup(page, theme = 'light') {
     await page.request.post('/api/admin-auth', { data: { action: 'login', pin: '246810' } });
     await page.addInitScript(value => localStorage.setItem('theme', value), theme);
     await page.goto('/setup');
+    await page.getByRole('button', { name: 'Einstellungen öffnen', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Sperren', exact: true })).toBeVisible();
-    await expect(page.getByLabel('Scanner-Stationen aktivieren')).toBeEnabled();
+    await page.keyboard.press('Escape');
+    await expect(page.getByLabel('Doppel-Scan-Schutz aktivieren')).toBeEnabled();
 }
 
 test('Arbeitsbereich ohne Übersicht: Navigation, Browser-Zurück und Tastatur', async ({ page }, testInfo) => {
@@ -13,6 +15,7 @@ test('Arbeitsbereich ohne Übersicht: Navigation, Browser-Zurück und Tastatur',
     const navigation = page.getByRole('navigation', { name: 'Setup-Bereiche', exact: true });
     await expect(page.getByRole('button', { name: 'Übersicht', exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Zur Übersicht', exact: true })).toHaveCount(0);
+    await expect(navigation.getByRole('button', { name: 'Klassenstruktur', exact: true })).toBeEnabled();
     await navigation.getByRole('button', { name: 'Klassenstruktur', exact: true }).press('Enter');
     const panel = page.locator('.setup-view:not([hidden])');
     await expect(panel.getByRole('heading', { name: 'Klassenstruktur verwalten', exact: true })).toBeFocused();
@@ -22,7 +25,9 @@ test('Arbeitsbereich ohne Übersicht: Navigation, Browser-Zurück und Tastatur',
     await navigation.getByRole('button', { name: 'Module verwalten', exact: true }).click();
     await page.goBack();
     await expect(page).toHaveURL(/view=classStructure/);
+    await page.getByRole('button', { name: 'Einstellungen öffnen', exact: true }).click();
     await page.getByRole('button', { name: 'Zu Dunkelmodus wechseln', exact: true }).click();
+    await page.keyboard.press('Escape');
     await page.screenshot({ path: testInfo.outputPath('classes-workspace-dark.png'), fullPage: true, animations: 'disabled' });
 });
 
@@ -65,7 +70,8 @@ test('Import, Etiketten und Export funktionieren direkt im Arbeitsbereich', asyn
 
 test('Jeder Bereich speichert nur seine Änderungen; Entwürfe und Fehler bleiben erhalten', async ({ page }) => {
     let classes = { '5': ['5a'] };
-    let modules = { donations: false, emails: false, teachers: false, scannerStations: false, doubleScanPrevention: { enabled: true, timeThresholdMinutes: 5, mode: 'confirm' } };
+    let modules = { donations: false, emails: false, teachers: false, roundDisplay: true, doubleScanPrevention: { enabled: true, timeThresholdMinutes: 5, mode: 'confirm' } };
+    await page.route('**/api/client-config', route => route.fulfill({ json: { success: true, data: { config: modules, donationMode: 'expected', setupCompleted: true } } }));
     let failModules = true;
     const writes = [];
     await page.route('**/api/classStructure', async route => {
@@ -83,7 +89,7 @@ test('Jeder Bereich speichert nur seine Änderungen; Entwürfe und Fehler bleibe
     const navigation = page.getByRole('navigation', { name: 'Setup-Bereiche' });
     const save = page.locator('.setup-view:not([hidden])').getByRole('button', { name: 'Änderungen speichern', exact: true });
     await expect(save).toBeDisabled();
-    const toggle = page.getByLabel('Scanner-Stationen aktivieren');
+    const toggle = page.getByLabel('E-Mails aktivieren');
     await page.locator('.module-toggle').filter({ has: toggle }).click();
     await navigation.getByRole('button', { name: 'Klassenstruktur', exact: true }).click();
     const field = page.getByRole('textbox', { name: 'Jahrgang / Stufe' }).first();
@@ -275,7 +281,8 @@ test('Löschauswahl wird zurückgesetzt, Systembereiche bleiben übersichtlich u
 
 test('Mobile Arbeitsbereiche: Menü bleibt beim Speichern offen, Layout in beiden Themes', async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.route('**/api/moduleConfig', async route => route.fulfill({ json: route.request().method() === 'POST' ? { success: true, modules: route.request().postDataJSON() } : { donations: true, emails: true, teachers: true, scannerStations: true, doubleScanPrevention: { enabled: true, timeThresholdMinutes: 5, mode: 'confirm' } } }));
+    await page.route('**/api/moduleConfig', route => route.request().method() === 'POST' ? route.fulfill({ json: { success: true, modules: route.request().postDataJSON() } }) : route.continue());
+    await page.route('**/api/client-config', async route => route.fulfill({ json: { success: true, data: { setupCompleted: true, donationMode: 'expected', config: { donations: true, emails: true, teachers: true, roundDisplay: true, doubleScanPrevention: { enabled: true, timeThresholdMinutes: 5, mode: 'confirm' } } } } }));
     for (const theme of ['light', 'dark']) {
         await setup(page, theme);
         const menu = page.getByRole('button', { name: 'Bereiche', exact: true });
@@ -290,7 +297,7 @@ test('Mobile Arbeitsbereiche: Menü bleibt beim Speichern offen, Layout in beide
         await page.locator('.setup-view:not([hidden])').getByRole('button', { name: 'Änderungen speichern', exact: true }).click();
         await expect(navigation).toBeVisible();
         await expect(page.locator('.setup-view:not([hidden]) .settings-save-actions')).toContainText('Änderungen gespeichert');
-        for (const [name, view] of [['Klassenstruktur', 'classStructure'], ['Scanner-Stationen', 'stations'], ['Lehrer verwalten', 'teachers'], ['Ergebnisse versenden', 'mails'], ['Spenden eintragen', 'donations'], ['Versand einrichten', 'smtpSettings'], ['System Check, Backups & Wartung', 'operations']]) {
+        for (const [name, view] of [['Klassenstruktur', 'classStructure'], ['Lehrer verwalten', 'teachers'], ['Ergebnisse versenden', 'mails'], ['Spenden eintragen', 'donations'], ['Versand einrichten', 'smtpSettings'], ['System Check, Backups & Wartung', 'operations']]) {
             if (!await navigation.isVisible()) await menu.click();
             await navigation.getByRole('button', { name, exact: true }).click();
             await expect(page).toHaveURL(new RegExp(`view=${view}`));
@@ -310,7 +317,7 @@ test('Mobile Arbeitsbereiche: Menü bleibt beim Speichern offen, Layout in beide
 });
 
 test('Spenden öffnen eine eigene Seite mit Tastatur und Rückweg zum Setup', async ({ page }, testInfo) => {
-    await page.route('**/api/moduleConfig', route => route.fulfill({ json: { donations: true, emails: false, teachers: false, scannerStations: false, doubleScanPrevention: { enabled: true, timeThresholdMinutes: 5, mode: 'confirm' } } }));
+    await page.route('**/api/client-config', route => route.fulfill({ json: { success: true, data: { setupCompleted: true, donationMode: 'expected', config: { donations: true, emails: false, teachers: false, roundDisplay: true, doubleScanPrevention: { enabled: true, timeThresholdMinutes: 5, mode: 'confirm' } } } } }));
     await page.route('**/api/getAllStudents', route => route.fulfill({ json: [{ id: 1042, vorname: 'Anna', nachname: 'Schmidt', klasse: '5a', spenden: 0, spendenKonto: [] }] }));
     let saved;
     await page.route('**/api/donations*', async route => {
@@ -338,7 +345,9 @@ test('Spenden öffnen eine eigene Seite mit Tastatur und Rückweg zum Setup', as
     await amount.press('Enter');
     await expect(page.getByText('Soll-Betrag erfolgreich gespeichert.')).toBeVisible();
     expect(saved).toMatchObject({ studentId: 1042, amount: '15,00€', mode: 'expected' });
+    await page.getByRole('button', { name: 'Einstellungen öffnen', exact: true }).click();
     await page.getByRole('button', { name: 'Zu Dunkelmodus wechseln', exact: true }).click();
+    await page.keyboard.press('Escape');
     await page.setViewportSize({ width: 390, height: 844 });
     await expect.poll(() => page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(13, 17, 23)');
     await page.evaluate(() => window.scrollTo(0, 0));
@@ -349,44 +358,43 @@ test('Spenden öffnen eine eigene Seite mit Tastatur und Rückweg zum Setup', as
     await expect(page.getByRole('link', { name: 'Spendenbereich öffnen' })).toBeVisible();
 });
 
-test('Stationen behalten Entwürfe und speichern ihre Regeln einzeln', async ({ page }) => {
-    const original = await (await page.request.get('/api/moduleConfig')).json();
+test('Scanner-Regeln behalten einen offenen Entwurf beim Aktualisieren', async ({ page }) => {
+    await page.goto('/scan');
+    await page.getByRole('button', { name: 'Einstellungen öffnen', exact: true }).click();
+    await page.getByRole('button', { name: 'Scanner-Regeln öffnen', exact: true }).click();
+    const editor = page.getByRole('dialog', { name: 'Scanner-Regeln', exact: true });
+    await editor.getByRole('radio', { name: 'Warnen' }).check();
+    await editor.getByRole('checkbox', { name: 'Jahrgang 5', exact: true }).check();
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await expect(editor.getByRole('radio', { name: 'Warnen' })).toBeChecked();
+    await expect(editor.getByRole('checkbox', { name: 'Jahrgang 5', exact: true })).toBeChecked();
+    await editor.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+    await page.getByRole('button', { name: 'Einstellungen öffnen', exact: true }).click();
+    await page.getByRole('button', { name: 'Scanner-Regeln öffnen', exact: true }).click();
+    await expect(editor.getByRole('radio', { name: 'Alle zulassen' })).toBeChecked();
+});
+test('Das Zahnrad bündelt Scanner-Regeln, Darstellung und Sperren mit Tastaturbedienung', async ({ page }) => {
     await page.request.post('/api/admin-auth', { data: { action: 'login', pin: '246810' } });
-    await page.request.post('/api/moduleConfig', { data: { ...original, scannerStations: true } });
-    const response = await page.request.post('/api/stations', { data: { name: 'Zentrale Teststation' } });
-    const created = await response.json();
-    try {
-        await setup(page);
-        await page.getByRole('navigation', { name: 'Setup-Bereiche' }).getByRole('button', { name: 'Scanner-Stationen', exact: true }).click();
-        await page.getByRole('button', { name: /Zentrale Teststation Alle Klassen/ }).click();
-        const editor = page.locator('.station-editor:visible');
-        await editor.getByLabel('Stationsname', { exact: true }).fill('Neuer Stationsname');
-        await editor.getByRole('radio', { name: 'Warnen' }).check();
-        await editor.getByRole('checkbox', { name: 'Jahrgang 5', exact: true }).check();
-        // Another laptop can rename this shared station while this browser has a draft.
-        await page.request.patch('/api/stations', { data: { id: created.id, name: 'Aktualisierte Teststation', mode: 'allow', classes: [], grades: [] } });
-        await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-        await expect(page.getByRole('button', { name: /Aktualisierte Teststation Alle Klassen/ })).toBeVisible();
-        await expect(editor.getByLabel('Stationsname', { exact: true })).toHaveValue('Neuer Stationsname');
-        await expect(page.getByRole('navigation', { name: 'Setup-Bereiche' }).getByRole('button', { name: 'Scanner-Stationen', exact: true })).toHaveAttribute('aria-describedby', 'setup-unsaved-description');
-        await page.getByRole('button', { name: /Standard-Scanner Alle Klassen/ }).click();
-        await editor.getByRole('radio', { name: 'Blockieren' }).check();
-        await editor.getByRole('checkbox', { name: 'Jahrgang 5', exact: true }).check();
-        await page.getByRole('button', { name: /Aktualisierte Teststation Alle Klassen/ }).click();
-        await expect(editor.getByLabel('Stationsname', { exact: true })).toHaveValue('Neuer Stationsname');
-        await editor.getByRole('button', { name: 'Änderungen speichern', exact: true }).click();
-        await expect(editor.getByRole('status')).toContainText('Änderungen gespeichert');
-        const stations = (await (await page.request.get('/api/stations')).json()).stations;
-        expect(stations.find(station => station.id === created.id)).toMatchObject({ name: 'Neuer Stationsname', mode: 'warn', grades: ['5'] });
-        expect(stations.find(station => station.id === 'default').mode).toBe('allow');
-        await page.getByRole('button', { name: /Standard-Scanner Alle Klassen/ }).click();
-        await expect(editor.getByRole('radio', { name: 'Blockieren' })).toBeChecked();
-        await editor.getByRole('button', { name: 'Änderungen speichern', exact: true }).click();
-        await expect(editor.getByRole('status')).toContainText('Änderungen gespeichert');
-        expect((await (await page.request.get('/api/stations')).json()).stations.find(station => station.id === 'default').mode).toBe('block');
-        await expect(page).toHaveURL(/view=stations/);
-    } finally {
-        await page.request.patch('/api/stations', { data: { id: 'default', name: 'Standard-Scanner', mode: 'allow', classes: [], grades: [] } });
-        await page.request.post('/api/moduleConfig', { data: original });
-    }
+    await page.addInitScript(() => localStorage.setItem('theme', 'light'));
+    await page.goto('/scan');
+    const settings = page.getByRole('button', { name: 'Einstellungen öffnen', exact: true });
+    await expect(page.getByRole('button', { name: 'Sperren', exact: true })).toBeHidden();
+    await settings.press('Enter');
+    await expect(settings).toHaveAttribute('aria-expanded', 'true');
+    await page.getByRole('button', { name: 'Zu Dunkelmodus wechseln', exact: true }).press('Enter');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await page.keyboard.press('Escape');
+    await expect(settings).toBeFocused();
+    await expect(settings).toHaveAttribute('aria-expanded', 'false');
+    await settings.press('Enter');
+    await page.getByRole('button', { name: 'Scanner-Regeln öffnen', exact: true }).press('Enter');
+    const dialog = page.getByRole('dialog', { name: 'Scanner-Regeln', exact: true });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+    await expect(settings).toBeFocused();
+    await settings.press('Enter');
+    await page.getByRole('button', { name: 'Sperren', exact: true }).press('Enter');
+    await expect(page.getByRole('link', { name: 'Admin 🔒', exact: true })).toBeVisible();
+    await settings.press('Enter');
+    await expect(page.getByRole('button', { name: 'Sperren', exact: true })).toHaveCount(0);
 });

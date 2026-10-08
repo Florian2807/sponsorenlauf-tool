@@ -30,3 +30,12 @@ export const hasSafeRequestOrigin = ({ method, headers, urlHost = null }) => {
         return false;
     }
 };
+
+// Page scope for the public helper workflow; administrator APIs keep their own authentication.
+export const isRoundCorrectionPage = ({ headers, urlHost }) => {
+    try {
+        const page = new URL(readHeader(headers, 'referer'));
+        return normalizeHost(page.host) === normalizeHost(readHeader(headers, 'host') || urlHost)
+            && ['/scan', '/show'].includes(page.pathname);
+    } catch { return false; }
+};

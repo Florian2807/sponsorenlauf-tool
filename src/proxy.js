@@ -1,7 +1,7 @@
 import { assertDatabaseWritesAllowed } from './utils/migrationGate.js';
 import { NextResponse } from 'next/server';
 import { ADMIN_COOKIE_NAME, verifyAdminSessionToken } from './utils/adminAuthService.js';
-import { hasSafeRequestOrigin } from './utils/requestSecurity.js';
+import { hasSafeRequestOrigin, isRoundCorrectionPage } from './utils/requestSecurity.js';
 
 const ADMIN_PAGES = ['/setup', '/manage', '/teachers', '/mails', '/donations', '/live'];
 const PUBLIC_API_READS = new Set([
@@ -31,6 +31,9 @@ const isPublicApiRequest = (pathname, method) => {
 export async function proxy(request) {
     const { pathname } = request.nextUrl;
     const roundDeletion = request.method === 'DELETE' && /^\/api\/rounds\/\d+$/.test(pathname);
+    const helperCorrection = roundDeletion && isRoundCorrectionPage({
+        headers: request.headers, urlHost: request.nextUrl.host,
+    });
     if ((roundDeletion || pathname === '/api/runden' || pathname === '/api/scan-feed' || pathname === '/api/scan-devices' || pathname === '/api/stations/heartbeat' || pathname === '/api/stations' || pathname === '/api/scanner-rules')
         && !hasSafeRequestOrigin({
             method: request.method,
@@ -46,7 +49,7 @@ export async function proxy(request) {
         }
     }
     const isAdminPage = ADMIN_PAGES.some((page) => pathname === page || pathname.startsWith(`${page}/`));
-    const isProtectedApi = pathname.startsWith('/api/') && !isPublicApiRequest(pathname, request.method);
+    const isProtectedApi = pathname.startsWith('/api/') && !helperCorrection && !isPublicApiRequest(pathname, request.method);
     if (!isAdminPage && !isProtectedApi) return NextResponse.next();
 
     const token = request.cookies.get(ADMIN_COOKIE_NAME)?.value;

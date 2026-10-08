@@ -1,6 +1,7 @@
 import { handleMethodNotAllowed, handleError, handleSuccess, handleValidationError } from '../../utils/apiHelpers.js';
 import { validateEmail } from '../../utils/validation.js';
 import { getConfiguredSmtpTransport } from '../../utils/smtpService.js';
+import { formatMailDate } from '../../utils/mailDate.js';
 
 const applyTemplateVariables = (mailText, className, currentYear) => {
   return mailText
@@ -164,14 +165,7 @@ ${resolvedMailHtml}
               Automatisch generiert vom Sponsorenlauf-Verwaltungssystem
             </p>
             <p class="accent-color" style="margin: 0; font-size: 12px; font-weight: 500; color: #3b82f6;">
-              📅 ${new Date().toLocaleDateString('de-DE', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })}
+              📅 ${formatMailDate()}
             </p>
           </div>
           

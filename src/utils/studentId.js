@@ -4,7 +4,8 @@ export const cleanScannedStudentId = (rawId, year = new Date().getFullYear()) =>
     return String(rawId)
         .trim()
         .replace(new RegExp(`^${year}[ß/\\-]?`, 'i'), '')
-        .trim();
+        .trim()
+        .toUpperCase();
 };
 
 export const normalizeReplacementId = (rawId, year = new Date().getFullYear()) => {

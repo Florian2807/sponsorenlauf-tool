@@ -5,6 +5,8 @@ import { cleanScannedStudentId, normalizeReplacementId } from '../src/utils/stud
 test('cleanScannedStudentId removes the configured event year', () => {
     assert.equal(cleanScannedStudentId('2026-E2', 2026), 'E2');
     assert.equal(cleanScannedStudentId('2026-123', 2026), '123');
+    assert.equal(cleanScannedStudentId('2026-e2', 2026), 'E2');
+    assert.equal(cleanScannedStudentId('e2', 2026), 'E2');
 });
 
 test('normalizeReplacementId accepts event labels and plain replacement IDs', () => {

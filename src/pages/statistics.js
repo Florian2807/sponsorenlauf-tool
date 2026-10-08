@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/router';
 import { formatCurrency, API_ENDPOINTS, downloadFile } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
 import { useGlobalError } from '../contexts/ErrorContext';
 import { useDonationDisplayMode } from '../contexts/DonationDisplayModeContext';
 import { useModuleConfig } from '../contexts/ModuleConfigContext';
+import { unpackStatistics } from '../utils/statisticsProtocol';
 import StatisticsWidget from '../components/statistics/StatisticsWidget';
 import StatisticsTable from '../components/statistics/StatisticsTable';
 import AdvancedExportDialog from '../components/dialogs/statistics/AdvancedExportDialog';
@@ -24,6 +26,7 @@ const GENDER_ICONS = {
 };
 
 export default function Statistics() {
+    const router = useRouter();
     const [stats, setStats] = useState({
         classStats: [],
         topStudentsByRounds: [],
@@ -239,7 +242,7 @@ export default function Statistics() {
         const fetchStatistics = async () => {
             try {
                 const data = await request(API_ENDPOINTS.STATISTICS);
-                setStats(data);
+                setStats(unpackStatistics(data));
             } catch (error) {
                 showError(error, 'Beim Abrufen der Statistiken');
             }
@@ -298,14 +301,26 @@ export default function Statistics() {
     }, [request, showError, showSuccess]);
 
     const handleExportButtonClick = useCallback(() => {
+        if (!authenticated) {
+            router.push({ pathname: '/admin-login', query: { next: '/statistics?export=1' } });
+            return;
+        }
         setExportDialogOpen(true);
-    }, []);
+    }, [authenticated, router]);
+
+    useEffect(() => {
+        if (authenticated && router.query.export === '1') {
+            setExportDialogOpen(true);
+            router.replace('/statistics', undefined, { shallow: true });
+        }
+    }, [authenticated, router]);
 
 
 
     // Spalten-Definitionen für Tabellen
     const classStatsColumns = [
         { key: 'klasse', label: 'Klasse', sortable: true },
+        { key: 'participationRate', label: 'Teilnahmequote', sortable: true, format: (val) => `${(val || 0).toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%` },
         { key: 'totalRounds', label: 'Gesamt Runden', sortable: true },
         { key: 'averageRounds', label: 'Ø Runden', sortable: true, format: (val) => val?.toFixed(2) || '0' },
         ...(isDonationsEnabled ? [
@@ -368,16 +383,14 @@ export default function Statistics() {
                             Aktueller Modus: <strong>{donationMode === 'expected' ? 'Erwartete Spenden' : 'Erhaltene Spenden'}</strong>
                         </span>
                     )}
-                    {authenticated && (
-                        <button
-                            className="btn btn-secondary"
-                            onClick={handleExportButtonClick}
-                            disabled={loading}
-                            title="Exportiere detaillierte Excel-Dateien"
-                        >
-                            {loading ? '⏳ Exportiere...' : '📊 Excel Export'}
-                        </button>
-                    )}
+                    <button
+                        className="btn btn-secondary"
+                        onClick={handleExportButtonClick}
+                        disabled={loading}
+                        title="Exportiere detaillierte Excel-Dateien"
+                    >
+                        {loading ? '⏳ Exportiere...' : '📊 Excel Export'}
+                    </button>
                 </div>
             </div>
 
@@ -696,6 +709,7 @@ export default function Statistics() {
                                 <span className="statistics-grade-card__label">Stufe {grade}</span>
                                 <h3>{leader.klasse}</h3>
                                 <p>{leader.totalRounds} Runden · {leader.activeStudents}/{leader.totalStudents} aktive Schüler</p>
+                                <p>Teilnahmequote: <strong>{(leader.participationRate || 0).toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</strong></p>
                             </article>
                         ))}
                     </div>

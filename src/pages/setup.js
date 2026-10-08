@@ -15,7 +15,6 @@ import ModuleSettingsDialog from '../components/dialogs/setup/ModuleSettingsDial
 import OperationsDialog from '../components/dialogs/setup/OperationsDialog';
 import SmtpSettingsDialog from '../components/dialogs/setup/SmtpSettingsDialog';
 import { PanelNavigationContext } from '../contexts/PanelNavigationContext';
-import StationsPanel from '../components/admin/StationsPanel';
 import TeachersPanel from '../components/admin/TeachersPanel';
 import MailsPanel from '../components/admin/MailsPanel';
 import DonationsEntry from '../components/admin/DonationsEntry';
@@ -36,12 +35,12 @@ export default function Setup() {
     const editors = useRef(new Map());
     const savingRef = useRef(false);
     const menuButtonRef = useRef(null);
-    const validViews = ['moduleSettings', 'classStructure', 'combinedImport', 'generateLabels', 'advancedExport', 'smtpSettings', 'operations', 'detailedDelete', 'stations', 'teachers', 'mails', 'donations'];
+    const validViews = ['moduleSettings', 'classStructure', 'combinedImport', 'generateLabels', 'advancedExport', 'smtpSettings', 'operations', 'detailedDelete', 'teachers', 'mails', 'donations'];
     const activeView = validViews.includes(router.query.view) ? router.query.view : 'moduleSettings';
 
     const { request } = useApi();
     const { showError, showSuccess } = useGlobalError();
-    const { config, isDonationsEnabled, isEmailsEnabled, isTeachersEnabled } = useModuleConfig();
+    const { isDonationsEnabled, isEmailsEnabled, isTeachersEnabled } = useModuleConfig();
     const { loading, executeAsync } = useAsyncOperation({
         labels: false,
         export: false
@@ -98,9 +97,9 @@ export default function Setup() {
     const panelNavigation = useMemo(() => ({ persistDrafts: true, hideBack: true, onExit: closeDialog, onBusyChange: setPanelBusy, registerEditor, updateEditor, editorState, saveEditor, discardEditor, openView: openDialog }), [closeDialog, registerEditor, updateEditor, editorState, saveEditor, discardEditor, openDialog]);
     useEffect(() => {
         setVisitedViews(current => current.includes(activeView) ? current : [...current, activeView]);
-        if (['stations', 'teachers', 'mails', 'donations'].includes(activeView)) {
+        if (['teachers', 'mails', 'donations'].includes(activeView)) {
             const frame = requestAnimationFrame(() => {
-                const heading = document.querySelector('.setup-view:not([hidden]) .page-title, .setup-view:not([hidden]) .mail-header-title, .setup-view:not([hidden]) .stations-page-header h1');
+                const heading = document.querySelector('.setup-view:not([hidden]) .page-title, .setup-view:not([hidden]) .mail-header-title');
                 if (heading && !heading.closest('.setup-view').contains(document.activeElement)) { heading.tabIndex = -1; heading.focus(); }
             });
             return () => cancelAnimationFrame(frame);
@@ -125,7 +124,7 @@ export default function Setup() {
 
     const fetchClassStructure = useCallback(async () => {
         try {
-            const data = await request(API_ENDPOINTS.CLASS_STRUCTURE);
+            const data = await request(API_ENDPOINTS.CLASS_STRUCTURE, { cacheMs: 30000 });
             setClassStructure(data);
             setClassStructureLoaded(true);
             setSelectedClasses(Object.values(data).flat());
@@ -135,9 +134,9 @@ export default function Setup() {
     }, [request, showError]);
 
     useEffect(() => {
-        fetchClasses();
-        fetchClassStructure();
-    }, [fetchClasses, fetchClassStructure]);
+        if (activeView === 'generateLabels') fetchClasses();
+        if (['classStructure', 'generateLabels'].includes(activeView)) fetchClassStructure();
+    }, [activeView, fetchClasses, fetchClassStructure]);
 
     const handleImportSuccess = (count, type) => {
         fetchClasses(); // Refresh classes in case new ones were added
@@ -277,8 +276,7 @@ export default function Setup() {
             description: 'Funktionen auswählen und den Scanbetrieb vorbereiten.',
             actions: [
                 { view: 'moduleSettings', title: 'Module verwalten', description: 'Funktionen und Doppel-Scan-Schutz festlegen.', icon: 'puzzle-piece', tour: 'modules', onClick: () => openDialog('moduleSettings') },
-                { view: 'classStructure', title: 'Klassenstruktur', description: 'Jahrgänge und Klassen anlegen.', icon: 'school', tour: 'classes', onClick: openClassStructurePopup, disabled: !classStructureLoaded },
-                ...(config.scannerStations ? [{ view: 'stations', title: 'Scanner-Stationen', icon: 'laptop', onClick: () => openDialog('stations') }] : []),
+                { view: 'classStructure', title: 'Klassenstruktur', description: 'Jahrgänge und Klassen anlegen.', icon: 'school', tour: 'classes', onClick: openClassStructurePopup, disabled: false },
             ],
         },
         {
@@ -315,7 +313,6 @@ export default function Setup() {
             case 'classStructure': return classStructureLoaded ? <ClassStructureDialog dialogRef={dialogRefs.classStructureRef} tempClassStructure={classStructure} saveClassStructure={saveClassStructure} /> : <p role="status">Klassenstruktur wird geladen…</p>;
             case 'smtpSettings': return <SmtpSettingsDialog dialogRef={dialogRefs.smtpSettingsRef} />;
             case 'operations': return <OperationsDialog dialogRef={dialogRefs.operationsRef} />;
-            case 'stations': return <StationsPanel embedded />;
             case 'teachers': return <PanelNavigationContext.Provider value={null}><TeachersPanel embedded active={activeView === view} /></PanelNavigationContext.Provider>;
             case 'mails': return <PanelNavigationContext.Provider value={null}><MailsPanel embedded active={activeView === view} /></PanelNavigationContext.Provider>;
             case 'donations': return <DonationsEntry />;

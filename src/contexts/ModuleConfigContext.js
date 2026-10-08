@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useApi } from '../hooks/useApi';
 
 const ModuleConfigContext = createContext();
@@ -9,51 +9,43 @@ export const ModuleConfigProvider = ({ children }) => {
         donations: false,
         emails: false,
         teachers: false,
-        scannerStations: false,
+        roundDisplay: true,
         doubleScanPrevention: { enabled: true, timeThresholdMinutes: 5, mode: 'confirm' }
     });
 
     const { request } = useApi();
-
-    // Initiale Konfiguration aus Backend laden
-    useEffect(() => {
-        const fetchConfig = async () => {
-            try {
-                const data = await request('/api/moduleConfig');
-                setConfig({
-                    donations: data.donations === true,
-                    emails: data.emails === true,
-                    teachers: data.teachers === true,
-                    scannerStations: data.scannerStations === true,
-                    doubleScanPrevention: data.doubleScanPrevention
-                });
-            } catch {
-                // Fallback zu Standard-Konfiguration
-                setConfig({
-                    donations: false,
-                    emails: false,
-                    teachers: false,
-                    scannerStations: false,
-                    doubleScanPrevention: { enabled: true, timeThresholdMinutes: 5, mode: 'confirm' }
-                });
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchConfig();
+    const [donationMode, setDonationMode] = useState('expected');
+    const [setupCompleted, setSetupCompleted] = useState(null);
+    const refresh = useCallback(async () => {
+        try {
+            const data = await request('/api/client-config');
+            setConfig(current => JSON.stringify(current) === JSON.stringify(data.config) ? current : data.config);
+            setDonationMode(data.donationMode);
+            setSetupCompleted(data.setupCompleted);
+        } catch { /* Keep the last known configuration during connection failures. */ }
+        finally { setIsLoading(false); }
     }, [request]);
+
+    useEffect(() => {
+        refresh();
+        let timer;
+        const changed = () => { clearTimeout(timer); timer = setTimeout(refresh, 100); };
+        window.addEventListener('sponsorenlauf:settings-changed', changed);
+        window.addEventListener('focus', changed);
+        return () => { clearTimeout(timer); window.removeEventListener('sponsorenlauf:settings-changed', changed); window.removeEventListener('focus', changed); };
+    }, [refresh]);
 
     // Konfiguration ändern und im Backend speichern
     const updateConfig = async (newConfig) => {
         try {
-            await request('/api/moduleConfig', {
+            const saved = await request('/api/moduleConfig', {
                 method: 'POST',
                 data: newConfig,
                 headers: {
                     'Content-Type': 'application/json'
                 }
             });
-            setConfig(newConfig);
+            setConfig(saved.modules);
         } catch (error) {
             console.error('Fehler beim Speichern der Modul-Konfiguration:', error);
             throw error;
@@ -69,6 +61,7 @@ export const ModuleConfigProvider = ({ children }) => {
         <ModuleConfigContext.Provider value={{
             config,
             isLoading,
+            donationMode, setDonationMode, setupCompleted, refresh,
             updateConfig,
             updateModule,
             isDonationsEnabled: config.donations,

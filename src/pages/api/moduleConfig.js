@@ -8,7 +8,7 @@ export default async function handler(req, res) {
 
       res.status(200).json(moduleConfig);
     } else if (req.method === 'POST') {
-      const { donations, emails, teachers, doubleScanPrevention, scannerStations = false } = req.body;
+      const { donations, emails, teachers, doubleScanPrevention, roundDisplay } = req.body;
 
       // Validiere die Basismodule
       if (typeof donations !== 'boolean' || typeof emails !== 'boolean' || typeof teachers !== 'boolean') {
@@ -17,22 +17,25 @@ export default async function handler(req, res) {
         });
       }
 
-      if (typeof scannerStations !== 'boolean') {
-        return res.status(400).json({ error: 'scannerStations muss ein boolean-Wert sein' });
+      if (roundDisplay !== undefined && typeof roundDisplay !== 'boolean') {
+        return res.status(400).json({ error: 'roundDisplay muss ein boolean-Wert sein' });
       }
 
       // Validiere doubleScanPrevention
-      if (doubleScanPrevention) {
+      if (doubleScanPrevention !== undefined) {
+        if (!doubleScanPrevention || typeof doubleScanPrevention !== 'object') {
+          return res.status(400).json({ error: 'doubleScanPrevention muss eine Konfiguration sein' });
+        }
         if (typeof doubleScanPrevention.enabled !== 'boolean') {
           return res.status(400).json({
             error: 'doubleScanPrevention.enabled muss ein boolean-Wert sein'
           });
         }
-        if (typeof doubleScanPrevention.timeThresholdMinutes !== 'number' || 
-            doubleScanPrevention.timeThresholdMinutes < 1 || 
+        if (!Number.isInteger(doubleScanPrevention.timeThresholdMinutes) ||
+            doubleScanPrevention.timeThresholdMinutes < 1 ||
             doubleScanPrevention.timeThresholdMinutes > 60) {
           return res.status(400).json({
-            error: 'doubleScanPrevention.timeThresholdMinutes muss eine Zahl zwischen 1 und 60 sein'
+            error: 'doubleScanPrevention.timeThresholdMinutes muss eine ganze Zahl zwischen 1 und 60 sein'
           });
         }
         if (!['confirm', 'block'].includes(doubleScanPrevention.mode)) {
@@ -42,7 +45,10 @@ export default async function handler(req, res) {
         }
       }
 
-      const moduleConfig = { donations, emails, teachers, doubleScanPrevention, scannerStations };
+      const currentConfig = await getModuleConfig();
+      const moduleConfig = { donations, emails, teachers,
+        doubleScanPrevention: doubleScanPrevention ?? currentConfig.doubleScanPrevention,
+        roundDisplay: roundDisplay ?? currentConfig.roundDisplay };
       await setSetting('module_config', moduleConfig);
 
       res.status(200).json({

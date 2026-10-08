@@ -1,24 +1,12 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext } from 'react';
 import { useApi } from '../hooks/useApi';
+import { useModuleConfig } from './ModuleConfigContext';
 
 const DonationDisplayModeContext = createContext();
 
 export const DonationDisplayModeProvider = ({ children }) => {
-    const [mode, setMode] = useState('expected');
+    const { donationMode: mode, setDonationMode: setMode } = useModuleConfig();
     const { request } = useApi();
-
-    // Initiale Einstellung aus Backend laden
-    useEffect(() => {
-        const fetchMode = async () => {
-            try {
-                const data = await request('/api/donationSettings');
-                setMode(data.donationDisplayMode || 'expected');
-            } catch {
-                setMode('expected');
-            }
-        };
-        fetchMode();
-    }, [request]);
 
     // Modus ändern und im Backend speichern
     const updateMode = async (newMode) => {

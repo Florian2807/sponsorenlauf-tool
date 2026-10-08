@@ -1,39 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/router';
-import axios from 'axios';
+import { useModuleConfig } from '../contexts/ModuleConfigContext';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
 
 export default function FirstRunGate({ children }) {
   const router = useRouter();
   const { authenticated, loading: authLoading } = useAdminAuth();
-  const [checking, setChecking] = useState(true);
-
+  const { setupCompleted, isLoading: checking } = useModuleConfig();
   useEffect(() => {
-    if (!router.isReady || authLoading) return;
-
-    let cancelled = false;
-
-    const checkFirstRun = async () => {
-      try {
-        const response = await axios.get('/api/setupStatus', { timeout: 5000 });
-        const setupCompleted = Boolean(response.data?.data?.isSetupCompleted);
-
-        if (!cancelled && !setupCompleted && !authenticated && router.pathname !== '/admin-login') {
-          await router.replace('/admin-login?next=/setup');
-        }
-      } catch {
-        // A temporary status-check failure must not make the whole application unusable.
-      } finally {
-        if (!cancelled) setChecking(false);
-      }
-    };
-
-    checkFirstRun();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [authenticated, authLoading, router, router.isReady, router.pathname]);
+    if (!router.isReady || authLoading || checking || setupCompleted !== false || authenticated || router.pathname === '/admin-login') return;
+    router.replace('/admin-login?next=/setup');
+  }, [authenticated, authLoading, checking, setupCompleted, router]);
 
   if (checking && router.pathname !== '/admin-login') {
     return (

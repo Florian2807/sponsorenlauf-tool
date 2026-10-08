@@ -12,7 +12,7 @@ import { APPLICATION_TABLES } from './databaseTables.js';
 export { APPLICATION_TABLES } from './databaseTables.js';
 // SQLite snapshots use the frozen legacy schema; scanner stations were added
 // after the PostgreSQL transition and must not be read from legacy snapshots.
-const LEGACY_APPLICATION_TABLES = APPLICATION_TABLES.filter((table) => table !== 'scanner_stations');
+const LEGACY_APPLICATION_TABLES = APPLICATION_TABLES.filter((table) => !['scanner_stations', 'scan_devices'].includes(table));
 const open = (filename) => new Promise((resolve, reject) => {
     const db = new sqlite3.Database(filename, sqlite3.OPEN_READONLY, error => error ? reject(error) : resolve(db));
 });
@@ -107,7 +107,6 @@ export const importSqlite = async (source, { replace = false, replaceIdentity = 
                 : { rows: [{ name: null }] };
             if (sequence.rows[0].name) await client.query(`SELECT setval($1::regclass, COALESCE(MAX(id), 1), MAX(id) IS NOT NULL) FROM "${table}"`, [sequence.rows[0].name]);
         }
-        await client.query("INSERT INTO scanner_stations (id, name) VALUES ('default', 'Standard-Scanner') ON CONFLICT(id) DO NOTHING");
         const manifest = { sourceHash, tables, verifiedAt: new Date().toISOString(), version: process.env.SPONSORENLAUF_VERSION || 'development' };
         if (!replace || replaceIdentity || !existing.rows.length) await client.query('INSERT INTO database_transition(id, source_hash, manifest) VALUES (1, $1, $2) ON CONFLICT(id) DO UPDATE SET source_hash = excluded.source_hash, manifest = excluded.manifest', [sourceHash, JSON.stringify(manifest)]);
         await client.query('COMMIT');

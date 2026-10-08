@@ -81,40 +81,6 @@ export const getSettings = async (keys) => {
     }
 };
 
-/**
- * Speichert mehrere Einstellungen auf einmal
- * @param {Object} settings - Objekt mit key-value Paaren
- * @returns {Promise<boolean>} True wenn erfolgreich gespeichert
- */
-export const setSettings = async (settings) => {
-    try {
-        const entries = Object.entries(settings);
-
-        for (const [key, value] of entries) {
-            await setSetting(key, value);
-        }
-
-        return true;
-    } catch (error) {
-        console.error('Fehler beim Speichern mehrerer Einstellungen:', error);
-        throw error;
-    }
-};
-
-/**
- * Löscht eine Einstellung aus der Datenbank
- * @param {string} key - Der Einstellungsschlüssel
- * @returns {Promise<boolean>} True wenn erfolgreich gelöscht
- */
-export const deleteSetting = async (key) => {
-    try {
-        await dbRun('DELETE FROM settings WHERE key = ?', [key]);
-        return true;
-    } catch (error) {
-        console.error(`Fehler beim Löschen der Einstellung '${key}':`, error);
-        throw error;
-    }
-};
 
 /**
  * Holt alle Einstellungen aus der Datenbank
@@ -153,14 +119,11 @@ export const getModuleConfig = async () => {
             donations: moduleConfig.donations ?? false,
             emails: moduleConfig.emails ?? false,
             teachers: moduleConfig.teachers ?? false,
-            scannerStations: moduleConfig.scannerStations === true,
+            roundDisplay: moduleConfig.roundDisplay ?? true,
             doubleScanPrevention: {
                 enabled: moduleConfig.doubleScanPrevention?.enabled ?? true,
                 timeThresholdMinutes: moduleConfig.doubleScanPrevention?.timeThresholdMinutes ?? 5,
                 mode: moduleConfig.doubleScanPrevention?.mode ?? 'confirm',
-                allowManualOverride: moduleConfig.doubleScanPrevention?.allowManualOverride ?? true,
-                showDetailedWarning: moduleConfig.doubleScanPrevention?.showDetailedWarning ?? true,
-                ...moduleConfig.doubleScanPrevention
             }
         };
     } catch (error) {
@@ -170,13 +133,11 @@ export const getModuleConfig = async () => {
             donations: false,
             emails: false,
             teachers: false,
-            scannerStations: false,
+            roundDisplay: true,
             doubleScanPrevention: {
                 enabled: true,
                 timeThresholdMinutes: 5,
-                mode: 'confirm',
-                allowManualOverride: true,
-                showDetailedWarning: true
+                mode: 'confirm'
             }
         };
     }

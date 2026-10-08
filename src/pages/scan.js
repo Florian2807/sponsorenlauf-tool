@@ -9,7 +9,9 @@ import { useAdminAuth } from '../contexts/AdminAuthContext';
 import DoubleScanConfirmationDialog from '../components/dialogs/scan/DoubleScanConfirmationDialog';
 import { cleanScannedStudentId } from '../utils/studentId';
 import { createClientId } from '../utils/clientId';
-import axios from 'axios';
+import ScanHistory from '../components/ScanHistory';
+import { useCapsLock } from '../hooks/useCapsLock';
+import { useScanFeed } from '../hooks/useScanFeed';
 
 // Only the single in-flight operation survives reload; it is never sent automatically.
 const ACTIVE_SCAN_STORAGE_KEY = 'sponsorenlauf.activeScan';
@@ -26,16 +28,22 @@ export default function Scan() {
   const [studentInfo, setStudentInfo] = useState(null);
   const [rounds, setRounds] = useState([]);
   const [timestampsLoading, setTimestampsLoading] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [scanPreviousTimestamp, setScanPreviousTimestamp] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [doubleScanData, setDoubleScanData] = useState(null);
   const [unresolvedScan, setUnresolvedScan] = useState(null);
   const [releaseRequested, setReleaseRequested] = useState(false);
   const [statusChecking, setStatusChecking] = useState(false);
   const [statusDelayed, setStatusDelayed] = useState(false);
+  const [deviceId, setDeviceId] = useState(null);
+  const capsLock = useCapsLock();
+  const { scans: recentScans, status: feedStatus } = useScanFeed(deviceId, !!deviceId);
 
   const { request, loading } = useApi();
   const { showError } = useGlobalError();
-  const { enabled: stationsEnabled, stationId, stations } = useScannerStation();
+  const { stationId, stations } = useScannerStation();
   const { authenticated } = useAdminAuth();
   const formRef = useRef(null);
   const inputRef = useRef(null);
@@ -48,6 +56,7 @@ export default function Scan() {
   const blockedBarcodeRef = useRef(false);
   const latestRoundsRequestRef = useRef(0);
   const audioContextRef = useRef(null);
+  const lastErrorFeedbackRef = useRef(0);
 
   const getAudioContext = useCallback(() => {
     if (typeof window === 'undefined') return null;
@@ -67,6 +76,13 @@ export default function Scan() {
   }, []);
 
   const playErrorSound = useCallback(() => {
+    if (deviceIdRef.current && Date.now() - lastErrorFeedbackRef.current >= 300) {
+      lastErrorFeedbackRef.current = Date.now();
+      fetch('/api/scan-feed', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceId: deviceIdRef.current }),
+      }).catch(() => {});
+    }
     const audioContext = getAudioContext();
     if (!audioContext) return;
 
@@ -101,6 +117,7 @@ export default function Scan() {
       window.localStorage.setItem(DEVICE_ID_STORAGE_KEY, deviceId);
     }
     deviceIdRef.current = deviceId;
+    setDeviceId(deviceId);
 
     try {
       const active = JSON.parse(window.sessionStorage.getItem(ACTIVE_SCAN_STORAGE_KEY) || 'null');
@@ -125,15 +142,6 @@ export default function Scan() {
     inputRef.current?.focus();
   }, []);
 
-  useEffect(() => {
-    const sendHeartbeat = () => {
-      if (!deviceIdRef.current) return;
-      axios.post('/api/stations/heartbeat', { deviceId: deviceIdRef.current }, { timeout: 5000 }).catch(() => {});
-    };
-    sendHeartbeat();
-    const interval = window.setInterval(sendHeartbeat, 30000);
-    return () => window.clearInterval(interval);
-  }, []);
 
   useEffect(() => () => {
     audioContextRef.current?.close().catch(() => {});
@@ -141,13 +149,9 @@ export default function Scan() {
 
   // Fokus nach Submit wiederherstellen
   useEffect(() => {
-    if (!isProcessing) {
-      const timer = setTimeout(() => {
-        if (document.querySelector('dialog[open]') || document.activeElement?.closest('header, .skip-link')) return;
-        inputRef.current?.focus();
-      }, 100);
-      return () => clearTimeout(timer);
-    }
+    if (isProcessing || unresolvedScan || doubleScanData) return;
+    if (document.querySelector('dialog[open]') || document.activeElement?.closest('header, .skip-link')) return;
+    inputRef.current?.focus();
   }, [isProcessing, unresolvedScan, doubleScanData]);
 
   // Dialog öffnen sobald doubleScanData gesetzt wird
@@ -188,6 +192,10 @@ export default function Scan() {
       if (event.target !== inputRef.current && event.target?.closest?.('a, button, input, select, textarea, summary, [contenteditable="true"]')) return;
 
       if (document.activeElement === inputRef.current) {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          formRef.current?.requestSubmit();
+        }
         return;
       }
 
@@ -261,6 +269,7 @@ export default function Scan() {
       const loaded = response.rounds || [];
       setRounds(confirmedRound && !loaded.some((round) => round.id === confirmedRound.id)
         ? [confirmedRound, ...loaded] : loaded);
+      setHistoryLoaded(true);
     } catch (error) {
       console.warn('Timestamps konnten nicht geladen werden:', error);
     } finally {
@@ -276,10 +285,14 @@ export default function Scan() {
     setStudentInfo(response.student);
     setCurrentTimestamp(new Date());
     setRounds([response.round]);
+    setScanPreviousTimestamp(response.previousTimestamp || null);
+    setHistoryOpen(false);
+    setHistoryLoaded(false);
+    latestRoundsRequestRef.current++;
+    setTimestampsLoading(false);
     setMessage(response.stationWarning ? `${response.message || 'Runde erfolgreich gezählt'}. Hinweis: ${response.stationWarning}` : response.message || 'Runde erfolgreich gezählt');
     setMessageType(response.stationWarning ? 'warning' : 'success');
     clearPendingScan();
-    loadTimestamps(response.student.id, response.round);
     const context = getAudioContext();
     if (context) {
       const oscillator = context.createOscillator();
@@ -292,7 +305,10 @@ export default function Scan() {
       oscillator.start();
       oscillator.stop(context.currentTime + 0.15);
     }
-  }, [clearPendingScan, getAudioContext, loadTimestamps]);
+  }, [clearPendingScan, getAudioContext]);
+  useEffect(() => {
+    if (historyOpen && !historyLoaded && studentInfo?.id) loadTimestamps(studentInfo.id, rounds[0]);
+  }, [historyOpen, historyLoaded, studentInfo?.id, rounds, loadTimestamps]);
 
   const markUnresolved = useCallback((scan) => {
     lockedRef.current = true;
@@ -311,7 +327,7 @@ export default function Scan() {
         method: 'POST', showErrorMessage: false, timeout: 8000,
         data: { id: scan.cleanedId, scanId: scan.scanId,
           confirmDoubleScan: scan.confirmDoubleScan === true,
-          sourceDeviceId: deviceIdRef.current, sourceStationId: scan.sourceStationId || null },
+          sourceDeviceId: deviceIdRef.current },
       });
       acceptStoredScan(response, scan);
     } catch (error) {
@@ -418,7 +434,10 @@ export default function Scan() {
       playErrorSound();
       return;
     }
-    const scan = { cleanedId, scanId: createClientId('scan'), sourceStationId: stationsEnabled ? stationId : null };
+    setHistoryOpen(false);
+    latestRoundsRequestRef.current++;
+    setTimestampsLoading(false);
+    const scan = { cleanedId, scanId: createClientId('scan') };
     try { rememberPendingScan(scan); } catch {
       setMessage('Vorgang konnte auf diesem Gerät nicht gesichert werden. Bitte Browserspeicher prüfen und erneut scannen.');
       setMessageType('error');
@@ -430,7 +449,7 @@ export default function Scan() {
     setMessage('Verarbeite...');
     setMessageType('info');
     await performScan(scan);
-  }, [cleanId, getAudioContext, performScan, playErrorSound, rememberPendingScan, stationsEnabled, stationId]);
+  }, [cleanId, getAudioContext, performScan, playErrorSound, rememberPendingScan]);
 
   const handleDeleteTimestamp = useCallback(async (roundId) => {
     if (!roundId || !studentInfo) {
@@ -467,7 +486,7 @@ export default function Scan() {
   );
 
   const latestTimestamp = sortedRounds[0]?.timestamp || null;
-  const previousTimestamp = sortedRounds[1]?.timestamp || null;
+  const previousTimestamp = historyLoaded ? sortedRounds[1]?.timestamp || null : scanPreviousTimestamp;
 
   const latestTimestampMinutesAgo = useMemo(() => {
     if (!latestTimestamp) {
@@ -489,11 +508,18 @@ export default function Scan() {
         <h1 className="page-title scan-dashboard-title">Runden zählen</h1>
 
         <div className="scan-status" aria-live="polite">
+
+          {authenticated && <Link href="/live" className="btn btn-secondary btn-sm">Live-Panel</Link>}
           <span className={`status-pill ${isProcessing || unresolvedScan || doubleScanData ? 'status-pill-warning' : 'status-pill-ready'}`}>
             {isProcessing ? 'Scan wird verarbeitet' : unresolvedScan || doubleScanData ? 'Station gesperrt' : 'Scanner bereit'}
           </span>
         </div>
       </div>
+
+      {capsLock && <div className="message message-warning scan-caps-warning" role="alert">
+        <i className="fa-solid fa-keyboard" aria-hidden="true" /><div><strong>Feststelltaste ist eingeschaltet</strong>
+          <span>Deaktiviere die Feststelltaste, damit die Scans korrekt funktionieren.</span></div>
+      </div>}
 
       {message && (
         <div
@@ -551,7 +577,9 @@ export default function Scan() {
                 onChange={handleInputChange}
                 placeholder="Barcode scannen"
                 required
-                disabled={isProcessing || !!unresolvedScan || !!doubleScanData}
+                readOnly={isProcessing}
+                aria-busy={isProcessing}
+                disabled={!!unresolvedScan || !!doubleScanData}
                 className="input scan-input-compact"
                 autoComplete="off"
               />
@@ -563,7 +591,7 @@ export default function Scan() {
                 {isProcessing ? 'Verarbeite...' : 'Runde zählen'}
               </button>
             </form>
-            {stationsEnabled && stations.find((station) => station.id === stationId)?.mode !== 'allow'
+            {stations.find((station) => station.id === stationId)?.mode !== 'allow'
               && stationScopeLabel(stations.find((station) => station.id === stationId)) !== 'Alle Klassen'
               && <p className="scan-station-rules">
                 {stationScopeLabel(stations.find((station) => station.id === stationId))}
@@ -615,8 +643,8 @@ export default function Scan() {
                 </div>
               </div>
 
-              <div className="student-info-card">
-                <h3>Scan-Timestamps</h3>
+              <details className="student-info-card" open={historyOpen} onToggle={event => setHistoryOpen(event.currentTarget.open)}>
+                <summary>Rundenverlauf</summary>
                 {timestampsLoading ? (
                   <p className="message message-info" style={{ fontSize: '0.9em', opacity: 0.8 }}>Lade Details...</p>
                 ) : sortedRounds.length > 0 ? (
@@ -630,7 +658,6 @@ export default function Scan() {
                         <li key={round.id} className="timestamp-item">
                           <span>
                             {formatDate(new Date(timestamp))} Uhr {'->'} {timeAgo(currentTimestamp, new Date(timestamp))}
-                            {stationsEnabled && round.sourceStationName && <span> · {round.sourceStationName}</span>}
                             {timeDifference && (
                               <span style={{ color: '#666', marginLeft: '8px', fontSize: '0.9em' }}>
                                 (+{timeDifference})
@@ -653,7 +680,7 @@ export default function Scan() {
                 ) : (
                   <div className="empty-state">Für diesen Schüler wurden noch keine Runden erfasst.</div>
                 )}
-              </div>
+              </details>
             </>
           ) : (
             <div className="scan-empty-hero">
@@ -663,14 +690,24 @@ export default function Scan() {
             </div>
           )}
         </section>
+        <ScanHistory scans={recentScans} status={feedStatus} disabled={isProcessing || !!unresolvedScan || !!doubleScanData} onSelect={student => {
+          if (lockedRef.current) return;
+          setStudentInfo(student); setCurrentTimestamp(new Date()); setRounds([]);
+          setMessage('Schüler aus der Historie angezeigt – keine Runde gezählt'); setMessageType('info');
+          setHistoryLoaded(false); latestRoundsRequestRef.current++;
+          const selectedScan = recentScans.find(scan => scan.student.id === student.id);
+          setRounds(selectedScan ? [{ id: selectedScan.id, timestamp: selectedScan.timestamp }] : []);
+          setScanPreviousTimestamp(selectedScan?.previousTimestamp || null);
+          inputRef.current?.focus();
+        }} />
       </div>
+
 
       {doubleScanData && (
         <DoubleScanConfirmationDialog
           dialogRef={doubleScanDialogRef}
           studentInfo={doubleScanData.student}
           lastRoundTime={doubleScanData.lastRoundTime}
-          lastStationName={doubleScanData.lastStationName}
           thresholdMinutes={doubleScanData.thresholdMinutes}
           onConfirm={handleDoubleScanConfirm}
           onCancel={handleDoubleScanCancel}

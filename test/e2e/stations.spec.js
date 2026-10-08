@@ -1,258 +1,92 @@
 import { test, expect } from '@playwright/test';
 
-test('Scanner-Stationen: Standard, gemeinsame Auswahl, Regeln, Herkunft und Berechtigungen', async ({ page, request, browser }) => {
+const openRules = async page => {
+    await page.getByRole('button', { name: 'Einstellungen öffnen', exact: true }).click();
+    await page.getByRole('button', { name: 'Scanner-Regeln öffnen', exact: true }).click();
+    return page.getByRole('dialog', { name: 'Scanner-Regeln', exact: true });
+};
+
+test('Scanner-Regeln funktionieren ohne Setup und gelten nur für den jeweiligen Laptop', async ({ page, browser }) => {
     await page.goto('/scan');
-    await expect(page.getByLabel('Scanner-Station', { exact: true })).toHaveCount(0);
-    const original = await (await request.get('/api/moduleConfig')).json();
-    expect(original).toMatchObject({ donations: false, emails: false, teachers: false, scannerStations: false, doubleScanPrevention: { enabled: true } });
-    expect(original.scannerStations).toBe(false);
-    expect((await request.get('/api/stations')).status()).toBe(403);
-    await request.post('/api/admin-auth', { data: { action: 'login', pin: '246810' } });
-    await request.post('/api/moduleConfig', { data: { ...original, scannerStations: true } });
-    const created = await request.post('/api/stations', { data: { name: 'Ziel links' } });
-    expect(created.status()).toBe(201);
-    const { id } = await created.json();
+    const dialog = await openRules(page);
+    await expect(dialog.getByRole('radio', { name: 'Alle zulassen' })).toBeChecked();
+    await dialog.getByRole('radio', { name: 'Blockieren' }).check();
+    await dialog.getByRole('checkbox', { name: 'Jahrgang 5' }).check();
+    await dialog.getByRole('button', { name: 'Änderungen speichern' }).click();
+    await expect(dialog).not.toBeVisible();
+    const deviceId = await page.evaluate(() => localStorage.getItem('sponsorenlauf.deviceId'));
+    const rules = await (await page.request.get(`/api/scanner-rules?deviceId=${deviceId}`)).json();
+    expect(rules.stations[0]).toMatchObject({ mode: 'block', grades: ['5'] });
+    expect((await page.request.put('/api/scanner-rules', {
+        headers: { 'sec-fetch-site': 'cross-site' }, data: { deviceId, mode: 'allow', classes: [], grades: [] },
+    })).status()).toBe(403);
     const otherContext = await browser.newContext();
-    const other = await otherContext.newPage();
     try {
-        await page.reload();
-        await page.getByRole('button', { name: 'Scanner-Station auswählen', exact: true }).click();
-        await page.getByLabel('Scanner-Station', { exact: true }).selectOption(id);
-        let releaseStations;
-        const stationsReady = new Promise((resolve) => { releaseStations = resolve; });
-        await page.route('**/api/stations', async (route) => {
-            await stationsReady;
-            await route.continue();
-        });
-        // An immediate scan after reload must retain the saved station even
-        // while the list of station names and rules is still loading.
-        await page.route('**/api/runden', async (route) => {
-            expect(route.request().postDataJSON().sourceStationId).toBe(id);
-            await route.fulfill({ status: 400, json: { message: 'Stationsauswahl geprüft' } });
-        });
+        const other = await otherContext.newPage();
+        await other.goto('/scan');
+        const otherDialog = await openRules(other);
+        await expect(otherDialog.getByRole('radio', { name: 'Alle zulassen' })).toBeChecked();
+        await otherDialog.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+        // The server must enforce saved rules even before the client loads its menu.
+        await page.request.put('/api/scanner-rules', { data: { deviceId, mode: 'block', classes: [], grades: ['6'] } });
+        let release;
+        const ready = new Promise(resolve => { release = resolve; });
+        await page.route('**/api/scanner-rules?*', async route => { await ready; await route.continue().catch(() => {}); });
         try {
             await page.reload();
-            await expect(page.getByRole('button', { name: 'Scanner-Station auswählen', exact: true })).toBeVisible();
-            await page.getByPlaceholder('Barcode scannen').fill('1002');
+            await page.getByPlaceholder('Barcode scannen').fill('1001');
             await page.getByPlaceholder('Barcode scannen').press('Enter');
-            await expect(page.locator('.message-error')).toContainText('Stationsauswahl geprüft');
-        } finally {
-            const stationsResponse = page.waitForResponse((response) => new URL(response.url()).pathname === '/api/stations');
-            releaseStations();
-            await stationsResponse;
-            await page.unroute('**/api/runden');
-            await page.unroute('**/api/stations');
-        }
-        await expect(page.getByLabel('Scanner-Station', { exact: true })).toHaveValue(id);
-        await other.goto('/scan');
-        await expect(other.getByLabel('Scanner-Station', { exact: true })).toHaveValue('default');
-        await other.getByRole('button', { name: 'Scanner-Station auswählen', exact: true }).click();
-        await other.getByLabel('Scanner-Station', { exact: true }).selectOption(id);
-        expect((await otherContext.request.post('/api/stations', { data: { name: 'Unerlaubt' } })).status()).toBe(401);
-        expect((await otherContext.request.patch('/api/stations', { data: { id, name: 'Unerlaubt' } })).status()).toBe(401);
-        expect((await otherContext.request.put('/api/stations', {
-            headers: { 'sec-fetch-site': 'cross-site' },
-            data: { id, mode: 'allow', classes: [], grades: [] },
-        })).status()).toBe(403);
-
-        if (!await other.getByRole('button', { name: 'Stationsregeln einstellen' }).isVisible()) await other.getByRole('button', { name: 'Scanner-Station auswählen', exact: true }).click();
-        await other.getByRole('button', { name: 'Stationsregeln einstellen' }).click();
-        const dialog = other.getByRole('dialog', { name: 'Station einstellen' });
-        await dialog.getByRole('radio', { name: 'Blockieren' }).check();
-        // A different year disallows the fixture class 5a.
-        expect((await otherContext.request.put('/api/stations', {
-            data: { id, mode: 'block', classes: [], grades: ['6'] },
-        })).status()).toBe(200);
-        await dialog.getByRole('button', { name: 'Abbrechen', exact: true }).click();
-        const blockedScan = 'scan_station_blocked';
-        const blocked = await otherContext.request.post('/api/runden', {
-            data: { id: 1002, scanId: blockedScan, sourceStationId: id },
-        });
-        expect(blocked.status()).toBe(400);
-        expect((await blocked.json()).error).toBe('STATION_CLASS_BLOCKED');
-        expect((await (await request.get('/api/runden?scanId=' + blockedScan)).json()).stored).toBe(false);
-
-        await otherContext.request.put('/api/stations', { data: { id, mode: 'warn', classes: [], grades: ['6'] } });
-        const input = page.getByPlaceholder('Barcode scannen');
-        await input.fill('1002');
-        await input.press('Enter');
-        await expect(page.locator('.message-warning')).toContainText('Runde erfolgreich gezählt');
-        await expect(page.locator('.message-warning')).toContainText('Ziel links');
-        await expect(input).toBeEnabled();
-        await expect(page.locator('.timestamp-item')).toContainText('Ziel links');
-
-        // Renaming must preserve the historical name.
-        await request.patch('/api/stations', { data: { id, name: 'Ziel rechts' } });
-        const duplicate = await otherContext.request.post('/api/runden', {
-            data: { id: 1002, scanId: 'scan_station_duplicate', sourceStationId: id },
-        });
-        expect(duplicate.status()).toBe(409);
-        expect((await duplicate.json()).lastStationName).toBe('Ziel links');
-
-        // Historical names remain visible after a station is renamed.
-        const accepted = await (await request.get('/api/students/1002/timestamps')).json();
-        expect(accepted.data.rounds[0].sourceStationName).toBe('Ziel links');
-        await otherContext.request.put('/api/stations', { data: { id, mode: 'block', classes: [], grades: ['6'] } });
-        if (!await other.getByRole('button', { name: 'Stationsregeln einstellen' }).isVisible()) await other.getByRole('button', { name: 'Scanner-Station auswählen', exact: true }).click();
-        await other.getByRole('button', { name: 'Stationsregeln einstellen' }).click();
-        await expect(dialog.getByRole('radio', { name: 'Blockieren' })).toBeChecked();
-        await dialog.getByRole('radio', { name: 'Alle zulassen' }).check();
-        await dialog.getByRole('button', { name: 'Änderungen speichern' }).click();
-        await expect(dialog).not.toBeVisible();
-        expect((await (await request.get('/api/stations')).json()).stations.find((station) => station.id === id).mode).toBe('allow');
-
-        const defaultScan = await otherContext.request.post('/api/runden', {
-            data: { id: 1002, scanId: 'scan_station_default', confirmDoubleScan: true },
-        });
-        expect((await defaultScan.json()).round.sourceStationName).toBe('Standard-Scanner');
-        await otherContext.request.put('/api/stations', { data: { id, mode: 'block', classes: [], grades: ['5'] } });
-        const gradeScan = await otherContext.request.post('/api/runden', {
-            data: { id: 1002, scanId: 'scan_station_grade', sourceStationId: id, confirmDoubleScan: true },
-        });
-        expect(gradeScan.status()).toBe(200);
-        await otherContext.request.put('/api/stations', { data: { id, mode: 'block', classes: [], grades: ['6'] } });
-        const replay = await otherContext.request.post('/api/runden', {
-            data: { id: 1002, scanId: 'scan_station_grade', sourceStationId: 'default' },
-        });
-        const replayed = await replay.json();
-        expect(replayed.idempotentReplay).toBe(true);
-        expect(replayed.round.sourceStationId).toBe(id);
-    } finally {
-        await request.post('/api/moduleConfig', { data: original });
-        await otherContext.close();
-    }
-    const disabledScan = await request.post('/api/runden', {
-        data: { id: 1002, scanId: 'scan_station_disabled', sourceStationId: id, confirmDoubleScan: true },
-    });
-    expect(disabledScan.status()).toBe(200);
-    expect((await disabledScan.json()).round.sourceStationName).toBeNull();
+            await expect(page.locator('.message-error')).toContainText('Keine Runde gezählt');
+        } finally { release(); await page.unrouteAll({ behavior: 'wait' }); }
+        const reopened = await openRules(page);
+        await expect(reopened.getByRole('radio', { name: 'Blockieren' })).toBeChecked();
+        await reopened.getByRole('radio', { name: 'Warnen' }).check();
+        await reopened.getByRole('button', { name: 'Änderungen speichern' }).click();
+        await expect(reopened).not.toBeVisible();
+        await page.getByPlaceholder('Barcode scannen').fill('1001');
+        const responsePromise = page.waitForResponse(response => response.url().endsWith('/api/runden') && response.request().method() === 'POST');
+        await page.getByPlaceholder('Barcode scannen').press('Enter');
+        const response = await responsePromise;
+        const confirmation = page.getByRole('dialog', { name: /Doppel-Scan/ });
+        if (response.status() === 409) await confirmation.getByRole('button', { name: 'Runde trotzdem zählen', exact: true }).click();
+        await expect(page.locator('.message-warning')).toContainText(response.status() === 409 ? 'Doppel-Scan bestätigt und gezählt' : 'Runde erfolgreich gezählt');
+        await expect(page.locator('.message-warning')).toContainText('an diesem Scanner nicht erlaubt');
+        const mobile = await openRules(page);
+        await page.setViewportSize({ width: 390, height: 844 });
+        await expect(mobile.getByRole('button', { name: 'Änderungen speichern' })).toBeInViewport();
+        expect(await page.evaluate(() => document.body.scrollWidth <= window.innerWidth)).toBe(true);
+    } finally { await otherContext.close(); }
 });
 
-test('Admin richtet Stationen ohne erneutes Öffnen des Modul-Dialogs ein', async ({ page, browser }) => {
-    const original = await (await page.request.get('/api/moduleConfig')).json();
+test('Setup enthält keine Scanner-Konfiguration mehr und alte Links führen zu /scan', async ({ page }) => {
     await page.request.post('/api/admin-auth', { data: { action: 'login', pin: '246810' } });
-    try {
-        await page.goto('/setup');
-        await page.getByRole('navigation', { name: 'Setup-Bereiche' }).getByRole('button', { name: 'Module verwalten' }).click();
-        const modules = page.getByRole('region', { name: 'Module verwalten' });
-        await expect(modules.getByLabel('Scanner-Stationen aktivieren')).toBeEnabled();
-        await modules.locator('.module-toggle').filter({ has: page.getByLabel('E-Mails aktivieren') }).click();
-        await page.getByRole('button', { name: 'Änderungen verwerfen', exact: true }).click();
-        await page.getByRole('navigation', { name: 'Setup-Bereiche' }).getByRole('button', { name: 'Module verwalten' }).click();
-        await expect(modules.getByLabel('E-Mails aktivieren')).not.toBeChecked();
-        await modules.getByLabel('Mindestabstand', { exact: true }).fill('');
-        await expect(page.getByRole('button', { name: 'Änderungen speichern', exact: true })).toBeDisabled();
-        await modules.getByLabel('Mindestabstand', { exact: true }).fill('5');
-        const scannerModule = modules.getByRole('region', { name: 'Scanner-Stationen', exact: true });
-        await scannerModule.locator('summary').click();
-        await expect(scannerModule.getByText('Zum Beispiel am Ziel')).toBeVisible();
-        await page.screenshot({ path: '/tmp/sponsorenlauf-module-manager.png', animations: 'disabled' });
-        await page.setViewportSize({ width: 390, height: 844 });
-        await expect(page.getByRole('button', { name: 'Änderungen speichern', exact: true })).toBeInViewport();
-        expect(await modules.evaluate((dialog) => dialog.scrollWidth <= dialog.clientWidth)).toBe(true);
-        await page.screenshot({ path: '/tmp/sponsorenlauf-module-manager-mobile.png', animations: 'disabled' });
-        await page.setViewportSize({ width: 1280, height: 720 });
-        await modules.locator('.module-toggle').filter({ has: page.getByLabel('Scanner-Stationen aktivieren') }).click();
-        await page.getByRole('button', { name: 'Änderungen speichern', exact: true }).click();
-        await expect(page.locator('.setup-view:not([hidden]) .settings-save-actions')).toContainText('Änderungen gespeichert');
-        await modules.getByRole('button', { name: 'Stationen einrichten', exact: true }).click();
-        await expect(page).toHaveURL(/view=stations/);
-        await page.setViewportSize({ width: 1280, height: 720 });
-        await page.goto('/scan');
-        await expect(page.getByRole('button', { name: 'Scanner-Station auswählen', exact: true })).toBeVisible();
-        await page.getByRole('button', { name: 'Zu Dunkelmodus wechseln' }).click();
-        await expect(page.getByPlaceholder('Barcode scannen')).toBeInViewport();
-        await expect(page.locator('.scan-station-summary')).toHaveCount(0);
-        expect((await page.locator('header').first().boundingBox()).height).toBeLessThan(85);
-        await page.screenshot({ path: '/tmp/sponsorenlauf-scan-compact-dark.png', fullPage: true, animations: 'disabled' });
-        await page.goto('/stations');
-        await page.getByRole('button', { name: 'Neue Station anlegen' }).click();
-        await page.getByLabel('Name der neuen Station').fill('Klassen 5a–5c');
-        await page.getByRole('button', { name: 'Station anlegen', exact: true }).click();
-        const editor = page.getByRole('region', { name: 'Station bearbeiten' });
-        await expect(editor.getByLabel('Stationsname', { exact: true })).toHaveValue('Klassen 5a–5c');
-        await editor.getByLabel('Stationsname', { exact: true }).fill('Jahrgang 5');
-        await editor.getByRole('radio', { name: 'Warnen' }).check();
-        await editor.getByRole('checkbox', { name: 'Jahrgang 5' }).check();
-        await editor.getByRole('button', { name: 'Änderungen speichern' }).click();
-        await expect(editor.getByRole('status')).toHaveText('Änderungen gespeichert');
-        const station = (await (await page.request.get('/api/stations')).json()).stations.find((item) => item.name === 'Jahrgang 5');
-        expect(station.mode).toBe('warn');
-        expect(station.grades).toEqual(['5']);
-        // Invalid rule changes cannot partially rename a station.
-        expect((await page.request.patch('/api/stations', { data: { id: station.id, name: 'Falscher Name', mode: 'invalid', classes: [], grades: [] } })).status()).toBe(400);
-        await editor.getByLabel('Stationsname', { exact: true }).fill('Ungespeichert');
-        await page.getByRole('button', { name: /Standard-Scanner Alle Klassen/ }).click();
-        await expect(page.getByText('Diese Station hat ungespeicherte Änderungen.')).toBeVisible();
-        await expect(editor.getByLabel('Stationsname', { exact: true })).toHaveValue('Ungespeichert');
-        await page.getByRole('button', { name: 'Weiter bearbeiten' }).click();
-        await editor.getByLabel('Stationsname', { exact: true }).fill('Jahrgang 5');
-        if (await page.getByRole('button', { name: 'Schließen', exact: true }).isVisible()) await page.getByRole('button', { name: 'Schließen', exact: true }).click();
-        await page.evaluate(() => window.scrollTo(0, 0));
-        await page.screenshot({ path: '/tmp/sponsorenlauf-station-admin-v2.png', fullPage: true });
-        await page.setViewportSize({ width: 390, height: 844 });
-        await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
-        await page.evaluate(() => window.scrollTo(0, 0));
-        await page.screenshot({ path: '/tmp/sponsorenlauf-station-admin-mobile-v2.png', fullPage: true });
-        await page.setViewportSize({ width: 1280, height: 800 });
-        await page.goto('/scan');
-        const stationButton = page.getByRole('button', { name: 'Scanner-Station auswählen', exact: true });
-        await expect(page.getByLabel('Scanner-Station', { exact: true })).toBeHidden();
-        await stationButton.click();
-        await expect(stationButton).toHaveAttribute('aria-expanded', 'true');
-        await page.getByLabel('Scanner-Station', { exact: true }).selectOption(station.id);
-        await page.keyboard.press('Escape');
-        await expect(stationButton).toHaveAttribute('aria-expanded', 'false');
-        await expect(stationButton).toBeFocused();
-        await stationButton.click();
-        await page.locator('.station-feature-help').hover();
-        await expect(page.locator('.station-feature-tooltip')).toBeVisible();
-        await expect(page.locator('.station-feature-tooltip')).toContainText('damit du Scans ihrer Station zuordnen kannst');
-        await page.screenshot({ path: '/tmp/sponsorenlauf-station-dropdown.png', animations: 'disabled' });
-        await expect(page.locator('.scan-station-rules')).toContainText('Jahrgang 5');
-        await page.screenshot({ path: '/tmp/sponsorenlauf-station-scan-v2.png', fullPage: true });
-        if (!await page.getByRole('button', { name: 'Stationsregeln einstellen' }).isVisible()) await page.getByRole('button', { name: 'Scanner-Station auswählen', exact: true }).click();
-        await page.getByRole('button', { name: 'Stationsregeln einstellen' }).click();
-        const settings = page.getByRole('dialog', { name: 'Station einstellen' });
-        await expect(settings.getByRole('radio', { name: 'Warnen' })).toBeChecked();
-        await expect(settings.getByRole('checkbox', { name: 'Jahrgang 5' })).toBeChecked();
-        await page.screenshot({ path: '/tmp/sponsorenlauf-station-settings-v2.png', fullPage: true });
-        await settings.getByRole('radio', { name: 'Blockieren' }).check();
-        await settings.getByRole('button', { name: 'Änderungen speichern' }).click();
-        await expect(settings).not.toBeVisible();
-        await expect(page.locator('.scan-station-rules')).toContainText('Andere Klassen: gesperrt');
-        await page.setViewportSize({ width: 390, height: 844 });
-        await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
-        if (!await page.getByRole('button', { name: 'Stationsregeln einstellen' }).isVisible()) await page.getByRole('button', { name: 'Scanner-Station auswählen', exact: true }).click();
-        await page.getByRole('button', { name: 'Stationsregeln einstellen' }).click();
-        await expect(settings.getByRole('button', { name: 'Änderungen speichern' })).toBeInViewport();
-        await expect(settings.getByRole('heading', { name: 'Station einstellen' })).toBeInViewport();
-        await page.screenshot({ path: '/tmp/sponsorenlauf-station-settings-mobile-v2.png', fullPage: true });
-        await settings.getByRole('button', { name: 'Abbrechen', exact: true }).click();
-
-        const unauthenticated = await browser.newContext();
-        try {
-            const helper = await unauthenticated.newPage();
-            await helper.goto('/stations');
-            await expect(helper).toHaveURL(/admin-login/);
-        } finally { await unauthenticated.close(); }
-    } finally {
-        await page.request.post('/api/moduleConfig', { data: original });
-    }
+    await page.goto('/setup');
+    await expect(page.getByRole('navigation', { name: 'Setup-Bereiche' }).getByRole('button', { name: /Scanner/ })).toHaveCount(0);
+    await expect(page.getByLabel('Scanner-Stationen aktivieren')).toHaveCount(0);
+    await page.goto('/stations');
+    await expect(page).toHaveURL(/\/scan$/);
+    await page.getByRole('button', { name: 'Einstellungen öffnen', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Scanner-Regeln öffnen', exact: true })).toBeVisible();
 });
 
-test('Deaktivierte Stationen lassen sich direkt aus der Übersicht aktivieren', async ({ page }) => {
+test('Alte Stationsauswahl und Moduloption aktivieren keinen Standard-Scanner', async ({ page }) => {
     const original = await (await page.request.get('/api/moduleConfig')).json();
     await page.request.post('/api/admin-auth', { data: { action: 'login', pin: '246810' } });
+    await page.request.post('/api/moduleConfig', { data: { ...original, scannerStations: true } });
     try {
-        await page.goto('/setup');
-        await expect(page.getByRole('navigation', { name: 'Setup-Bereiche' }).getByRole('button', { name: 'Scanner-Stationen', exact: true })).toHaveCount(0);
-        await page.goto('/stations');
-        await expect(page.getByText('Modul deaktiviert', { exact: true })).toBeVisible();
-        await page.getByRole('button', { name: 'Scanner-Stationen aktivieren', exact: true }).click();
-        await expect(page.getByRole('button', { name: 'Neue Station anlegen' })).toBeVisible();
-        await expect(page.getByText('Modul aktiv', { exact: true })).toBeVisible();
-    } finally {
-        await page.request.post('/api/moduleConfig', { data: original });
-    }
+        expect(await (await page.request.get('/api/moduleConfig')).json()).not.toHaveProperty('scannerStations');
+        expect((await page.request.post('/api/stations', { data: { name: 'Standard-Scanner' } })).status()).toBe(410);
+        await page.addInitScript(() => localStorage.setItem('sponsorenlauf.scannerStation', 'default'));
+        await page.goto('/scan');
+        const dialog = await openRules(page);
+        await expect(dialog.getByRole('radio', { name: 'Alle zulassen' })).toBeChecked();
+        await expect(page.getByText('Standard-Scanner', { exact: true })).toHaveCount(0);
+        expect(await page.evaluate(() => localStorage.getItem('sponsorenlauf.scannerStation'))).toBeNull();
+    } finally { await page.request.post('/api/moduleConfig', { data: original }); }
+});
+
+test('Alte Stationslinks sind auch ohne Admin-Anmeldung erreichbar', async ({ page }) => {
+    await page.goto('/stations');
+    await expect(page).toHaveURL(/\/scan$/);
+    await expect(page.getByPlaceholder('Barcode scannen')).toBeVisible();
 });

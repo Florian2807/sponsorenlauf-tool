@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 
 test('der Scan-Arbeitsablauf behandelt Fehler, Speichern und Doppel-Scans', async ({ page }) => {
+    const historyRequests = [];
+    page.on('request', request => { if (request.url().includes('/timestamps')) historyRequests.push(request.url()); });
     await page.goto('/scan');
 
     const scanInput = page.getByPlaceholder('Barcode scannen');
@@ -17,7 +19,13 @@ test('der Scan-Arbeitsablauf behandelt Fehler, Speichern und Doppel-Scans', asyn
     await expect(page.getByRole('status')).toContainText('Runde erfolgreich gezählt');
     await expect(page.getByRole('heading', { name: 'Erika Mustermann' })).toBeVisible();
     await expect(page.locator('.scan-round-summary strong')).toHaveText('1');
+    expect(historyRequests).toHaveLength(0);
+    await page.locator('.student-info-card > summary').click();
     await expect(page.locator('.timestamp-item')).toHaveCount(1);
+    await expect.poll(() => historyRequests.length).toBe(1);
+    await page.locator('.student-info-card > summary').click();
+    await page.locator('.student-info-card > summary').click();
+    expect(historyRequests).toHaveLength(1);
 
     await scanInput.fill('1001');
     await scanInput.press('Enter');
@@ -38,13 +46,18 @@ test('der Scan-Arbeitsablauf behandelt Fehler, Speichern und Doppel-Scans', asyn
     await page.keyboard.press('Enter');
     await expect(page.getByRole('status')).toContainText('Doppel-Scan bestätigt und gezählt');
     await expect(page.locator('.scan-round-summary strong')).toHaveText('2');
+    await expect(page.locator('.student-info-card')).not.toHaveAttribute('open', '');
+    expect(historyRequests).toHaveLength(1);
+    await page.locator('.student-info-card > summary').click();
     await expect(page.locator('.timestamp-item')).toHaveCount(2);
+    await expect.poll(() => historyRequests.length).toBe(2);
 
     await page.goto('/show');
     await page.getByLabel('Barcode oder Schüler-ID').fill('1001');
     await page.getByRole('button', { name: 'Anzeigen' }).click();
 
     await expect(page.locator('.student-profile-facts > div').filter({ hasText: 'Gelaufene Runden' }).locator('strong')).toHaveText('2');
+    await page.locator('.student-rounds-section > summary').click();
     await expect(page.locator('.timestamp-item')).toHaveCount(2);
 });
 
@@ -58,6 +71,38 @@ const watchErrorTones = async (page) => {
         };
     });
 };
+
+test('30 schnelle Eingaben mit Enter behalten den Fokus und buchen jeweils genau einmal', async ({ page }) => {
+    const posts = [];
+    let finish;
+    await page.route('**/api/runden', async route => {
+        const body = route.request().postDataJSON();
+        const held = new Promise(resolve => { finish = resolve; });
+        posts.push(body);
+        const count = posts.length;
+        await held;
+        await route.fulfill({ json: { success: true, scanId: body.scanId,
+            student: { id: 1, vorname: 'Test', nachname: 'Person', roundCount: count },
+            round: { id: 9900 + count, timestamp: new Date().toISOString() } } });
+    });
+    await page.goto('/scan');
+    const input = page.getByPlaceholder('Barcode scannen');
+    await expect(input).toBeFocused();
+    for (let count = 1; count <= 30; count++) {
+        await page.keyboard.type('1');
+        await page.keyboard.press('Enter');
+        await expect.poll(() => posts.length).toBe(count);
+        await expect(input).toHaveAttribute('readonly', '');
+        await expect(input).toBeFocused();
+        finish();
+        await expect(input).not.toHaveAttribute('readonly', '');
+        await expect(input).toBeFocused();
+        await expect(input).toHaveValue('');
+    }
+    expect(posts.map(body => body.id)).toEqual(Array(30).fill('1'));
+    expect(new Set(posts.map(body => body.scanId)).size).toBe(30);
+    await expect(page.locator('.scan-round-summary strong')).toHaveText('30');
+});
 
 test('weitere Barcodes während einer langsamen Anfrage werden mit Fehlerton verworfen', async ({ page }) => {
     const posts = [];
@@ -76,13 +121,15 @@ test('weitere Barcodes während einer langsamen Anfrage werden mit Fehlerton ver
     const input = page.getByPlaceholder('Barcode scannen');
     await input.fill('7001');
     await input.press('Enter');
-    await expect(input).toBeDisabled();
+    await expect(input).toHaveAttribute('readonly', '');
+    await expect(input).toBeFocused();
     await page.keyboard.type('7002');
     await page.keyboard.press('Enter');
     await expect.poll(() => page.evaluate(() => window.__tones)).toBeGreaterThan(0);
     expect(posts).toHaveLength(1);
     finish();
     await expect(input).toBeEnabled();
+    await expect(input).not.toHaveAttribute('readonly', '');
     await expect(input).toHaveValue('');
     expect(posts.map((body) => body.id)).toEqual(['7001']);
 });
@@ -243,6 +290,7 @@ test('Statusprüfung wiederholt sich automatisch bis zur Bestätigung und endet 
         }
     });
     await page.goto('/scan');
+    await expect(page.getByPlaceholder('Barcode scannen')).toBeFocused();
     await page.clock.install();
     await page.clock.pauseAt(new Date(Date.now() + 1000));
     const input = page.getByPlaceholder('Barcode scannen');
@@ -323,6 +371,7 @@ test('laufende Statusprüfung überlappt nicht und eine späte Antwort hebt Quit
         }
     });
     await page.goto('/scan');
+    await expect(page.getByPlaceholder('Barcode scannen')).toBeFocused();
     await page.clock.install();
     await page.clock.pauseAt(new Date(Date.now() + 1000));
     const input = page.getByPlaceholder('Barcode scannen');

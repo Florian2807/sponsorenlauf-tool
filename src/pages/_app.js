@@ -23,20 +23,20 @@ function MyApp({ Component, pageProps }) {
       <AdminAuthProvider>
         <UpdateNotice />
         <MaintenanceProgress />
-        <FirstRunGate>
-          <ModuleConfigProvider>
-            <ScannerStationProvider>
+        <ModuleConfigProvider>
+          <FirstRunGate>
+            <ScannerStationProvider active={!Component.fullScreen}>
             <DonationDisplayModeProvider>
               <ErrorBoundary>
-                <Layout>
+                <Layout fullScreen={Component.fullScreen} className={Component.fullScreen ? 'display-layout' : 'layout-main'}>
                   <Component {...pageProps} />
                 </Layout>
                 <FirstRunTour />
               </ErrorBoundary>
             </DonationDisplayModeProvider>
             </ScannerStationProvider>
-          </ModuleConfigProvider>
-        </FirstRunGate>
+          </FirstRunGate>
+        </ModuleConfigProvider>
       </AdminAuthProvider>
     </ErrorProvider>
   );

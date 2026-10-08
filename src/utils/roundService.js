@@ -43,8 +43,6 @@ export const recordRound = async ({
     doubleScanPrevention,
     scanId = null,
     sourceDeviceId = null,
-    scannerStations = false,
-    sourceStationId = null,
     now = new Date(),
 }) => dbTransaction(async (db) => {
     const timestamp = now.toISOString();
@@ -61,6 +59,7 @@ export const recordRound = async ({
             SELECT
                 r.id AS roundId,
                 r.timestamp AS roundTimestamp,
+                (SELECT timestamp FROM rounds WHERE student_id = r.student_id AND id < r.id ORDER BY id DESC LIMIT 1) AS previousTimestamp,
                 r.source_station_id AS sourceStationId,
                 r.source_station_name AS sourceStationName,
                 r.station_warning AS stationWarning,
@@ -92,12 +91,14 @@ export const recordRound = async ({
                 sourceStationId: existingStationId,
                 sourceStationName: existingStationName,
                 stationWarning: existingWarning,
+                previousTimestamp,
                 ...studentData
             } = existingScan;
             return {
                 accepted: true,
                 idempotentReplay: true,
                 round: { id: roundId, timestamp: existingTimestamp, sourceStationId: existingStationId, sourceStationName: existingStationName },
+                previousTimestamp,
                 stationWarning: existingWarning,
                 student: { id: existingStudentId, ...studentData },
                 wasDoubleScan: false,
@@ -122,11 +123,9 @@ export const recordRound = async ({
 
     let station = null;
     let stationWarning = null;
-    if (scannerStations) {
-        station = await dbGet(db, 'SELECT * FROM scanner_stations WHERE id = ? FOR SHARE', [sourceStationId || 'default']);
-        if (!station) throw new RoundServiceError('Scanner-Station nicht gefunden. Bitte Station erneut auswählen.', {
-            code: 'STATION_NOT_FOUND', status: 400,
-        });
+    // Resolve device rules on the server, including scans sent before the menu has loaded.
+    if (sourceDeviceId) station = await dbGet(db, 'SELECT * FROM scanner_stations WHERE id = ? FOR SHARE', [`rules_${sourceDeviceId}`]);
+    if (station) {
         station.classes = JSON.parse(station.classes);
         station.grades = JSON.parse(station.grades);
         const classRow = await dbGet(db, 'SELECT grade FROM classes WHERE class_name = ?', [student.klasse]);
@@ -135,7 +134,7 @@ export const recordRound = async ({
         const grade = Object.entries(structure).find(([, classes]) => Array.isArray(classes) && classes.includes(student.klasse))?.[0]
             || classRow?.grade || student.klasse?.match(/^\d+/)?.[0] || 'Sonstige';
         if (!stationAllowsClass(station, student.klasse, grade)) {
-            stationWarning = `Klasse ${student.klasse} ist der Scanner-Station „${station.name}“ nicht zugeordnet.`;
+            stationWarning = `Klasse ${student.klasse} ist an diesem Scanner nicht erlaubt.`;
             if (station.mode === 'block') throw new RoundServiceError(stationWarning + ' Keine Runde gezählt.', {
                 code: 'STATION_CLASS_BLOCKED', status: 400, details: { student },
             });
@@ -145,7 +144,7 @@ export const recordRound = async ({
     // ID order represents acceptance order and is robust against legacy client
     // clocks that may have stored timestamps in the past or future.
     const lastRound = await dbGet(db, `
-        SELECT id, timestamp, source_station_name
+        SELECT id, timestamp
         FROM rounds
         WHERE student_id = ?
         ORDER BY id DESC
@@ -170,7 +169,6 @@ export const recordRound = async ({
             blocked: prevention.mode === 'block',
             student,
             lastRoundTime: lastRound.timestamp,
-            lastStationName: scannerStations ? lastRound.source_station_name : null,
             timeDifferenceMs,
             thresholdMinutes: prevention.timeThresholdMinutes,
         };
@@ -179,12 +177,13 @@ export const recordRound = async ({
     const insert = await dbRun(db, `
         INSERT INTO rounds (timestamp, student_id, scan_id, source_device_id, recorded_at, source_station_id, source_station_name, station_warning)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [timestamp, studentId, scanId, sourceDeviceId, timestamp, station?.id || null, station?.name || null, stationWarning]);
+    `, [timestamp, studentId, scanId, sourceDeviceId, timestamp, station?.id || null, null, stationWarning]);
 
     return {
         accepted: true,
         idempotentReplay: false,
-        round: { id: insert.lastID, timestamp, sourceStationId: station?.id || null, sourceStationName: station?.name || null },
+        round: { id: insert.lastID, timestamp, sourceStationId: station?.id || null, sourceStationName: null },
+        previousTimestamp: lastRound?.timestamp || null,
         stationWarning,
         student: {
             ...student,

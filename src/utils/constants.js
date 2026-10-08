@@ -34,12 +34,12 @@ export const formatCurrency = (value) => {
     return `${euros},${cents}€`;
 };
 
-export const formatDate = (timestamp) => {
+export const formatDate = (timestamp, locale = undefined) => {
     const timeOptions = {
         hour: '2-digit',
         minute: '2-digit',
     };
-    return timestamp.toLocaleTimeString(undefined, timeOptions);
+    return timestamp.toLocaleTimeString(locale, timeOptions);
 };
 
 export const timeAgo = (now, pastDate) => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import BaseDialog from '../../BaseDialog';
 import { usePanelPresentation } from '../../../contexts/PanelNavigationContext';
@@ -7,13 +7,13 @@ import { useModuleConfig } from '../../../contexts/ModuleConfigContext';
 import { useDonationDisplayMode } from '../../../contexts/DonationDisplayModeContext';
 
 const ModuleSettingsDialog = ({ dialogRef }) => {
-    const { closePanel, navigation } = usePanelPresentation(dialogRef);
+    const { closePanel } = usePanelPresentation(dialogRef);
     const router = useRouter();
     const [localConfig, setLocalConfig] = useState({
         donations: false,
         emails: false,
         teachers: false,
-        scannerStations: false,
+        roundDisplay: true,
         doubleScanPrevention: {
             enabled: true,
             timeThresholdMinutes: 5,
@@ -26,6 +26,13 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
     const { showError, showSuccess } = useGlobalError();
     const { config: globalConfig, updateConfig, isLoading: configLoading } = useModuleConfig();
     const { mode: globalDonationMode, updateMode: updateDonationMode } = useDonationDisplayMode();
+    const previousGlobalConfig = useRef(globalConfig);
+    const configInitialized = useRef(false);
+    const currentLocalConfig = useRef(localConfig);
+    currentLocalConfig.current = localConfig;
+    const previousDonationMode = useRef(globalDonationMode);
+    const currentLocalDonationMode = useRef(localDonationMode);
+    currentLocalDonationMode.current = localDonationMode;
 
     // Load current settings when dialog opens
     useEffect(() => {
@@ -45,9 +52,15 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
                 }
         };
         
-        setLocalConfig(normalizedConfig);
+        // Remote refreshes may update defaults, but must not overwrite a helper's draft.
+        if (!configInitialized.current || JSON.stringify(currentLocalConfig.current) === JSON.stringify(previousGlobalConfig.current)) setLocalConfig(normalizedConfig);
+        configInitialized.current = true;
+        previousGlobalConfig.current = normalizedConfig;
     }, [globalConfig]);
-    useEffect(() => { setLocalDonationMode(globalDonationMode); }, [globalDonationMode]);
+    useEffect(() => {
+        if (currentLocalDonationMode.current === previousDonationMode.current) setLocalDonationMode(globalDonationMode);
+        previousDonationMode.current = globalDonationMode;
+    }, [globalDonationMode]);
 
     const handleSave = async (destination = null) => {
         try {
@@ -113,11 +126,11 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
             'Mindestabstand zwischen zwei Scans derselben Person festlegen',
             'Bei einem erneuten Scan eine Bestätigung verlangen oder die Runde blockieren',
         ], example: 'Ein Barcode wird zweimal direkt hintereinander gescannt: Die zweite Runde braucht eine Bestätigung oder wird abgewiesen.' },
-        { id: 'scannerStations', title: 'Scanner-Stationen', icon: 'fa-laptop', subtitle: 'Für mehrere Scan-Laptops: Klassen auf Stationen verteilen und sehen, wo gescannt wurde.', features: [
-            'Station am Laptop auswählen; mehrere Laptops können dieselbe Station nutzen',
-            'Andere Klassen mit Hinweis zählen oder blockieren; jeder Helfer kann die Regeln einstellen',
-            'Stationsnamen in Scan-Zeitstempeln und Doppel-Scan-Meldungen sehen',
-        ], exampleTitle: 'Zum Beispiel am Ziel', example: '„Ziel links“ betreut Jahrgang 5, „Ziel rechts“ Jahrgang 6. Ein Scan an der falschen Station kann mit einem Hinweis trotzdem zählen.' },
+        { id: 'roundDisplay', title: 'Rundenanzeige', icon: 'fa-display', subtitle: 'Schüler sehen ihre Rundenzahl direkt auf einem zweiten Gerät, z. B. einem iPad.', features: [
+            'Eine Rundenanzeige mit einem benannten Scanner verbinden',
+            'Nach jedem Scan den Namen und die aktuelle Rundenzahl anzeigen',
+            'Direkten Link teilen und die Anzeige im Vollbild nutzen',
+        ] },
         { id: 'donations', title: 'Spenden', icon: 'fa-coins', subtitle: 'Zeigt, welche Spenden zugesagt wurden und welche bereits eingegangen sind.', features: [
             'Zugesagte und eingegangene Beträge erfassen',
             'Spendenwerte in Auswertungen anzeigen und exportieren',
@@ -165,11 +178,6 @@ const ModuleSettingsDialog = ({ dialogRef }) => {
                                 <p>{module.example}</p>
                             </div>}
                         </details>
-                        {module.id === 'scannerStations' && active && <>
-                            <button type="button" className="module-manager-setup" disabled={disabled || invalidThreshold || (navigation?.persistDrafts && !globalConfig.scannerStations)}
-                                onClick={() => navigation?.openView ? navigation.openView('stations') : handleSave('/stations')}>{navigation?.persistDrafts ? 'Stationen einrichten' : 'Speichern & Stationen einrichten'} <i className="fa-solid fa-arrow-right" aria-hidden="true" /></button>
-                            {navigation?.persistDrafts && !globalConfig.scannerStations && <p className="module-manager-note">Speichere das Modul, bevor du Stationen einrichtest.</p>}
-                        </>}
                         {module.id === 'donations' && active && <fieldset className="module-manager-options" disabled={disabled}>
                             <legend>Spendenwerte in Auswertungen</legend>
                             <div className="module-manager-radios">

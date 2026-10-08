@@ -20,13 +20,13 @@ export const dbRun = (query, params = []) => postgresTransaction(db => new Promi
 export const dbTransaction = (operations) => postgresTransaction(operations);
 export const dbImmediateTransaction = (operations) => postgresTransaction(operations, { exclusive: true });
 export const dbBatchInsert = dbRun;
-export const createPlaceholders = (items) => items.map(() => '?').join(',');
+
 
 /** Connection and application schema readiness, not a physical PostgreSQL checksum scan. */
 export const getDatabaseStatus = async () => {
     const required = ['classes', 'students', 'replacements', 'teachers', 'rounds',
         'expected_donations', 'received_donations', 'settings', 'admin_credentials',
-        'admin_sessions', 'admin_login_attempts', 'smtp_configuration', 'station_activity'];
+        'admin_sessions', 'admin_login_attempts', 'smtp_configuration', 'station_activity', 'scan_devices'];
     const result = await pgQuery(getPostgresPool(), `SELECT
         (SELECT MAX(version) FROM schema_migrations) AS version,
         (SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'

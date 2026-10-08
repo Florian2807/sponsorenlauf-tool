@@ -111,29 +111,6 @@ export const validateRequiredFields = (req, requiredFields = []) => {
     return missing;
 };
 
-/**
- * Sanitisiert Eingabedaten
- * @param {string} input Eingabewert
- * @returns {string} Bereinigte Eingabe
- */
-export const sanitizeInput = (input) => {
-    if (typeof input !== 'string') return input;
-    return input.trim();
-};
-
-/**
- * Erstellt eine standardisierte Paginierung
- * @param {number} page Seitennummer (1-basiert)
- * @param {number} limit Anzahl Elemente pro Seite
- * @returns {Object} Offset und Limit für SQL-Queries
- */
-export const createPagination = (page = 1, limit = 50) => {
-    const pageNum = Math.max(1, parseInt(page, 10) || 1);
-    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 50));
-    const offset = (pageNum - 1) * limitNum;
-
-    return { offset, limit: limitNum, page: pageNum };
-};
 
 /**
  * Erstellt einen einfachen GET-Handler für API-Endpunkte

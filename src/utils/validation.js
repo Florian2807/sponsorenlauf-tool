@@ -114,17 +114,6 @@ export const validateStudentId = (id) => {
     return Number.isInteger(id) && id > 0;
 };
 
-/**
- * Normalisiert eine Schüler-ID (entfernt E-Prefix)
- * @param {string|number} id Schüler-ID
- * @returns {number} Normalisierte ID
- */
-export const normalizeStudentId = (id) => {
-    if (typeof id === 'string' && id.startsWith('E')) {
-        return parseInt(id.substring(1), 10);
-    }
-    return parseInt(id, 10);
-};
 
 /**
  * Validiert Zeitstempel

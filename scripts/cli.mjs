@@ -8,7 +8,7 @@ import process from 'node:process';
 import readline from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
 import AdmZip from 'adm-zip';
-import { dbAll, dbGet, dbRun, getDatabaseStatus } from '../src/utils/database.js';
+import { dbGet, dbRun, getDatabaseStatus } from '../src/utils/database.js';
 import { getPostgresPool, postgresConfig } from '../src/utils/postgres.js';
 import {
     createDatabaseBackup,

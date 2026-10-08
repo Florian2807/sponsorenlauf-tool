@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useApi } from '../../hooks/useApi';
 import { trackMaintenance } from '../MaintenanceProgress';
 import Checkbox from '../ui/Checkbox';
+import { readMaintenanceStatus } from '../../utils/clientRequests';
 
 const labels = { idle: 'Bereit', queued: 'Eingeplant', running: 'Läuft', succeeded: 'Erfolgreich', failed: 'Fehlgeschlagen', rolled_back: 'Zurückgerollt' };
 const isRunning = (state) => ['queued', 'running'].includes(state);
@@ -21,7 +22,7 @@ export default function MaintenancePanel({ active }) {
 
     const refresh = useCallback(async () => {
         try {
-            const data = await request('/api/systemMaintenance', { showErrorMessage: false });
+            const data = await readMaintenanceStatus(true);
             if (mounted.current) { setStatus(data); setLoadError(''); setConnectionLost(false); }
             if (mounted.current && isRunning(data?.state) && !sessionStorage.getItem('sponsorenlauf-maintenance-progress')) trackMaintenance(data);
             return data;
@@ -32,7 +33,7 @@ export default function MaintenancePanel({ active }) {
             }
             return null;
         }
-    }, [request]);
+    }, []);
 
     useEffect(() => {
         mounted.current = true;

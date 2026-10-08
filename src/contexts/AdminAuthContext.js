@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { clearClientRequestCache } from '../utils/clientRequests';
 
 const AdminAuthContext = createContext(null);
 
@@ -9,6 +10,7 @@ export const AdminAuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     const refresh = useCallback(async () => {
+        clearClientRequestCache();
         try {
             const response = await axios.get('/api/admin-auth', { timeout: 5000 });
             setConfigured(Boolean(response.data?.data?.configured));
@@ -23,6 +25,7 @@ export const AdminAuthProvider = ({ children }) => {
     }, []);
 
     const logout = useCallback(async () => {
+        clearClientRequestCache();
         await axios.post('/api/admin-auth', { action: 'logout' });
         setAuthenticated(false);
     }, []);

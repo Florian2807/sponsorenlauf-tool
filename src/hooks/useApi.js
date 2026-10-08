@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import axios from 'axios';
+import { clientRequest } from '../utils/clientRequests';
 import { useGlobalError } from '../contexts/ErrorContext';
 
 const ERROR_MESSAGES = {
@@ -23,7 +23,7 @@ export const useApi = () => {
         setLoading(true);
 
         try {
-            const response = await axios({
+            const response = await clientRequest({
                 url,
                 method: 'GET',
                 timeout: 30000,
@@ -48,6 +48,7 @@ export const useApi = () => {
                 const { status, data } = err.response;
                 errorMessage = (data?.errors?.length > 0 ? data.errors.join('\n') : null) ||
                     data?.message ||
+                    (typeof data?.error === 'string' ? data.error : null) ||
                     ERROR_MESSAGES[status] ||
                     (status >= 500 ? 'Serverfehler. Bitte versuchen Sie es später erneut.' : errorMessage);
             } else if (err.request) {

@@ -398,3 +398,34 @@ test('Das Zahnrad bündelt Scanner-Regeln, Darstellung und Sperren mit Tastaturb
     await settings.press('Enter');
     await expect(page.getByRole('button', { name: 'Sperren', exact: true })).toHaveCount(0);
 });
+
+test('Ein fehlgeschlagener Spendenmodus bleibt als Entwurf erhalten und lässt sich erneut speichern', async ({ page }) => {
+    let modules = { donations: true, emails: false, teachers: false, roundDisplay: true,
+        doubleScanPrevention: { enabled: true, timeThresholdMinutes: 5, mode: 'confirm' } };
+    let donationMode = 'expected';
+    let fail = true;
+    await page.route('**/api/client-config', route => route.fulfill({ json: { success: true, data: { config: modules, donationMode, setupCompleted: true } } }));
+    await page.route('**/api/moduleConfig', async route => {
+        modules = route.request().postDataJSON();
+        await route.fulfill({ json: { success: true, modules } });
+    });
+    await page.route('**/api/donationSettings', async route => {
+        if (fail) await route.fulfill({ status: 503, json: { success: false, message: 'Spendenmodus nicht gespeichert' } });
+        else {
+            donationMode = route.request().postDataJSON().donationDisplayMode;
+            await route.fulfill({ json: { success: true } });
+        }
+    });
+    await setup(page);
+    await page.getByRole('radio', { name: 'Erhaltene Spenden', exact: true }).check();
+    const save = page.locator('.setup-view:not([hidden])').getByRole('button', { name: 'Änderungen speichern', exact: true });
+    await save.click();
+    await expect(page.locator('.setup-view:not([hidden]) .settings-save-actions')).toContainText('Deine Änderungen bleiben erhalten');
+    await expect(page.getByRole('radio', { name: 'Erhaltene Spenden', exact: true })).toBeChecked();
+    await expect(save).toBeEnabled();
+    expect(donationMode).toBe('expected');
+    fail = false;
+    await save.click();
+    await expect(save).toBeDisabled();
+    expect(donationMode).toBe('received');
+});

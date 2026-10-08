@@ -1,10 +1,12 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/router';
-import { getNextId, API_ENDPOINTS } from '../utils/constants';
+import LiveFilterMenu from '../components/LiveFilterMenu';
+import { groupClassesByGrade } from '../utils/classFilterGroups';
+import { API_ENDPOINTS } from '../utils/constants';
 import { useApi } from '../hooks/useApi';
 import { useGlobalError } from '../contexts/ErrorContext';
-import { useSortableTable } from '../hooks/useSortableTable';
-import { useSearch } from '../hooks/useSearch';
+import { useStudentDirectory } from '../hooks/useStudentDirectory';
+import { useRoundHistory } from '../hooks/useRoundHistory';
 import EditStudentDialog from '../components/dialogs/manage/EditStudentDialog';
 import AddReplacementDialog from '../components/dialogs/manage/AddReplacementDialog';
 import { normalizeReplacementId } from '../utils/studentId';
@@ -14,7 +16,6 @@ import ConfirmDeleteDialog from '../components/dialogs/manage/ConfirmDeleteDialo
 
 export default function Manage() {
   const router = useRouter();
-  const [students, setStudents] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [editForm, setEditForm] = useState({ vorname: '', nachname: '', klasse: '', geschlecht: 'männlich' });
   const [newStudent, setNewStudent] = useState({
@@ -31,101 +32,56 @@ export default function Manage() {
   const [newReplacement, setNewReplacement] = useState('');
   const [message, setMessage] = useState('');
   const [availableClasses, setAvailableClasses] = useState([]);
+  const [classStructure, setClassStructure] = useState({});
   const [classFilter, setClassFilter] = useState('all');
   const [roundFilter, setRoundFilter] = useState('all');
-  const [visibleCount, setVisibleCount] = useState(40);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortField, setSortField] = useState('id');
+  const [sortDirection, setSortDirection] = useState('asc');
+  const sortData = field => { setSortDirection(sortField === field && sortDirection === 'asc' ? 'desc' : 'asc'); setSortField(field); };
+  const directory = useStudentDirectory({ search: searchTerm, klasse: classFilter.startsWith('class:') ? classFilter.slice(6) : 'all', grade: classFilter.startsWith('grade:') ? classFilter.slice(6) : '', filter: roundFilter, sort: sortField, direction: sortDirection });
+  const { students, setStudents, hasMore: hasMoreStudents, loadMore, refresh: fetchStudents } = directory;
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const history = useRoundHistory(selectedStudent?.id, `${selectedStudent?.roundCount}:${selectedStudent?.roundVersion}`, historyOpen);
 
   const { request, loading } = useApi();
   const { showError, showSuccess } = useGlobalError();
-  const { sortField, sortDirection, sortData, sortedData } = useSortableTable(students, availableClasses);
-  const { searchTerm, setSearchTerm, filteredData } = useSearch(sortedData, ['id', 'vorname', 'nachname', 'klasse']);
 
+  const searchRef = useRef(null);
   const editStudentPopup = useRef(null);
   const addStudentPopup = useRef(null);
   const confirmDeletePopup = useRef(null);
   const addReplacementPopup = useRef(null);
-  const loadMoreRef = useRef(null);
   const openedStudentQueryRef = useRef(null);
 
   const fetchAvailableClasses = useCallback(async () => {
     try {
-      const data = await request(API_ENDPOINTS.CLASSES);
-      setAvailableClasses(data);
+      const [classes, structure] = await Promise.all([
+        request(API_ENDPOINTS.CLASSES, { cacheMs: 30000 }), request('/api/classStructure'),
+      ]);
+      setAvailableClasses(classes);
+      setClassStructure(structure);
     } catch (error) {
       showError(error, 'Beim Laden der verfügbaren Klassen');
     }
   }, [request, showError]);
 
-  const fetchStudents = useCallback(async () => {
-    try {
-      const data = await request(API_ENDPOINTS.STUDENTS);
-      setStudents(data);
-    } catch (error) {
-      showError(error, 'Beim Laden der Schülerdaten');
-    }
-  }, [request, showError]);
-
-  useEffect(() => {
-    fetchStudents();
-    fetchAvailableClasses();
-  }, [fetchStudents, fetchAvailableClasses]);
-
-  useEffect(() => {
-    setVisibleCount(40);
-  }, [searchTerm, classFilter, roundFilter]);
-  
-  const filteredStudents = useMemo(() => {
-    return filteredData.filter((student) => {
-      const matchesClass = classFilter === 'all' || student.klasse === classFilter;
-      const roundCount = student.timestamps.length;
-      const matchesRounds =
-        roundFilter === 'all'
-        || (roundFilter === 'with-rounds' && roundCount > 0)
-        || (roundFilter === 'no-rounds' && roundCount === 0)
-        || (roundFilter === 'with-replacements' && (student.replacements || []).length > 0);
-
-      return matchesClass && matchesRounds;
-    });
-  }, [classFilter, filteredData, roundFilter]);
-
-  const visibleStudents = useMemo(() => {
-    return filteredStudents.slice(0, visibleCount);
-  }, [filteredStudents, visibleCount]);
-
-  const hasMoreStudents = visibleCount < filteredStudents.length;
+  useEffect(() => { fetchAvailableClasses(); }, [fetchAvailableClasses]);
+  const visibleStudents = students;
+  const classGroups = groupClassesByGrade(availableClasses, classStructure).map(group => ({
+    label: group.label,
+    option: { value: `grade:${group.grade}`, label: group.label, shortLabel: 'Gesamte Stufe' },
+    options: group.classes.map(name => ({ value: `class:${name}`, label: `Klasse ${name}`, shortLabel: name })),
+  }));
 
   const activeFilterCount = [
     classFilter !== 'all',
     roundFilter !== 'all',
   ].filter(Boolean).length;
 
-  useEffect(() => {
-    const loadMoreElement = loadMoreRef.current;
-
-    if (!loadMoreElement || !hasMoreStudents) {
-      return undefined;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const [entry] = entries;
-
-        if (entry?.isIntersecting) {
-          setVisibleCount((currentCount) => Math.min(currentCount + 40, filteredStudents.length));
-        }
-      },
-      {
-        rootMargin: '300px 0px',
-      }
-    );
-
-    observer.observe(loadMoreElement);
-
-    return () => observer.disconnect();
-  }, [filteredStudents.length, hasMoreStudents]);
-
   const editStudentClick = useCallback((student) => {
     setSelectedStudent(student);
+    setHistoryOpen(false);
     setEditForm({
       vorname: student.vorname,
       nachname: student.nachname,
@@ -136,18 +92,16 @@ export default function Manage() {
   }, []);
 
   useEffect(() => {
-    if (!router.isReady || students.length === 0) return;
-
-    const rawStudentId = router.query.student;
-    const requestedStudentId = Array.isArray(rawStudentId) ? rawStudentId[0] : rawStudentId;
-    if (!requestedStudentId || openedStudentQueryRef.current === requestedStudentId) return;
-
-    const requestedStudent = students.find((student) => String(student.id) === requestedStudentId);
-    if (!requestedStudent) return;
-
-    openedStudentQueryRef.current = requestedStudentId;
-    editStudentClick(requestedStudent);
-  }, [editStudentClick, router.isReady, router.query.student, students]);
+    const requested = router.query.student;
+    if (!router.isReady || typeof requested !== 'string' || !/^\d+$/.test(requested) || openedStudentQueryRef.current === requested) return;
+    const existing = students.find(student => String(student.id) === requested);
+    if (existing) { openedStudentQueryRef.current = requested; editStudentClick(existing); return; }
+    let cancelled = false;
+    request(`/api/getAllStudents?view=student&id=${requested}`).then(student => {
+      if (!cancelled && student) { openedStudentQueryRef.current = requested; editStudentClick(student); }
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [editStudentClick, router.isReady, router.query.student, students, request]);
 
   const deleteTimestamp = useCallback(async (roundId) => {
     if (!selectedStudent) return;
@@ -159,24 +113,13 @@ export default function Manage() {
         errorContext: 'Beim Löschen der Runde'
       });
 
-      const removeRound = (student) => {
-        const rounds = (student.rounds || []).filter((round) => round.id !== roundId);
-        return {
-          ...student,
-          rounds,
-          timestamps: rounds.map((round) => round.timestamp),
-        };
-      };
-
-      setSelectedStudent((currentStudent) => removeRound(currentStudent));
-      setStudents((currentStudents) => currentStudents.map((student) => (
-        student.id === selectedStudent.id ? removeRound(student) : student
-      )));
+      setSelectedStudent(current => ({ ...current, roundCount: Math.max(0, current.roundCount - 1) }));
+      history.reload(); fetchStudents();
       showSuccess('Runde erfolgreich gelöscht');
     } catch (error) {
       // Fehler wird automatisch über useApi angezeigt.
     }
-  }, [request, selectedStudent, showSuccess]);
+  }, [request, selectedStudent, showSuccess, history, fetchStudents]);
 
   const addRound = useCallback(async (studentId) => {
     if (!selectedStudent || selectedStudent.id !== studentId) return;
@@ -193,26 +136,8 @@ export default function Manage() {
       });
 
       if (response?.success) {
-        const savedRound = response.round;
-        // Sofortige UI-Aktualisierung
-        setSelectedStudent(prev => ({
-          ...prev,
-          rounds: [savedRound, ...(prev.rounds || [])],
-          timestamps: [savedRound.timestamp, ...prev.timestamps]
-        }));
-
-        // Auch die Hauptliste aktualisieren
-        setStudents(prevStudents => 
-          prevStudents.map(student => 
-            student.id === studentId 
-              ? {
-                  ...student,
-                  rounds: [savedRound, ...(student.rounds || [])],
-                  timestamps: [savedRound.timestamp, ...student.timestamps]
-                }
-              : student
-          )
-        );
+        setSelectedStudent(prev => ({ ...prev, roundCount: response.student.roundCount }));
+        history.reload(); fetchStudents();
 
         showSuccess('Runde erfolgreich hinzugefügt');
         setMessage('');
@@ -221,7 +146,7 @@ export default function Manage() {
       showError(error, 'Beim Hinzufügen der Runde');
       setMessage('Fehler beim Hinzufügen der Runde');
     }
-  }, [selectedStudent, request, showError, showSuccess]);
+  }, [selectedStudent, request, showError, showSuccess, history, fetchStudents]);
 
   const addReplacementID = useCallback(async () => {
     if (!selectedStudent) return;
@@ -260,6 +185,7 @@ export default function Manage() {
           addReplacementPopup.current.close();
           setNewReplacement('');
           setMessage('');
+          if (roundFilter === 'with-replacements') fetchStudents();
         }
       } else {
         // Automatische Ersatz-ID erstellen
@@ -288,6 +214,7 @@ export default function Manage() {
           addReplacementPopup.current.close();
           setNewReplacement('');
           setMessage('');
+          if (roundFilter === 'with-replacements') fetchStudents();
         }
       }
     } catch (error) {
@@ -297,7 +224,7 @@ export default function Manage() {
         showError(error, 'Beim Erstellen der Ersatz-ID');
       }
     }
-  }, [request, selectedStudent, newReplacement, showError]);
+  }, [request, selectedStudent, newReplacement, showError, setStudents, roundFilter, fetchStudents]);
 
   const deleteReplacement = useCallback(async (replacementId) => {
     if (!selectedStudent) return;
@@ -320,11 +247,11 @@ export default function Manage() {
           ? { ...student, replacements: student.replacements.filter(id => id !== replacementId) }
           : student
       ));
-
+      if (roundFilter === 'with-replacements') fetchStudents();
     } catch (error) {
       showError(error, 'Beim Löschen der Ersatz-ID');
     }
-  }, [request, selectedStudent, showError]);
+  }, [request, selectedStudent, showError, setStudents, roundFilter, fetchStudents]);
 
   const editStudent = useCallback(async (e) => {
     e.preventDefault();
@@ -348,12 +275,13 @@ export default function Manage() {
         ));
         setSelectedStudent(updatedStudent);
         editStudentPopup.current?.close();
+        fetchStudents();
         showSuccess('Schüler erfolgreich gespeichert', 'Schüler bearbeiten');
       }
     } catch (error) {
       // Fehler wird automatisch über useApi gehandelt
     }
-  }, [request, selectedStudent, editForm, showSuccess]);
+  }, [request, selectedStudent, editForm, showSuccess, setStudents, fetchStudents]);
 
   const deleteStudent = useCallback(async () => {
     if (!selectedStudent) return;
@@ -363,15 +291,16 @@ export default function Manage() {
       setStudents(prev => prev.filter(student => student.id !== selectedStudent.id));
       setSelectedStudent(null);
       editStudentPopup.current?.close();
+      fetchStudents();
       showSuccess(`Schüler gelöscht. Sicherheitskopie: ${result.backupFilename}`, 'Schüler löschen');
     } catch (error) {
       showError(error, 'Beim Löschen des Schülers');
     }
-  }, [request, selectedStudent, showError, showSuccess]);
+  }, [request, selectedStudent, showError, showSuccess, fetchStudents, setStudents]);
 
   const addStudentClick = () => {
     setNewStudent({
-      id: getNextId(students).toString(),
+      id: String(directory.nextId),
       vorname: '',
       nachname: '',
       klasse: '',
@@ -410,11 +339,12 @@ export default function Manage() {
         spenden: null,
         spendenKonto: null
       });
+      fetchStudents();
       showSuccess('Schüler erfolgreich hinzugefügt', 'Schüler hinzufügen');
     } catch (error) {
       // Fehler wird automatisch über useApi gehandelt
     }
-  }, [request, newStudent, showSuccess]);
+  }, [request, newStudent, showSuccess, fetchStudents, setStudents]);
 
   const clearFilters = useCallback(() => {
     setClassFilter('all');
@@ -434,27 +364,30 @@ export default function Manage() {
       </div>
 
       <div className="student-list-toolbar ui-surface">
-        <label className="student-search-field" htmlFor="manage-search">
-          <span>Suchen</span>
-          <input id="manage-search" type="search" placeholder="Name, Klasse oder ID"
-            value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="form-control" />
-        </label>
-        <label className="manage-filter-field">
-          <span>Klasse</span>
-          <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)} className="form-select">
-            <option value="all">Alle Klassen</option>
-            {availableClasses.map((className) => <option key={className} value={className}>{className}</option>)}
-          </select>
-        </label>
-        <label className="manage-filter-field">
-          <span>Status</span>
-          <select value={roundFilter} onChange={(e) => setRoundFilter(e.target.value)} className="form-select">
-            <option value="all">Alle Schüler</option>
-            <option value="with-rounds">Mit Runden</option>
-            <option value="no-rounds">Ohne Runden</option>
-            <option value="with-replacements">Mit Ersatz-ID</option>
-          </select>
-        </label>
+        <div className="live-search">
+          <label className="sr-only" htmlFor="manage-search">Suchen</label>
+          <i className="fa-solid fa-magnifying-glass live-search-icon" aria-hidden="true" />
+          <input ref={searchRef} id="manage-search" type="search" placeholder="Schüler suchen · Name, Klasse oder ID"
+            value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="form-control"
+            maxLength={100} autoComplete="off" />
+          {searchTerm && <button type="button" className="live-search-clear" aria-label="Suche leeren"
+            onClick={() => { setSearchTerm(''); searchRef.current?.focus(); }}>
+            <i className="fa-solid fa-xmark" aria-hidden="true" />
+          </button>}
+        </div>
+        <div className="manage-filter-field manage-class-filter">
+          <LiveFilterMenu label="Klasse" icon="fa-users" value={classFilter} onChange={setClassFilter}
+            options={[{ value: 'all', label: 'Alle Klassen' }]} groups={classGroups} />
+        </div>
+        <div className="manage-filter-field manage-status-filter">
+          <LiveFilterMenu label="Status" icon="fa-list-check" value={roundFilter} onChange={setRoundFilter}
+            options={[
+              { value: 'all', label: 'Alle Schüler' },
+              { value: 'with-rounds', label: 'Mit Runden' },
+              { value: 'no-rounds', label: 'Ohne Runden' },
+              { value: 'with-replacements', label: 'Mit Ersatz-ID' },
+            ]} />
+        </div>
         {(activeFilterCount > 0 || searchTerm) && (
           <button type="button" className="btn btn-secondary student-filter-reset" onClick={() => { clearFilters(); setSearchTerm(''); }}>Zurücksetzen</button>
         )}
@@ -463,7 +396,7 @@ export default function Manage() {
           <select className="form-select" value={sortField} onChange={(e) => sortData(e.target.value)}>
             <option value="id">ID</option><option value="klasse">Klasse</option>
             <option value="vorname">Vorname</option><option value="nachname">Nachname</option>
-            <option value="geschlecht">Geschlecht</option><option value="timestamps">Runden</option>
+            <option value="geschlecht">Geschlecht</option><option value="roundCount">Runden</option>
           </select>
         </label>
         <button type="button" className="btn btn-secondary student-mobile-sort-direction" onClick={() => sortData(sortField)}>
@@ -471,11 +404,12 @@ export default function Manage() {
           {sortDirection === 'asc' ? 'Aufsteigend' : 'Absteigend'}
         </button>
         <div className="student-list-count" role="status">
-          <strong>{filteredStudents.length}</strong> von {students.length} Schülern
+          <strong>{directory.filtered}</strong> von {directory.total} Schülern
         </div>
       </div>
 
-      {loading && students.length === 0 ? <div className="message message-info">Schülerdaten werden geladen...</div> : null}
+      {directory.error && <p role="alert">{directory.error} <button type="button" onClick={fetchStudents}>Erneut versuchen</button></p>}
+      {directory.loading && students.length === 0 ? <div className="message message-info">Schülerdaten werden geladen...</div> : null}
 
       <div className="table-responsive student-directory">
         <table className="table">
@@ -497,8 +431,8 @@ export default function Manage() {
               <th aria-sort={sortField === 'geschlecht' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
                 <button type="button" className={`table-sort-button sortable ${sortField === 'geschlecht' ? sortDirection : ''}`} onClick={() => sortData('geschlecht')}>Geschlecht</button>
               </th>
-              <th aria-sort={sortField === 'timestamps' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
-                <button type="button" className={`table-sort-button sortable ${sortField === 'timestamps' ? sortDirection : ''}`} onClick={() => sortData('timestamps')}>Runden</button>
+              <th aria-sort={sortField === 'roundCount' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                <button type="button" className={`table-sort-button sortable ${sortField === 'roundCount' ? sortDirection : ''}`} onClick={() => sortData('roundCount')}>Runden</button>
               </th>
               <th>Aktion</th>
             </tr>
@@ -511,7 +445,7 @@ export default function Manage() {
                 <td className="student-name-cell">{student.vorname}</td>
                 <td className="student-name-cell">{student.nachname}</td>
                 <td>{student.geschlecht || 'Nicht angegeben'}</td>
-                <td><span className="student-round-count">{student.timestamps.length}</span><span className="student-mobile-round-label"> Runden</span></td>
+                <td><span className="student-round-count">{student.roundCount || 0}</span><span className="student-mobile-round-label"> Runden</span></td>
                 <td>
                   <button type="button" className="btn btn-secondary btn-sm" aria-label={`${student.vorname} ${student.nachname} bearbeiten`} onClick={() => editStudentClick(student)}><i className="fa-solid fa-pen" aria-hidden="true" /> Bearbeiten</button>
                 </td>
@@ -521,21 +455,27 @@ export default function Manage() {
         </table>
       </div>
 
-      {!loading && filteredStudents.length === 0 ? <div className="empty-state">Keine Schüler für die aktuellen Filter gefunden.</div> : null}
+      {!directory.loading && directory.filtered === 0 ? <div className="empty-state">Keine Schüler für die aktuellen Filter gefunden.</div> : null}
 
-      {filteredStudents.length > 0 ? (
-        <div className="manage-infinite-status" ref={loadMoreRef}>
-          {hasMoreStudents ? (
-            <button type="button" className="btn btn-secondary" onClick={() => setVisibleCount((count) => count + 40)}>Weitere Schüler anzeigen</button>
-          ) : (
-            <span>Alle {filteredStudents.length} Schüler sind geladen.</span>
-          )}
+      {directory.filtered > 0 ? (
+        <div className="live-load-more manage-pagination" role="group" aria-label="Weitere Schüler" aria-busy={directory.loading}>
+          <span role="status">{directory.loading ? 'Lade Schüler…'
+            : hasMoreStudents ? `${students.length} von ${directory.filtered} Schülern geladen`
+              : `Alle ${directory.filtered} Schüler geladen`}</span>
+          {hasMoreStudents && <button type="button" disabled={directory.loading} onClick={loadMore}>
+            <i className="fa-solid fa-plus" aria-hidden="true" /> {directory.loading ? 'Lade Schüler…' : '200 weitere laden'}
+          </button>}
         </div>
       ) : null}
 
       <EditStudentDialog
         dialogRef={editStudentPopup}
-        selectedStudent={selectedStudent}
+        selectedStudent={selectedStudent ? { ...selectedStudent, rounds: history.rounds } : null}
+        historyOpen={historyOpen}
+        setHistoryOpen={setHistoryOpen}
+        historyLoading={history.loading}
+        historyError={history.error}
+        reloadHistory={history.reload}
         editForm={editForm}
         setEditForm={setEditForm}
         availableClasses={availableClasses}

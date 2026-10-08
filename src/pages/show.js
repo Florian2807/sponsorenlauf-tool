@@ -5,11 +5,14 @@ import { useApi } from '../hooks/useApi';
 import { useGlobalError } from '../contexts/ErrorContext';
 import { cleanScannedStudentId } from '../utils/studentId';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
+import { useRoundHistory } from '../hooks/useRoundHistory';
 
 export default function Show() {
   const [id, setID] = useState('');
   const [currentTimestamp, setCurrentTimestamp] = useState(null);
   const [studentInfo, setStudentInfo] = useState(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const history = useRoundHistory(studentInfo?.id, `${studentInfo?.roundCount}:${studentInfo?.roundVersion}`, historyOpen);
 
   const { request, loading } = useApi();
   const { showError, showSuccess } = useGlobalError();
@@ -30,10 +33,11 @@ export default function Show() {
     if (!cleanedId || loading) return;
 
     try {
-      const data = await request(`/api/students/${cleanedId}`, {
+      const data = await request(`/api/students/${cleanedId}?summary=1`, {
         errorContext: 'Beim Laden der Schülerdaten'
       });
       setStudentInfo(data);
+      setHistoryOpen(false);
       setCurrentTimestamp(new Date());
       setID('');
     } catch (error) {
@@ -52,20 +56,20 @@ export default function Show() {
         errorContext: 'Beim Löschen des Zeitstempels'
       });
       setStudentInfo((currentStudent) => {
-        const rounds = currentStudent.rounds.filter((round) => round.id !== roundId);
         return {
           ...currentStudent,
-          rounds,
-          timestamps: rounds.map((round) => round.timestamp),
+          roundCount: Math.max(0, currentStudent.roundCount - 1),
+          lastTimestamp: history.rounds.find(round => round.id !== roundId)?.timestamp || null,
         };
       });
+      history.reload();
       showSuccess('Zeitstempel erfolgreich gelöscht', 'Zeitstempel löschen');
     } catch (error) {
       // Fehler wird automatisch über useApi gehandelt
     }
-  }, [request, showSuccess, studentInfo]);
+  }, [request, showSuccess, studentInfo, history]);
 
-  const rounds = (studentInfo?.rounds || []).slice().sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  const rounds = history.rounds.slice().sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
   return (
     <div className="app-page show-page">
@@ -101,13 +105,17 @@ export default function Show() {
             )}
           </div>
           <div className="student-profile-facts">
-            <div><span>Gelaufene Runden</span><strong>{rounds.length}</strong></div>
-            <div><span>Letzter Scan</span><strong>{rounds[0] ? new Date(rounds[0].timestamp).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + ' Uhr' : 'Noch kein Scan'}</strong></div>
+            <div><span>Gelaufene Runden</span><strong>{studentInfo.roundCount}</strong></div>
+            <div><span>Letzter Scan</span><strong>{studentInfo.lastTimestamp ? new Date(studentInfo.lastTimestamp).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + ' Uhr' : 'Noch kein Scan'}</strong></div>
             <div><span>Geschlecht</span><strong>{studentInfo.geschlecht || 'Nicht angegeben'}</strong></div>
           </div>
-          <section className="student-rounds-section">
-            <div className="student-section-heading"><h3>Rundenverlauf</h3><span>Neueste zuerst</span></div>
-            {rounds.length ? (
+          <details className="student-rounds-section" open={historyOpen} onToggle={event => setHistoryOpen(event.currentTarget.open)}>
+            <summary>
+              <i className="fa-solid fa-chevron-right student-rounds-chevron" aria-hidden="true" />
+              <span className="student-rounds-title">Rundenverlauf</span>
+              <span className="student-rounds-count">{studentInfo.roundCount} {studentInfo.roundCount === 1 ? 'Runde' : 'Runden'}</span>
+            </summary>
+            {history.loading ? <p role="status">Rundenverlauf wird geladen…</p> : history.error ? <p role="alert">{history.error} <button type="button" className="btn btn-secondary btn-sm" onClick={history.reload}>Erneut versuchen</button></p> : rounds.length ? (
               <ol className="timestamp-list student-rounds-list">
                 {rounds.map((round, index) => {
                   const timestamp = round.timestamp;
@@ -121,21 +129,21 @@ export default function Show() {
                         <span>{timeAgo(currentTimestamp, new Date(timestamp))}{timeDifference ? ` · Abstand: ${timeDifference}` : ''}</span>
                       </div>
                       {authenticated && (
-                        <button type="button" className="btn btn-danger btn-sm" aria-label={`Runde ${rounds.length - index} löschen`}
-                          onClick={() => handleDeleteTimestamp(round.id)} disabled={loading}>Löschen</button>
+                      <button type="button" className="btn btn-danger btn-sm" aria-label={`Runde ${rounds.length - index} löschen`}
+                        onClick={() => handleDeleteTimestamp(round.id)} disabled={loading}>Löschen</button>
                       )}
                     </li>
                   );
                 })}
               </ol>
             ) : <p className="student-empty-copy">Für diesen Schüler wurden noch keine Runden erfasst.</p>}
-          </section>
+          </details>
         </div>
       ) : (
         <div className="student-lookup-empty ui-surface">
           <span className="ui-icon" aria-hidden="true"><i className="fa-solid fa-address-card" /></span>
           <h2>Wen möchtest du anzeigen?</h2>
-          <p>Scanne die Laufkarte oder gib die Schüler-ID ein.</p>
+          <p>Scanne den Barcode oder gib die Schüler-ID ein.</p>
         </div>
       )}
     </div>

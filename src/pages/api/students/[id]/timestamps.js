@@ -29,9 +29,8 @@ export default async function handler(req, res) {
     }
 
     const rounds = await getRoundRecordsByStudentId(studentId);
-    const timestamps = rounds.map((round) => round.timestamp);
 
-    return handleSuccess(res, { rounds, timestamps }, 'Timestamps erfolgreich geladen');
+    return handleSuccess(res, { rounds }, 'Rundenverlauf erfolgreich geladen');
   } catch (error) {
     return handleError(res, error, 500, 'Fehler beim Laden der Timestamps');
   }

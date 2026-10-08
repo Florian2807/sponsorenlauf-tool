@@ -173,12 +173,12 @@ test('Scan-Navigation und Einführung funktionieren mit Enter, Tab und Escape', 
 test('Schülerfilter, Bearbeiten mit Enter und Schülerprofil funktionieren zusammen', async ({ page }, testInfo) => {
     await unlock(page);
     await page.goto('/manage');
-    await expect(page.getByRole('combobox', { name: 'Klasse', exact: true })).toBeVisible();
-    await page.getByRole('combobox', { name: 'Klasse', exact: true }).selectOption('5a');
+    await page.getByRole('button', { name: 'Klasse: Alle Klassen', exact: true }).click();
+    await page.getByRole('menuitemradio', { name: 'Klasse 5a', exact: true }).click();
     await page.getByRole('searchbox', { name: 'Suchen', exact: true }).fill('  Erika Mustermann  ');
     await expect(page.locator('.student-directory tbody tr')).toHaveCount(1);
     const resetBounds = await page.getByRole('button', { name: 'Zurücksetzen', exact: true }).boundingBox();
-    const classBounds = await page.getByRole('combobox', { name: 'Klasse', exact: true }).boundingBox();
+    const classBounds = await page.getByRole('button', { name: 'Klasse: Klasse 5a', exact: true }).boundingBox();
     expect(Math.abs(resetBounds.y - classBounds.y)).toBeLessThan(1);
     expect(Math.abs(resetBounds.height - classBounds.height)).toBeLessThan(1);
     await page.getByRole('button', { name: 'Erika Mustermann bearbeiten', exact: true }).click();

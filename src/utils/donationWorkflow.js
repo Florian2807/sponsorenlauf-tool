@@ -34,7 +34,7 @@ export const shiftCurrencyInput = (currentValue, key, replace = false) => {
 
 export const getStudentPaymentState = (student) => {
     const expected = roundMoney(student?.spenden ?? 0);
-    const received = roundMoney((student?.spendenKonto || []).reduce((sum, value) => sum + Number(value || 0), 0));
+    const received = roundMoney(student?.receivedTotal ?? (student?.spendenKonto || []).reduce((sum, value) => sum + Number(value || 0), 0));
     const remaining = roundMoney(expected - received);
 
     if (expected === 0 && received === 0) {

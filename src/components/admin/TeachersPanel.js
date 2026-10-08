@@ -40,6 +40,7 @@ export default function TeachersPanel({ embedded = false, active = true }) {
     const fetchAvailableClasses = useCallback(async () => {
         try {
             const data = await request(API_ENDPOINTS.CLASS_STRUCTURE, {
+                cacheMs: 30000,
                 errorContext: 'Beim Laden der Klassenstruktur'
             });
             const classes = Object.values(data).flat();

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { readMaintenanceStatus } from '../utils/clientRequests';
 import useNotificationPopover from './NotificationPopover';
 
 const STORAGE_KEY = 'sponsorenlauf-maintenance-progress';
@@ -55,12 +56,7 @@ export default function MaintenanceProgress() {
         let timer;
         const poll = async () => {
             try {
-                const response = await fetch('/api/systemMaintenance?summary=1', {
-                    cache: 'no-store',
-                    signal: AbortSignal.timeout(5000),
-                });
-                if (!response.ok) throw new Error('Status nicht erreichbar');
-                const { data: status } = await response.json();
+                const status = await readMaintenanceStatus();
                 if (cancelled) return;
                 setConnectionLost(false);
                 if (status.requestId && (status.requestId === requestId || !requestId && status.action === action)) {

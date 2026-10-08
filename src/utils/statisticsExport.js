@@ -310,12 +310,6 @@ const drawSectionTitle = (doc, title, y) => {
     return doc.y + 8;
 };
 
-const drawKeyValueRow = (doc, label, value, y, width = 240) => {
-    doc.font('Helvetica').fontSize(10).fillColor('#6b7280').text(label, 50, y, { width });
-    doc.font('Helvetica-Bold').fontSize(12).fillColor('#111827').text(value, 50, y + 12, { width });
-    return y + 40;
-};
-
 const drawSimpleTable = (doc, title, headers, rows, y) => {
     y = ensureSpace(doc, y, 80);
     y = drawSectionTitle(doc, title, y);

@@ -4,7 +4,7 @@
 
 import { dbAll, dbRun } from './database.js';
 import { getSetting, setSetting } from './settingsService.js';
-import { matchClassName, tokenizeClassName } from './importHelpers.js';
+import { matchClassName } from './importHelpers.js';
 
 export const sanitizeClassName = (className) => {
     const trimmedClassName = String(className || '').trim();
@@ -23,9 +23,6 @@ export const sanitizeClassName = (className) => {
     return `${parseInt(numericPart, 10)}${suffix}`;
 };
 
-export const normalizeClassNameForComparison = (className) => {
-    return JSON.stringify(tokenizeClassName(className));
-};
 
 export const resolveCanonicalClassName = (className, availableClasses = []) => {
     const trimmedClassName = String(className || '').trim();
@@ -129,32 +126,6 @@ export const updateClassStructure = async (availableClasses) => {
     }
 };
 
-/**
- * Validiert, ob alle Klassennamen in der verfügbaren Struktur existieren
- * @param {Array<string>} classNames Zu validierende Klassennamen
- * @returns {Promise<Object>} Validierungsergebnis
- */
-export const validateClassNames = async (classNames) => {
-    if (!classNames || classNames.length === 0) {
-        return { valid: true, errors: [] };
-    }
-
-    const availableClasses = await getAvailableClasses();
-    const errors = [];
-
-    classNames.forEach(className => {
-        const resolvedClassName = resolveCanonicalClassName(className, availableClasses);
-
-        if (!availableClasses.includes(resolvedClassName)) {
-            errors.push(`Ungültige Klasse: ${className}`);
-        }
-    });
-
-    return {
-        valid: errors.length === 0,
-        errors
-    };
-};
 
 export const syncClassesToDatabase = async (structure = null) => {
     const classStructure = structure || await getClassStructure();

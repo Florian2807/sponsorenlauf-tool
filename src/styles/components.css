@@ -2805,16 +2805,6 @@ button.method-option {
   color: var(--text-color);
 }
 
-.manage-infinite-status {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-  margin-top: 1rem;
-  color: var(--text-muted);
-  font-size: var(--font-size-sm);
-}
-
 .manage-dialog-stack {
   display: grid;
   gap: 1rem;

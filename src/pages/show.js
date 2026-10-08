@@ -6,6 +6,7 @@ import { useGlobalError } from '../contexts/ErrorContext';
 import { cleanScannedStudentId } from '../utils/studentId';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
 import { useRoundHistory } from '../hooks/useRoundHistory';
+import { createClientId } from '../utils/clientId';
 
 export default function Show() {
   const [id, setID] = useState('');
@@ -69,6 +70,22 @@ export default function Show() {
     }
   }, [request, showSuccess, studentInfo, history]);
 
+  const addRound = async () => {
+    if (!studentInfo || loading) return;
+    try {
+      const result = await request('/api/runden', {
+        method: 'POST',
+        data: { id: studentInfo.id, scanId: createClientId('manual'), confirmDoubleScan: true },
+        errorContext: 'Beim Hinzufügen der Runde',
+      });
+      if (!result.success || !result.round?.id) return;
+      setStudentInfo(current => ({ ...current, roundCount: result.student.roundCount,
+        roundVersion: result.round.id, lastTimestamp: result.round.timestamp }));
+      setCurrentTimestamp(new Date());
+      showSuccess('Runde erfolgreich hinzugefügt', 'Runden korrigieren');
+    } catch { /* useApi displays the request error. */ }
+  };
+
   const rounds = history.rounds.slice().sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
   return (
@@ -115,6 +132,11 @@ export default function Show() {
               <span className="student-rounds-title">Rundenverlauf</span>
               <span className="student-rounds-count">{studentInfo.roundCount} {studentInfo.roundCount === 1 ? 'Runde' : 'Runden'}</span>
             </summary>
+            <div className="student-rounds-actions">
+              <button type="button" className="btn btn-secondary btn-sm" onClick={addRound} disabled={loading}>
+                <i className="fa-solid fa-plus" aria-hidden="true" /> Runde hinzufügen
+              </button>
+            </div>
             {history.loading ? <p role="status">Rundenverlauf wird geladen…</p> : history.error ? <p role="alert">{history.error} <button type="button" className="btn btn-secondary btn-sm" onClick={history.reload}>Erneut versuchen</button></p> : rounds.length ? (
               <ol className="timestamp-list student-rounds-list">
                 {rounds.map((round, index) => {
@@ -128,10 +150,8 @@ export default function Show() {
                         <strong>{formatDate(new Date(timestamp))} Uhr</strong>
                         <span>{timeAgo(currentTimestamp, new Date(timestamp))}{timeDifference ? ` · Abstand: ${timeDifference}` : ''}</span>
                       </div>
-                      {authenticated && (
                       <button type="button" className="btn btn-danger btn-sm" aria-label={`Runde ${rounds.length - index} löschen`}
                         onClick={() => handleDeleteTimestamp(round.id)} disabled={loading}>Löschen</button>
-                      )}
                     </li>
                   );
                 })}

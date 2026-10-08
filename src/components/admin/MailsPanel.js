@@ -93,8 +93,8 @@ const useConnectivity = (active) => {
     useEffect(() => {
         if (!active) return undefined;
         checkConnectivity();
-        const interval = setInterval(checkConnectivity, 30000);
-        return () => clearInterval(interval);
+        // Retry explicitly with the existing connectivity button; no background SMTP probes.
+        return undefined;
     }, [checkConnectivity, active]);
 
     return { isConnected, isChecking, checkConnectivity };

@@ -1,5 +1,6 @@
 import { handleMethodNotAllowed, handleError, handleSuccess } from '../../utils/apiHelpers.js';
 import { getStatisticsPayload } from '../../utils/statisticsService.js';
+import { packStatistics } from '../../utils/statisticsProtocol.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -8,7 +9,7 @@ export default async function handler(req, res) {
 
   try {
     const { statistics } = await getStatisticsPayload();
-    return handleSuccess(res, statistics, 'Statistiken erfolgreich berechnet');
+    return handleSuccess(res, packStatistics(statistics), 'Statistiken erfolgreich berechnet');
   } catch (error) {
     return handleError(res, error, 500, 'Fehler beim Berechnen der Statistiken');
   }

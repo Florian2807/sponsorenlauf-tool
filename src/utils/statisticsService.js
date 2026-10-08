@@ -23,8 +23,8 @@ export const getDonationDisplayMode = async () => {
     return await getSetting('donation_display_mode', 'expected');
 };
 
-export const loadStudentsForStatistics = async () => {
-    const donationMode = await getDonationDisplayMode();
+export const loadStudentsForStatistics = async (donations = true, mode = null) => {
+    const donationMode = mode ?? await getDonationDisplayMode();
 
     const query = `
       SELECT
@@ -34,11 +34,11 @@ export const loadStudentsForStatistics = async () => {
         s.geschlecht,
         s.klasse,
         COUNT(r.id) as rounds,
-        COALESCE(ed.total_expected, 0) as expected_donations,
-        COALESCE(rd.total_received, 0) as received_donations
+        ${donations ? 'COALESCE(ed.total_expected, 0)' : '0'} as expected_donations,
+        ${donations ? 'COALESCE(rd.total_received, 0)' : '0'} as received_donations
       FROM students s
       LEFT JOIN rounds r ON s.id = r.student_id
-      LEFT JOIN (
+      ${donations ? `LEFT JOIN (
         SELECT student_id, SUM(amount) as total_expected 
         FROM expected_donations 
         GROUP BY student_id
@@ -47,8 +47,8 @@ export const loadStudentsForStatistics = async () => {
         SELECT student_id, SUM(amount) as total_received 
         FROM received_donations 
         GROUP BY student_id
-      ) rd ON s.id = rd.student_id
-      GROUP BY s.id, ed.total_expected, rd.total_received
+      ) rd ON s.id = rd.student_id` : ''}
+      GROUP BY s.id ${donations ? ', ed.total_expected, rd.total_received' : ''}
     `;
 
     const rows = await dbAll(query);
@@ -123,6 +123,9 @@ export const calculateStatistics = async (students, donationMode) => {
                     : 0,
                 activeStudents: classStats[klasse]?.activeStudents || 0,
                 totalStudents: classStats[klasse]?.studentCount || 0,
+                participationRate: classStats[klasse]?.studentCount
+                    ? (classStats[klasse].activeStudents / classStats[klasse].studentCount) * 100
+                    : 0,
             }))
             .sort((a, b) => b.totalRounds - a.totalRounds);
         return acc;
@@ -292,12 +295,12 @@ export const calculateStatistics = async (students, donationMode) => {
 };
 
 export const getStatisticsPayload = async () => {
-    const [students, donationMode, moduleConfig] = await Promise.all([
-        loadStudentsForStatistics(),
+    const [donationMode, moduleConfig] = await Promise.all([
         getDonationDisplayMode(),
         getModuleConfig(),
     ]);
 
+    const students = await loadStudentsForStatistics(moduleConfig.donations, donationMode);
     const statistics = await calculateStatistics(students, donationMode);
 
     return {

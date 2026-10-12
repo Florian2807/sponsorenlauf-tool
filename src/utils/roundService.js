@@ -43,16 +43,19 @@ export const recordRound = async ({
     doubleScanPrevention,
     scanId = null,
     sourceDeviceId = null,
-    now = new Date(),
+    now,
 }) => dbTransaction(async (db) => {
-    const timestamp = now.toISOString();
-    const nowMs = now.getTime();
-
     {
         // Scan identity first, then student: consistent lock order across processes.
         if (scanId) await db.query('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))', [scanId]);
         await db.query('SELECT id FROM students WHERE id = ? FOR UPDATE', [studentId]);
     }
+
+    // Sample server time after the lock so timestamps follow acceptance order,
+    // even when concurrent requests acquire the lock out of arrival order.
+    const scanTime = now ?? new Date();
+    const timestamp = scanTime.toISOString();
+    const nowMs = scanTime.getTime();
 
     if (scanId) {
         const existingScan = await dbGet(db, `

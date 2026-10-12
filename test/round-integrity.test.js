@@ -123,6 +123,43 @@ test('simultaneous laptops cannot both bypass double-scan prevention', async () 
   assert.equal((await get('SELECT COUNT(*) AS count FROM rounds WHERE student_id = 101')).count, 1);
 });
 
+test('server scan timestamps are captured after waiting for the student lock', async (t) => {
+  await createStudent(115);
+  const initialTime = new Date('2026-08-31T10:00:00.000Z').getTime();
+  t.mock.timers.enable({ apis: ['Date'], now: initialTime });
+  const pool = getPostgresPool();
+  const blocker = await pool.connect();
+  let pendingScan;
+  try {
+    await blocker.query('BEGIN');
+    await blocker.query('SELECT id FROM students WHERE id = 115 FOR UPDATE');
+    pendingScan = recordRound({ studentId: 115, scanId: 'scan_waiting_for_lock', doubleScanPrevention: prevention });
+    let waiting = false;
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      const result = await pool.query(`
+        SELECT 1 FROM pg_stat_activity
+        WHERE datname = current_database() AND wait_event_type = 'Lock'
+          AND query LIKE '%FROM students WHERE id = %FOR UPDATE%'
+      `);
+      if (result.rowCount > 0) { waiting = true; break; }
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+    assert.ok(waiting, 'scan must be waiting for the student lock');
+    t.mock.timers.tick(1000);
+    await blocker.query('COMMIT');
+    const result = await pendingScan;
+    assert.equal(result.round.timestamp, new Date(initialTime + 1000).toISOString());
+    const duplicate = await recordRound({ studentId: 115, scanId: 'scan_after_lock_wait', doubleScanPrevention: prevention });
+    assert.equal(duplicate.accepted, false);
+    assert.equal(duplicate.requiresConfirmation, true);
+    assert.equal((await get('SELECT COUNT(*) AS count FROM rounds WHERE student_id = 115')).count, 1);
+  } finally {
+    await blocker.query('ROLLBACK');
+    blocker.release();
+    await pendingScan?.catch(() => {});
+  }
+});
+
 test('six simultaneous stations can record different students', async () => {
   const studentIds = [201, 202, 203, 204, 205, 206];
   for (const studentId of studentIds) await createStudent(studentId);

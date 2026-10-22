@@ -293,6 +293,7 @@ test('Live-Panel filtert Laptops und Klassen, sucht Schüler und bearbeitet Rund
     await expect(feed.getByRole('button')).toHaveCount(1);
     await expect(feed.getByRole('button')).toHaveAttribute('aria-pressed', 'true');
     await page.getByRole('button', { name: 'Schüler bearbeiten', exact: true }).click();
+    await expect(editor).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(editor).not.toBeVisible();
     await expect(page.getByRole('button', { name: 'Schüler bearbeiten', exact: true })).toBeFocused();
